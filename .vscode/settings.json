@@ -1,0 +1,6 @@
+{
+    "python.analysis.extraPaths": [
+        "./MBUTYcap/lib",
+        "./MBUTYcap/newLib"
+    ]
+}
