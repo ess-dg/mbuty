@@ -87,11 +87,12 @@ def check_valid_data_stream(instr_ids_found: set, unknown_instr_ids: set) -> Non
     all_ids = instr_ids_found | unknown_instr_ids
 
     print('checking instrument IDs and data streams ... ', end='')
-    for iid in sorted(all_ids):
-        info = get_info(iid)
-        name = info['name'] if info is not None else f'Unknown(0x{iid:02x})'
-        print(f'\n---> found {name} (ID {iid})', end='')
-    print()
+    
+    # for iid in sorted(all_ids):
+    #     info = get_info(iid)
+    #     name = info['name'] if info is not None else f'Unknown(0x{iid:02x})'
+    #     print(f'\n---> found {name} (ID {iid})', end='')
+    # print()
 
     temp            = np.unique(np.array(list(all_ids), dtype='int64'))
     instr_ids_clean = temp[temp >= 0]

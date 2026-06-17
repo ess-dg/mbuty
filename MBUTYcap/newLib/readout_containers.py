@@ -2,6 +2,7 @@ import numpy as np
 import time
 from calibration import load_calibration_map, calibrate_adc_channels
 from colors import WARN, RESET
+import pandas as pd 
 
 class readouts():
     """
@@ -44,10 +45,22 @@ class readouts():
         had_slack = self.fill_count < len(self.matrix)
         self.matrix = self.matrix[:self.fill_count]
         return had_slack
-
-    def clean_and_sort(self) -> None:
+    
+    def get_data_frame(self) -> pd.DataFrame:
         """
-        Sort matrix by timeStamp and calculate duration.
+        Slices out the actively populated data rows and converts the structured 
+        NumPy matrix into a cleanly labeled Pandas DataFrame.
+        
+        Designed for instant, interactive spreadsheet visualization inside 
+        Spyder's Variable Explorer or terminal debugging sessions.
+        """
+        # Explicit Change: Slice exactly up to fill_count to avoid viewing trailing unpopulated rows
+        active_data = self.matrix[:self.fill_count]
+        return pd.DataFrame(active_data)
+
+    def clean_and_sort(self, parameters=None) -> None:
+        """
+        Sort matrix by timeStamp if enabled by configuration, and calculate duration.
         Subclasses that need to filter rows (e.g. VMM) override this method,
         perform their filtering first, then call super().clean_and_sort().
         The super call must come LAST so sort and duration run on the final
@@ -57,9 +70,13 @@ class readouts():
         if self.fill_count == 0:
             return
 
-        # Sort
-        idx = self.matrix['timeStamp'].argsort(kind='quicksort')
-        self.matrix = self.matrix[idx]
+        sort_enabled = getattr(parameters, 'sortByTimeStampsONOFF', False)
+        if sort_enabled:
+            print("Readouts are sorted by timestamp")
+            idx = self.matrix['timeStamp'].argsort(kind='quicksort')
+            self.matrix = self.matrix[idx]
+        else:
+            print("Readouts are NOT sorted by timestamp")
 
         # Calculate durations
         try:
@@ -76,15 +93,31 @@ class readouts():
         """No-op. Non-VMM containers have no calibration."""
         pass
     
-    def check_invalid_tofs(self, pulse_period_ns: int) -> int:
+    def check_invalid_tofs(self) -> tuple[int, int, int]:
         """
-        Returns count of readouts with timeStamp outside [0, pulse_period_ns].
-        Caller (MBUTY) is responsible for printing.
+        Evaluates readouts relative to Pulse Time and falls back to Previous Pulse Time 
+        to recover late arrivals. Returns a tuple of (num_readouts, counter_1, counter_2).
         """
-        if self.fill_count == 0:
-            return 0
-        mask = (self.matrix['timeStamp'] < 0) | (self.matrix['timeStamp'] > pulse_period_ns)
-        return int(np.sum(mask))
+        # Calculate and return raw counts to the reader for unified printing
+        num_readouts = self.fill_count
+        if num_readouts == 0:
+            return 0, 0, 0
+
+        active_matrix = self.matrix[:self.fill_count]
+
+        # Stage 1: Check baseline ToF relative to current Pulse Time
+        temp_tof     = active_matrix['timeStamp'] - active_matrix['pulseT']
+        invalid_mask = temp_tof < 0
+        counter_1    = int(np.sum(invalid_mask))
+        counter_2    = 0
+
+        # Stage 2: Attempt fallback correction against Previous Pulse Time
+        if counter_1 > 0:
+            temp_tof_2         = active_matrix['timeStamp'][invalid_mask] - active_matrix['prevPT'][invalid_mask]
+            invalid_mask_again = temp_tof_2 < 0
+            counter_2          = int(np.sum(invalid_mask_again))
+
+        return num_readouts, counter_1, counter_2
     
     @classmethod
     def merge(cls, container_list: list) -> 'readouts':
@@ -201,50 +234,59 @@ class readoutsVMMnormal(readoutsVMM):
             ('adc',     'int64'),
             ('bc',      'int64'),
             ('oth',     'int64'),
-            ('tdc',     'int64')
+            ('tdc',     'int64'),
+            ('timeCoarse', 'int64')
         ]
 
         super().__init__(size, hardware_fields)
 
-    def clean_and_sort(self) -> None:
+    def clean_and_sort(self, parameters=None) -> None:
         """
         Remove calibration rows (g0 == 1) and clustered rows (g0 == 2),
-        then delegate to base class for sort and duration.
-        This container holds normal-hit readouts (g0 == 0) only.
+        initialize fine time if selected, then delegate to base class for sort.
         """
         if self.fill_count == 0:
             return
 
-        # Stage 1 — calibrat ion rows (g0 == 1), always removed from both VMM containers
+        # Stage 1 — calibration rows (g0 == 1), always removed from both VMM containers
         self.remove_g0_rows(1, 'calibration latency mode')
 
         # Stage 2 — clustered rows (g0 == 2) do not belong in the normal container
         self.remove_g0_rows(2, 'clustered mode')
 
-        super().clean_and_sort()
+        # Conditional timestamp assignment based on selected time resolution type
+        time_resolution    = getattr(getattr(parameters, 'VMMsettings', None), 'timeResolutionType', 'coarse')
+        ns_per_clock_tick  = float(getattr(getattr(parameters, 'clockTicks', None), 'NSperClockTick', 11.35))
+
+        if time_resolution == 'fine':
+            self._calculate_fine_timestamp(ns_per_clock_tick, time_offset=0.0, time_slope=1.0)
+        else:
+            self.matrix['timeStamp'] = self.matrix['timeCoarse']
+
+        super().clean_and_sort(parameters)
         
     def calibrate(self, parameters, config: dict) -> None:
-        """
-        Main entry point to run calibration passes over the matrix.
-        Delegates checking flags and executing data updates to clean helper methods.
-        """
         if self.fill_count == 0:
             return
 
-        self._calibrate_adc(parameters, config)
-        self._calibrate_tdc(parameters)
-
-    def _calibrate_adc(self, parameters, config: dict) -> None:
-        """Evaluates ADC flags and applies per-channel linear calibrations to the matrix."""
         adc_calib_on = getattr(parameters, 'calibrateVMM_ADC_ONOFF', False)
-        if not adc_calib_on:
+        tdc_calib_on = getattr(parameters, 'calibrateVMM_TDC_ONOFF', False)
+
+        if not adc_calib_on and not tdc_calib_on:
             return
 
         calib_path = getattr(getattr(parameters, 'fileManagement', None), 'calibFilePath', '')
         calib_name = getattr(getattr(parameters, 'fileManagement', None), 'calibFileName', '')
-        calib_file = calib_path + calib_name
+        calib_map  = load_calibration_map(calib_path + calib_name, config)
 
-        calib_map = load_calibration_map(calib_file, config)
+        if adc_calib_on:
+            self._calibrate_adc(calib_map)
+        if tdc_calib_on:
+            self._calibrate_tdc(calib_map, parameters)
+            
+        
+    def _calibrate_adc(self, calib_map: dict) -> None:
+        """Applies per-channel linear ADC calibrations to the matrix using a pre-loaded calibration map."""
         if not calib_map:
             return
 
@@ -275,33 +317,31 @@ class readoutsVMMnormal(readoutsVMM):
                     slope_arr,
                 )
 
-    def _calibrate_tdc(self, parameters) -> None:
-        """Evaluates time resolution flags and parameters to determine calibration variables."""
-        time_res_type = getattr(getattr(parameters, 'VMMsettings', None), 'timeResolutionType', 'coarse')
-        tdc_calib_on  = getattr(parameters, 'calibrateVMM_TDC_ONOFF', False)
+    def _calibrate_tdc(self, calib_map: dict, parameters) -> None:
+        """Applies TDC fine-time correction across the full matrix in one vectorized pass."""
+        time_res_type     = getattr(getattr(parameters, 'VMMsettings', None), 'timeResolutionType', 'coarse')
+        ns_per_clock_tick = float(getattr(getattr(parameters, 'clockTicks', None), 'NSperClockTick', 11.35))
 
-        # Physicist's Rule: Run fine-time correction if fine mode is requested OR if calibration is explicitly on
-        if (time_res_type == 'fine') or tdc_calib_on:
-            if tdc_calib_on:
-                time_offset = getattr(parameters, 'time_offset', 0.0)
-                time_slope  = getattr(parameters, 'time_slope',  1.0)
-            else:
-                time_offset = 0.0
-                time_slope  = 1.0
+        if time_res_type != 'fine':
+            print(f'\t {WARN}WARNING: calibrateVMM_TDC_ONOFF is True but timeResolutionType is coarse → TDC calibration skipped.{RESET}')
+            return
 
-            self._calculate_fine_timestamp(parameters, time_offset, time_slope)
+        # TODO: once TDC calibration file schema is confirmed, replace this block with a
+        # gather pass that builds offset_lookup and slope_lookup arrays (one entry per matrix row)
+        # indexed by (ring, fen, hybrid, asic, channel) — identical pattern to _calibrate_adc.
+        # Then feed those arrays into _calculate_fine_timestamp for a single vectorized math pass.
+        # For now, constants are identity defaults so one whole-matrix call is correct and sufficient.
+        self._calculate_fine_timestamp(ns_per_clock_tick, time_offset=0.0, time_slope=1.0)
 
-    def _calculate_fine_timestamp(self, parameters, time_offset: float, time_slope: float) -> None:
-        """Executes the raw vectorized fine-time calculation block onto the master matrix view."""
-        from calibration import apply_tdc_fine_time
-        
-        apply_tdc_fine_time(
-            timestamp_view    = self.matrix['timeStamp'],
-            tdc_array         = self.matrix['tdc'],
-            ns_per_clock_tick = float(parameters.clockTicks.NSperClockTick),
-            time_offset       = float(time_offset),
-            time_slope        = float(time_slope)
-        )
+
+    def _calculate_fine_timestamp(self, ns_per_clock_tick: float, time_offset: float = 0.0, time_slope: float = 1.0, mask=None) -> None:
+        """Computes timeCoarse + tdc_ns and writes result into timeStamp. Optional mask for per-hybrid calibration passes."""
+        m           = mask if mask is not None else slice(None)
+        tdc_clipped = np.clip(self.matrix['tdc'][m], 0, 255).astype(np.float64)
+        tdc_ns      = np.round(
+            ((ns_per_clock_tick * 3.0) - (tdc_clipped * 60.0 / 255.0) - time_offset) * time_slope
+        ).astype(np.int64)
+        self.matrix['timeStamp'][m] = self.matrix['timeCoarse'][m] + tdc_ns
 
 
 class readoutsVMMclustered(readoutsVMM):
@@ -319,7 +359,7 @@ class readoutsVMMclustered(readoutsVMM):
 
         super().__init__(size, hardware_fields)
 
-    def clean_and_sort(self) -> None:
+    def clean_and_sort(self, parameters=None) -> None:
         """
         Remove calibration rows (g0 == 1) and normal-hit rows (g0 == 0),
         then delegate to base class for sort and duration.
@@ -334,7 +374,7 @@ class readoutsVMMclustered(readoutsVMM):
         # Stage 2 — normal-hit rows (g0 == 0) do not belong in the clustered container
         self.remove_g0_rows(0, 'normal hit mode')
 
-        super().clean_and_sort()
+        super().clean_and_sort(parameters)
 
 
 class readoutsR5560(readouts):

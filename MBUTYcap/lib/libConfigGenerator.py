@@ -17,63 +17,63 @@ import numpy as np
 
 # FOR MB
 # The helper function (renamed from a method)
-def _generateCassette2ElectronicsConfig(num_cassettes):
-    cassette_config = []
+def _generateTopologyMB(num_units):
+    unit_config = []
     ring = 0
     hybrid = 0
-    for i in range(num_cassettes):
-        cassette_config.append({
+    for i in range(num_units):
+        unit_config.append({
             "ID": i,
-            "Ring": ring,
-            "Fen": 0,
-            "Hybrid": hybrid
+            "ring": ring,
+            "fen": 0,
+            "hybrid": hybrid
         })
         hybrid += 1
         if hybrid >= 5:
             hybrid = 0
             ring += 1
-    return cassette_config
+    return unit_config
 
 
 # FOR MG
 # The helper function (renamed from a method)
-def _generateCassette2ElectronicsConfigMG(num_cassettes):
-    cassette_config = []
+def _generateTopologyMG(num_units):
+    unit_config = []
     ring    = 0
     hybridW = 0
-    hybridS = 1
-    for i in range(num_cassettes):
-        cassette_config.append({
+    hybridG = 1
+    for i in range(num_units):
+        unit_config.append({
             "ID": i,
-            "Ring": ring,
-            "Fen": 0,
-            "HybridW": hybridW,
-            "HybridS": hybridS
+            "ring": ring,
+            "fen": 0,
+            "hybridW": hybridW,
+            "hybridG": hybridG
         })
         hybridW += 2
-        hybridS += 2
-        if hybridS >= 4:
+        hybridG += 2
+        if hybridG >= 4:
             ring += 1
             hybridW = 0
-            hybridS = 1
+            hybridG = 1
             
-    return cassette_config
+    return unit_config
 
 
 
 # FOR SKADI
 # The helper function (renamed from a method)
-def _generateCassette2ElectronicsConfigSKADI(num_cassettes):
-    cassette_config = []
+def _generateTopologySKADI(num_units):
+    unit_config = []
     ring    = 0
     IP      = 0
     sysID      = 0
     rotation = 'normal'
-    for i in range(num_cassettes):
-        cassette_config.append({
+    for i in range(num_units):
+        unit_config.append({
             "ID": i,
-            "Ring": ring,
-            "Fen": 0,
+            "ring": ring,
+            "fen": 0,
             "IP": IP,
             "sysID": sysID,
             "rotation": rotation,
@@ -86,21 +86,21 @@ def _generateCassette2ElectronicsConfigSKADI(num_cassettes):
             
             
             
-    return cassette_config
+    return unit_config
 
 
 # FOR He3
 # The helper function (renamed from a method)
-def _generateCassette2ElectronicsConfigHe3(num_cassettes):
-    cassette_config = []
+def _generateTopologyHe3(num_units):
+    unit_config = []
     ring    = 0
     tube    = 0
-    for i in range(num_cassettes):
-        cassette_config.append({
+    for i in range(num_units):
+        unit_config.append({
             "ID": i,
-            "Ring": ring,
-            "Fen": 0,
-            "Tube": tube,
+            "ring": ring,
+            "fen": 0,
+            "tube": tube,
         })
         tube += 1
         if i >= 11 :
@@ -108,21 +108,21 @@ def _generateCassette2ElectronicsConfigHe3(num_cassettes):
         if  i == 11 :    
             tube = 0
      
-    return cassette_config
+    return unit_config
 
 
 ###############################################################################
 ###############################################################################
 
 # The main function to generate the config file
-def generateDefaultDetConfig(path, DetectorName, DetectorType, InstrumentName, cassettes, orientation='horizontal', operationMode="normal", overwrite=False):
+def generateDefaultDetConfig(path, detectorName, detectorType, instrumentName, num_units, orientation='horizontal', operationMode="normal", overwrite=False):
     """
     Generates a default detector configuration JSON file based on provided parameters.
 
     Args:
         path (str): The directory where the config file will be saved.
         Detector (str): The detector type (e.g., "BAM").
-        cassettes (int): The number of cassettes.
+        units (int): The number of units.
         orientation (str, optional): Detector orientation ("horizontal" or "vertical"). Defaults to 'horizontal'.
         operationMode (str, optional): Operational mode ("normal", "HighGain", "LowNoise"). Defaults to "normal".
 
@@ -131,126 +131,102 @@ def generateDefaultDetConfig(path, DetectorName, DetectorType, InstrumentName, c
     """
     
 
-    file_name = f"{DetectorName}.json"
+    file_name = f"{detectorName}.json"
     filePathName = os.path.join(path, file_name)
     # Check for existing file
     if os.path.exists(filePathName) and not overwrite:
         print(f"File already exists: {filePathName} — skipping write.")
         return None
     
+    # common monitor field
+    monitor = [
+        {"ID": 99, "hardwareType": "generic", "connectionType": "ring", "ring": 11, "channel": 0}
+    ]
     
-    if DetectorType == 'MB':
-            # Call the helper function
-            cassette2electronics_config = _generateCassette2ElectronicsConfig(cassettes)
+    # common fields 
+    data = {
+        "detectorName": detectorName,
+        "detectorType": detectorType,
+        "instrumentName": instrumentName,
+        "units": num_units,
+        "orientation": orientation,
+     }
+    
+    if detectorType == 'MB':
+        # Call the helper function
+        topology = _generateTopologyMB(num_units)
+        data.update({
+            "operationMode": operationMode,
+            "topology": topology,
+            "channelMapping": [{"wireASIC": 1, "stripASIC": 0}],
+            "wires": 32,
+            "strips": 64,
+            "wirePitch_mm": 4,
+            "stripPitch_mm": 4,
+            "bladesInclination_deg": 5.1,
+            "offset1stWires_mm": 10.5,
+            "monitor" : monitor,
+        })
         
-            data = {
-                "DetectorName": DetectorName,
-                "DetectorType": DetectorType,
-                "InstrumentName"  : InstrumentName,
-                "operationMode": operationMode,
-                "cassettes": cassettes,
-                "orientation": orientation,
-                "Cassette2ElectronicsConfig": cassette2electronics_config,
-                "ChannelMapping": [
-                    {"WireASIC": 1, "StripASIC": 0}
-                ],
-                "wires": 32,
-                "strips": 64,
-                "wirePitch_mm": 4,
-                "stripPitch_mm": 4,
-                "bladesInclination_deg": 5.1,
-                "offset1stWires_mm": 10.5,
-                "Monitor": [
-                    # {"ID": 99, "hardwareType": "GENERIC", "connectionType": "RING", "Ring": 11, "Fen": 0, "Hybrid": 0, "ASIC": 0, "Channel": 1}
-                    {"ID": 99, "hardwareType": "GENERIC", "connectionType": "RING", "Ring": 11, "Channel": 0}
-                ]
-            }
         
-            filePathName = makeFile(path,filePathName,data)
+        filePathName = makeFile(path,filePathName,data)
             
-    elif  DetectorType == 'MG':  
+    elif  detectorType == 'MG':  
         
         # Call the helper function
-        cassette2electronics_config = _generateCassette2ElectronicsConfigMG(cassettes)
-    
-        data = {
-            "DetectorName": DetectorName,
-            "DetectorType": DetectorType,
-            "InstrumentName"  : InstrumentName,
+        topology = _generateTopologyMG(num_units)
+        data.update({
             "operationMode": operationMode,
-            "cassettes": cassettes,
-            "orientation": orientation,
-            "Cassette2ElectronicsConfig": cassette2electronics_config,
+            "topology": topology,
             "wires": 120,
-            "strips": 12,
-            	"wirePitchX_mm" : 22,
-            	"wirePitchZ_mm" : 10,
-            	"stripPitchY_mm" : 25,
-            	"wiresPerRow" : 20,
-            	"angularOffset_deg" : 10,
-            	"linearOffset1stWires_mm" : 80,
-            "Monitor": [
-                # {"ID": 99, "hardwareType": "GENERIC", "connectionType": "RING", "Ring": 11, "Fen": 0, "Hybrid": 0, "ASIC": 0, "Channel": 1}
-                {"ID": 99, "hardwareType": "GENERIC", "connectionType": "RING", "Ring": 11, "Channel": 0}
-            ]
-        }
+            "grids": 12,
+            "wirePitchX_mm": 22,
+            "wirePitchZ_mm": 10,
+            "gridPitchY_mm": 25,
+            "wiresPerRow": 20,
+            "angularOffset_deg": 10,
+            "linearOffset1stWires_mm": 80,
+            "monitor" : monitor,
+        })
+        
     
         filePathName = makeFile(path,filePathName,data)
     
-    elif  DetectorType == 'SKADI':  
+    elif  detectorType == 'SKADI':  
         
         # Call the helper function
-        cassette2electronics_config = _generateCassette2ElectronicsConfigSKADI(cassettes)
-    
-        data = {
-            "DetectorName": DetectorName,
-            "DetectorType": DetectorType,
-            "InstrumentName"  : InstrumentName,
-            "operationMode": operationMode,
-            "cassettes": cassettes,
-            "orientation": orientation,
-            "Cassette2ElectronicsConfig": cassette2electronics_config,
+        topology = _generateTopologySKADI(num_units)
+        data.update({
+            "topology": topology,
             "Xpix": 16,
             "Ypix": 16,
-            	"PitchX_mm" : 4,
-            	"PitchY_mm" : 4,
-            	"tilesPerRow" : 20,
-            "Monitor": [
-                {"ID": 99, "hardwareType": "GENERIC", "connectionType": "RING", "Ring": 11, "Channel": 0}
-            ]
-        }
+            "PitchX_mm": 4,
+            "PitchY_mm": 4,
+            "tilesPerRow": 20,
+            "monitor" : monitor,
+        })
     
         filePathName = makeFile(path,filePathName,data)
         
     
-    elif  DetectorType == 'He3':  
+    elif  detectorType == 'He3':  
         
         # Call the helper function
-        cassette2electronics_config = _generateCassette2ElectronicsConfigHe3(cassettes)
+       topology = _generateTopologyHe3(num_units)
+       data.update({
+            "topology": topology,
+            "positionBins": 256,
+            "tubesPerRow": 8,
+            "tubeLength": 300,
+            "tubeSpacing": 10,
+            "monitor" : monitor,
+        })
     
-        data = {
-            "DetectorName": DetectorName,
-            "DetectorType": DetectorType,
-            "InstrumentName"  : InstrumentName,
-            "operationMode": operationMode,
-            "cassettes": cassettes,
-            "orientation": orientation,
-            "Cassette2ElectronicsConfig": cassette2electronics_config,
-            "positionBins" : 256,
-            # "wires":  256,
-            # "strips": 16,
-            "tubesPerRow" : 8,
-            "tubeLength" : 300,
-            "tubeSpacing" : 10,
-            "Monitor": [
-                {"ID": 99, "hardwareType": "GENERIC", "connectionType": "RING", "Ring": 11, "Channel": 0}
-            ]
-        }
-    
-        filePathName = makeFile(path,filePathName,data)
+       filePathName = makeFile(path,filePathName,data)
+       
     else:
         
-        print('\n \t \033[1;33mWARNING: Detector type {} not supported (only MB, MG and He3 accepted) --> exiting!\033[1;37m\n'.format(DetectorType))
+        print('\n \t \033[1;33mWARNING: Detector type {} not supported (only MB, MG and He3 accepted) --> exiting!\033[1;37m\n'.format(detectorType))
         time.sleep(2)
         sys.exit()
         
@@ -304,17 +280,31 @@ def checkIfExists(pathFile):
 ###############################################################################
 
 if __name__ == '__main__':
-    path = '/Users/francescopiscitelli/Documents/PYTHON/MBUTYcap/config/'
+    path = '/Users/francescopiscitelli/Documents/PYTHON/MBUTYcap copy 2/config/'
 
-    DetectorName = "MIRACLES2"
-    DetectorType = 'He3'
-    InstrumentName = 'MIRACLES'
+    detectorName = "AMOR26"
+    detectorType = 'MB'
+    instrumentName = 'AMOR'
+    
+    detectorName = "CSPEC26"
+    detectorType = 'He3'
+    instrumentName = 'CSPEC'
+    
+    # detectorName = "MIRACLES26"
+    # detectorType = 'He3'
+    # instrumentName = 'MIRACLES'
+    
+    detectorName = "TREX26"
+    detectorType = 'MG'
+    instrumentName = 'TREX'
+    
+    
     operationMode = 'normal'
-    cassettes = 24
-    orientation = 'vertical'
+    units = 14
+    orientation = 'horizontal'
 
     # Call the function directly
-    generated_file = generateDefaultDetConfig(path, DetectorName, DetectorType, InstrumentName, cassettes, orientation, operationMode, overwrite=True) # add overwrite=True to overwrite a file
+    generated_file = generateDefaultDetConfig(path, detectorName, detectorType, instrumentName, units, orientation, operationMode, overwrite=True) # add overwrite=True to overwrite a file
     print(f"Generated file path: {generated_file}")
 
     if generated_file and os.path.exists(generated_file):

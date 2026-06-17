@@ -212,6 +212,48 @@ def perform_deep_matrix_diff(old_container, new_container, runtime_mode, verbose
 
     return len(issues) == 0, issues
 
+import pandas as pd
+
+def extract_and_export_dataframes(pcap_filename, runtime_mode='normal'):
+    """
+    Ingests a file through both reader engines and exports two clean,
+    chronologically sorted Pandas DataFrames for immediate manual comparison.
+    """
+    pcap_path = os.path.join(DATA_DIR, pcap_filename)
+    if not os.path.exists(pcap_path):
+        raise FileNotFoundError(f"Target PCAP not found at: {pcap_path}")
+        
+    # Run the ingestion pipelines
+    old_container = run_old_reader(pcap_path, runtime_mode)
+    new_container = run_new_reader(pcap_path, runtime_mode)
+    
+    # 1. Rebuild the Old Matrix view from attributes
+    field_map = VMM_NORMAL_FIELD_MAP if runtime_mode == 'normal' else VMM_CLUSTERED_FIELD_MAP
+    old_dict = {}
+    for old_attr, _ in field_map:
+        old_array = getattr(old_container, old_attr, None)
+        if old_array is not None:
+            old_dict[old_attr] = old_array
+            
+    df_old = pd.DataFrame(old_dict)
+    if 'timeStamp' in df_old.columns:
+        df_old = df_old.sort_values(by='timeStamp').reset_index(drop=True)
+        
+    # 2. Extract the New Matrix view from the active preallocated block slice
+    new_count = new_container.fill_count
+    new_sliced_matrix = new_container.matrix[:new_count]
+    
+    # Map fields dynamically back to the old attribute layout for 1-to-1 labeling
+    new_dict = {}
+    for old_attr, new_field in field_map:
+        if new_field in new_sliced_matrix.dtype.names:
+            new_dict[old_attr] = new_sliced_matrix[new_field]
+            
+    df_new = pd.DataFrame(new_dict)
+    if 'timeStamp' in df_new.columns:
+        df_new = df_new.sort_values(by='timeStamp').reset_index(drop=True)
+        
+    return df_old, df_new
 
 def main():
     parser = argparse.ArgumentParser(description='MBUTY Aligned Data Matrix Regression')
@@ -262,3 +304,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+    
+    

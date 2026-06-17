@@ -26,7 +26,11 @@ class VMMCalibrationEntry:
     vmm0_slope: np.ndarray  = field(repr=False)  # ASIC 0: Per-channel ADC gains,   shape (64,)
     vmm1_offset: np.ndarray = field(repr=False)  # ASIC 1: Per-channel ADC offsets, shape (64,)
     vmm1_slope: np.ndarray  = field(repr=False)  # ASIC 1: Per-channel ADC gains,   shape (64,)
-
+    # TODO: populate from JSON once calibration file schema for TDC is confirmed
+    vmm0_tdc_offset: np.ndarray = field(repr=False)  # ASIC 0: Per-channel TDC offsets, shape (64,)
+    vmm0_tdc_slope: np.ndarray  = field(repr=False)  # ASIC 0: Per-channel TDC slopes,  shape (64,)
+    vmm1_tdc_offset: np.ndarray = field(repr=False)  # ASIC 1: Per-channel TDC offsets, shape (64,)
+    vmm1_tdc_slope: np.ndarray  = field(repr=False)  # ASIC 1: Per-channel TDC slopes,  shape (64,)
 
 # =============================================================================
 # 2. CALIBRATION FALLBACK & PARSING HELPERS
@@ -35,11 +39,15 @@ class VMMCalibrationEntry:
 def _default_entry(hybrid_id: str) -> VMMCalibrationEntry:
     """Return an identity-calibration entry (slope 1, offset 0) for a hybrid."""
     return VMMCalibrationEntry(
-        hybrid_id   = hybrid_id,
-        vmm0_offset = np.zeros(64, dtype=np.float64),  # Fills all 64 channels with baseline 0 offset
-        vmm0_slope  = np.ones(64,  dtype=np.float64),  # Fills all 64 channels with baseline 1 slope
-        vmm1_offset = np.zeros(64, dtype=np.float64),  # Fills all 64 channels with baseline 0 offset
-        vmm1_slope  = np.ones(64,  dtype=np.float64),  # Fills all 64 channels with baseline 1 slope
+        hybrid_id       = hybrid_id,
+        vmm0_offset     = np.zeros(64, dtype=np.float64),
+        vmm0_slope      = np.ones(64,  dtype=np.float64),
+        vmm1_offset     = np.zeros(64, dtype=np.float64),
+        vmm1_slope      = np.ones(64,  dtype=np.float64),
+        vmm0_tdc_offset = np.zeros(64, dtype=np.float64),
+        vmm0_tdc_slope  = np.ones(64,  dtype=np.float64),
+        vmm1_tdc_offset = np.zeros(64, dtype=np.float64),
+        vmm1_tdc_slope  = np.ones(64,  dtype=np.float64),
     )
 
 
@@ -69,7 +77,7 @@ def load_calibration_map(calib_file_path: str, config: dict) -> dict[tuple[int, 
     # -------------------------------------------------------------------------
     # Guard Pass: Only MB / MG detectors feature VMM ADC calibration arrays
     # -------------------------------------------------------------------------
-    det_type = config['DetectorType']
+    det_type = config['detectorType']
     if det_type not in ('MB', 'MG'):
         print(f'\t {ERR}WARNING: calibrations for detector type {det_type!r} are not supported → switch OFF calibration!{RESET}')
         sys.exit(1)
@@ -111,24 +119,29 @@ def load_calibration_map(calib_file_path: str, config: dict) -> dict[tuple[int, 
         vmm0 = block.get('vmm0', {})
         vmm1 = block.get('vmm1', {})
 
+        # TODO: replace tdc_offset/tdc_slope key names once calibration file schema is confirmed
         json_lookup[key] = VMMCalibrationEntry(
-            hybrid_id   = hybrid_id_text,
-            vmm0_offset = np.asarray(vmm0.get('adc_offset', np.zeros(64)), dtype=np.float64),
-            vmm0_slope  = np.asarray(vmm0.get('adc_slope',  np.ones(64)),  dtype=np.float64),
-            vmm1_offset = np.asarray(vmm1.get('adc_offset', np.zeros(64)), dtype=np.float64),
-            vmm1_slope  = np.asarray(vmm1.get('adc_slope',  np.ones(64)),  dtype=np.float64),
+            hybrid_id       = hybrid_id_text,
+            vmm0_offset     = np.asarray(vmm0.get('adc_offset', np.zeros(64)), dtype=np.float64),
+            vmm0_slope      = np.asarray(vmm0.get('adc_slope',  np.ones(64)),  dtype=np.float64),
+            vmm1_offset     = np.asarray(vmm1.get('adc_offset', np.zeros(64)), dtype=np.float64),
+            vmm1_slope      = np.asarray(vmm1.get('adc_slope',  np.ones(64)),  dtype=np.float64),
+            vmm0_tdc_offset = np.zeros(64, dtype=np.float64),
+            vmm0_tdc_slope  = np.ones(64,  dtype=np.float64),
+            vmm1_tdc_offset = np.zeros(64, dtype=np.float64),
+            vmm1_tdc_slope  = np.ones(64,  dtype=np.float64),
         )
 
     # -------------------------------------------------------------------------
     # Final Orchestration Map: Align strictly with configured cassettes
     # -------------------------------------------------------------------------
     final_map: dict[tuple[int, int, int], VMMCalibrationEntry] = {}
-    cassettes = config['Cassette2ElectronicsConfig']
+    cassettes = config['topology']
     
     for cassette in cassettes:
-        ring   = int(cassette['Ring'])
-        fen    = int(cassette['Fen'])
-        hybrid = int(cassette['Hybrid'])
+        ring   = int(cassette['ring'])
+        fen    = int(cassette['fen'])
+        hybrid = int(cassette['hybrid'])
         key    = (ring, fen, hybrid)
         
         if key in json_lookup:
@@ -160,14 +173,3 @@ def calibrate_adc_channels(adc_array: np.ndarray, channel_array: np.ndarray, off
 
 _pTAC_NS: float = 60.0   # Hardware Constant: TAC ramp duration in nanoseconds
 
-def apply_tdc_fine_time(timestamp_view: np.ndarray, tdc_array: np.ndarray, ns_per_clock_tick: float, time_offset: float = 0.0, time_slope: float = 1.0) -> None:
-    """Converts 8-bit fine-time TDC code to nanoseconds and adds to coarse timestamp view in place."""
-    tdc_clipped = np.clip(tdc_array, 0, 255).astype(np.float64)
-
-    # Converts raw ticks to fine nanosecond positions
-    tdc_ns = np.round(
-        ((ns_per_clock_tick * 3.0) - (tdc_clipped * _pTAC_NS / 255.0) - time_offset) * time_slope
-    ).astype(np.int64)
-
-    # View modification propagates back to master matrix chunk directly with zero allocation overhead
-    timestamp_view += tdc_ns

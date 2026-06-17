@@ -11,6 +11,7 @@ from instrument_registry import (
     get_readout_spec,
     check_valid_data_stream,
     print_info_data_stream,
+    match_data_stream_with_config,
 )
 from readout_containers import (
     readoutsVMMnormal,
@@ -69,10 +70,13 @@ class PcapngFileReader:
         parameters,
         config:     dict,
     ):
+        self._parameters         = parameters
         # ---- physics / timing -----------------------------------------------
         self.ns_per_clock_tick    = float(parameters.clockTicks.NSperClockTick)
         self.time_resolution_type = parameters.VMMsettings.timeResolutionType
         self.operation_mode       = config.get('operationMode', 'normal')
+        self.instrument_name       = config.get('instrumentName')
+        self.detector_type       = config.get('detectorType')
 
         # ---- beam-monitor routing — extracted from config -------------------
         _mon = config.get('Monitor', [{}])[0]
@@ -84,6 +88,7 @@ class PcapngFileReader:
         self.kafka_stream        = (parameters.acqMode == 'kafka')
         self.pcap_loading_method = parameters.fileManagement.pcapLoadingMethod
         # Valid values are 'allocate' (exact, full scan) and 'quick' (estimated, single-packet scan).
+
  
         # ---- ESS header geometry (resolved during scan, not hardcoded) ------
         # Populated by extract_common_ess_header() on the first valid packet.
@@ -108,10 +113,12 @@ class PcapngFileReader:
         self._prealloc_length            = 0
  
         # ---- instrument IDs seen during scan pass ---------------------------
-        # Populated by _scan_and_allocate(); exposed for application-layer calls
-        # to match_data_stream_with_config() and check_bm_type() in MBUTY.py.
         self.instr_ids_found:  set = set()
         self.unknown_instr_ids:  set = set()
+
+        # Dedicated list buffers to track file-wide firmware versions and network IP signatures across both modes
+        self._fw_versions_raw       = []
+        self._ip_tuples_raw         = []
 
         # ---- one-shot warning flags -----------------------------------------
         self._warned_bm = False  # BM data found in ring < 11
@@ -168,20 +175,21 @@ class PcapngFileReader:
           1. Scan file to resolve prealloc_length (row count only, no diagnostics)
           2. Allocate all containers to prealloc_length
           3. Read all packets — ingest data and accumulate diagnostic metadata
-          4. Trim containers to actual fill counts
-          5. Warnings and checks phase (FW, IP, time source, stream validation) 
+            - Once filled, trim containers to actual fill counts
+          4. Warnings and checks phase (FW, IP, time source, stream validation) 
             — all general diagnostics run here, after reading is complete
-          6. Sorting and cleaning the containers
-          7. Report instrument IDs found
+          5. Sorting and cleaning the containers
+          6. Report instrument IDs found
         """
         self._scan_and_allocate()
         self._allocate_all_containers(self._prealloc_length)
         self._read_packets()
+        self._report_instrument_ids()
         self._check_time_settings()
         self._run_warnings_and_checks()
         for c in self._all_containers():
-            c.clean_and_sort()
-        self._report_instrument_ids()
+            c.clean_and_sort(self._parameters)
+        
  
     # ------------------------------------------------------------------
     # Private: validation helpers
@@ -197,7 +205,7 @@ class PcapngFileReader:
             sys.exit()
  
     # ------------------------------------------------------------------
-    # Private: container allocation and trimming
+    # Private: container allocation
     # ------------------------------------------------------------------
  
     def _allocate_all_containers(self, size: int) -> None:
@@ -212,15 +220,6 @@ class PcapngFileReader:
         self.readouts_bm            = readoutsBM(size=size)
         self.readouts_ibm           = readoutsIBM(size=size)
         self.readouts_skadi         = readoutsSKADI(size=size)
- 
-    def _trim_all_containers(self) -> None:
-        """
-        Slice every container's matrix down to its actual fill_count.
-        Containers that received no data become zero-length arrays (not deleted).
-        Prints once if any container had unused rows.
-        """
-        if any(c.trim() for c in self._all_containers()):
-            print('removing extra allocated length not used ...')
  
     def _all_containers(self):
         """Convenience iterator over all six typed containers."""
@@ -260,7 +259,7 @@ class PcapngFileReader:
         Reads only the first valid ESS packet to resolve header sizes, then
         estimates from file size:
             prealloc_length = file_size / _single_readout_size
-        This overestimates; unused rows are trimmed by _trim_all_containers().
+        This overestimates; unused rows are trimmed after reading
         _counter_candidate_packets is also set to this estimate so the progress
         ticker in _read_packets() has a valid denominator; corrected post-read.
         """
@@ -296,9 +295,7 @@ class PcapngFileReader:
         max_ess_for_quick   = 1
         ess_packets_scanned = np.int64(0)
 
-        # Accumulate during scan for post-scan diagnostics
-        self._scan_fw_versions      = []
-        self._scan_ip_tuples        = []
+        # Track the fallback packet marker for time source checking
         self._scan_last_packet_data = None
         self._scan_last_index_ess   = None
 
@@ -318,12 +315,12 @@ class PcapngFileReader:
                         f'{self._counter_packets - self._counter_candidate_packets}'
                     )
                     continue
-
+                
+                self._counter_candidate_packets += 1
                 index_ess = self.locate_ess_cookie(packet_data)
                 if index_ess == -1:
                     continue
 
-                self._counter_candidate_packets += 1
                 ess_packets_scanned += np.int64(1)
 
                 # Resolve FW version and header size from the first ESS packet only.
@@ -331,14 +328,7 @@ class PcapngFileReader:
                     self._resolve_fw_version_and_header(packet_data, index_ess)
                     header_resolved = True
 
-                # Accumulate FW version and IP for all scan packets (or just first for quick)
-                fw_byte = int.from_bytes(packet_data[index_ess - 1 : index_ess], byteorder='little')
-                self._scan_fw_versions.append(np.int64(fw_byte))
-                try:
-                    self._process_network_layer(packet_data, index_ess, self._scan_ip_tuples)
-                except Exception:
-                    pass
-                # Always track the last packet seen for checkTimeSrc
+                # Track the last packet seen for checkTimeSrc
                 self._scan_last_packet_data = packet_data
                 self._scan_last_index_ess   = index_ess
 
@@ -527,6 +517,13 @@ class PcapngFileReader:
             # 3. Common ESS header decode
             # ------------------------------------------------------------------
             hdr = self.extract_common_ess_header(packet_data, index_ess)
+
+            # Accumulate telemetry parameters dynamically on every valid packet step during decoding
+            self._fw_versions_raw.append(np.int64(hdr['fw_version']))
+            try:
+                self._process_network_layer(packet_data, index_ess, self._ip_tuples_raw)
+            except Exception:
+                pass
 
             instr_id       = np.int64(hdr['instr_id'])
             pulse_t        = np.int64(hdr['pulse_time'])
@@ -727,9 +724,16 @@ class PcapngFileReader:
         )
 
         # Trim containers
-        if any(c.trim() for c in self._all_containers()):
-            print('removing extra allocated length not used ...', end='')
-
+        for c in self._all_containers():
+            c.trim()
+            
+        # Correct quick-mode overestimates now that real packet counts are known.
+        if self.pcap_loading_method == 'quick':
+            self._counter_candidate_packets = (
+                self._counter_valid_ess_packets + self._counter_non_ess_packets
+            )
+            self._counter_packets = self._counter_candidate_packets
+            
         print(
             f'\ndata loaded - found {self._total_readout_count} readouts - '
             f'Packets: all {self._counter_candidate_packets} --> '
@@ -737,13 +741,6 @@ class PcapngFileReader:
             f'(of which empty {self._counter_empty_ess_packets}), '
             f'nonESS {self._counter_non_ess_packets}'
         )
-
-        # Correct quick-mode overestimates now that real packet counts are known.
-        if self.pcap_loading_method == 'quick':
-            self._counter_candidate_packets = (
-                self._counter_valid_ess_packets + self._counter_non_ess_packets
-            )
-            self._counter_packets = self._counter_candidate_packets
 
         self.heartbeats_all  = np.array(_heartbeats_all_list,  dtype='int64')
         self.heartbeats_data = np.array(_heartbeats_data_list, dtype='int64')
@@ -778,9 +775,10 @@ class PcapngFileReader:
         diagnostics to run once all file data is completely loaded.
         """
         # 1. Firmware version consistency check
-        fw_versions_scan = np.array(self._scan_fw_versions, dtype='int64')
-        if len(fw_versions_scan) > 0:
-            self._check_fw_version_consistency(fw_versions_scan)
+        # Explicit Change: Check firmware consistency across the full file run
+        fw_versions_arr = np.array(self._fw_versions_raw, dtype='int64')
+        if len(fw_versions_arr) > 0:
+            self._check_fw_version_consistency(fw_versions_arr)
 
         # 2. Hardware time source flag decoding
         if self._scan_last_packet_data is not None:
@@ -788,11 +786,24 @@ class PcapngFileReader:
             self._check_time_src(ts_byte)
 
         # 3. Deduplicated IP and Port network map report
-        if not self.kafka_stream and self._scan_ip_tuples:
-            self._print_ip_report(self._scan_ip_tuples)
+        if not self.kafka_stream and self._ip_tuples_raw:
+            self._print_ip_report(self._ip_tuples_raw)
 
         # 4. Valid instrument stream verification lookup
         check_valid_data_stream(self.instr_ids_found, self.unknown_instr_ids)
+        
+        # 5. Match config parameters with actual data 
+        match_data_stream_with_config(self.instrument_name, self.detector_type, self.instr_ids_found)
+        
+        # 6. Heartbeat timing analysis print out
+        self._analyse_heartbeats()
+        
+        # 7. Global Time-of-Flight validation summary pass
+        self._check_invalid_tofs()
+        
+        # Flush internal telemetry accumulation collections to free memory overhead after validation finishes
+        self._fw_versions_raw.clear()
+        self._ip_tuples_raw.clear()
         
     # ------------------------------------------------------------------    
     # Step 2 — Layer 1: ESS cookie location
@@ -895,7 +906,7 @@ class PcapngFileReader:
                 f"Source: {conn['src_ip']}:{conn['src_port']} | "
                 f"Dest: {conn['dst_ip']}:{conn['dst_port']}"
             )
- 
+            print()
     # ------------------------------------------------------------------
     # Step 2 — Layer 2b: ESS common header decode
     # ------------------------------------------------------------------
@@ -966,27 +977,24 @@ class PcapngFileReader:
             int.from_bytes(packet_data[index_ess + 4 : index_ess + 6], byteorder='little')
         )
  
-        # ---- pulse timestamps with mandatory component-level rounding -------
-        # HIGH words are in whole seconds → convert to nanoseconds (× 1e9).
-        # LOW words are in clock ticks   → convert to nanoseconds (× ns_per_clock_tick). 
-        pulse_hi = np.float64(
-            int.from_bytes(packet_data[index_ess +  8 : index_ess + 12], byteorder='little')
-        ) * np.float64(1_000_000_000)
+        # ---- pulse timestamps using high-precision integer arithmetic -------
+        # HIGH words are in whole seconds -> convert straight to integer nanoseconds (x 1_000_000_000)
+        pulse_hi_sec = int.from_bytes(packet_data[index_ess + 8 : index_ess + 12], byteorder='little')
+        pulse_hi     = np.int64(pulse_hi_sec * 1_000_000_000)
  
-        pulse_lo = np.float64(
-            int.from_bytes(packet_data[index_ess + 12 : index_ess + 16], byteorder='little')
-        ) * np.float64(self.ns_per_clock_tick)
+        prev_hi_sec  = int.from_bytes(packet_data[index_ess + 16 : index_ess + 20], byteorder='little')
+        prev_hi      = np.int64(prev_hi_sec * 1_000_000_000)
  
-        prev_hi = np.float64(
-            int.from_bytes(packet_data[index_ess + 16 : index_ess + 20], byteorder='little')
-        ) * np.float64(1_000_000_000)
+        # LOW words are in clock ticks -> multiply by float scalar and round to integer immediately
+        pulse_lo_ticks = int.from_bytes(packet_data[index_ess + 12 : index_ess + 16], byteorder='little')
+        pulse_lo       = np.int64(round(pulse_lo_ticks * self.ns_per_clock_tick))
  
-        prev_lo = np.float64(
-            int.from_bytes(packet_data[index_ess + 20 : index_ess + 24], byteorder='little')
-        ) * np.float64(self.ns_per_clock_tick)
+        prev_lo_ticks  = int.from_bytes(packet_data[index_ess + 20 : index_ess + 24], byteorder='little')
+        prev_lo        = np.int64(round(prev_lo_ticks * self.ns_per_clock_tick))
  
-        pulse_time      = np.int64(round(pulse_hi)) + np.int64(round(pulse_lo))
-        prev_pulse_time = np.int64(round(prev_hi))  + np.int64(round(prev_lo))
+        # Combine components cleanly using pure integer addition
+        pulse_time      = pulse_hi + pulse_lo
+        prev_pulse_time = prev_hi + prev_lo
  
         # ---- data payload start index ---------------------------------------
         data_start_idx = np.int64(self._ess_header_size + (index_ess - 2))
@@ -1036,7 +1044,7 @@ class PcapngFileReader:
         Note: in 'quick' mode only one packet is scanned so only one version
         is ever seen; the mismatch branch will never fire in that mode.
         """
-        print('\nchecking RMM firmware version ', end='')
+        print('checking RMM firmware version ', end='')
         try:
             if np.any(fw_versions != fw_versions[0]):
                 print(
@@ -1091,7 +1099,102 @@ class PcapngFileReader:
             print(f'\n---> unknown instrument ID {iid} (0x{iid:02x})', end='')
 
         print('\n')
- 
+        
+        
+    def _analyse_heartbeats(self) -> None:
+        """
+        Internal metrics engine. Evaluates pulse timing deltas across both 
+        heartbeats_all (all packets) and heartbeats_data (non-empty data packets) timelines.
+        """
+        try:
+            # ---- Pass 1: Timing from all packets (including empty) -----------------------
+            try:
+                heartbeats_unique = np.unique(self.heartbeats_all)
+
+                delta_time_all    = np.diff(heartbeats_unique - heartbeats_unique[0])
+                idx_nonzero_all   = np.argwhere(delta_time_all > 0)
+                delta_nonzero_all = delta_time_all[idx_nonzero_all]
+                
+                if len(delta_nonzero_all) == 0:
+                    mean_delta_all     = np.nan
+                    variance_delta_all = np.nan
+                    mean_freq_all      = np.nan
+                else:
+                    mean_delta_all     = np.mean(delta_nonzero_all) / 1e9
+                    variance_delta_all = np.var(delta_nonzero_all) / 1e9
+                    mean_freq_all      = 1 / mean_delta_all
+
+                if np.isnan(mean_delta_all) or mean_delta_all == 0:
+                    print('\nNo Chopper found or all data is in one single Pulse Time')
+                else:
+                    print(
+                        '\nHeartbeats Period     (all unique packets: %d)       '
+                        'is %.6f s (variance %.6f s) --> frequency %.3f Hz'
+                        % (len(delta_nonzero_all) + 1, mean_delta_all, variance_delta_all, mean_freq_all)
+                    )
+            except Exception:
+                print(f'\t {WARN}WARNING: Unable to calculate timing/chopper frequency from all packets!{RESET}')
+                time.sleep(2)
+
+            # ---- Pass 2: Timing from data-carrying (non-empty) packets only --------------
+            try:
+                if len(self.heartbeats_data) == 0:
+                    print(f'\t {WARN}WARNING: Packets might be all empty! Data timeline is empty. {RESET}')
+                else:
+                    delta_time_data    = np.diff(self.heartbeats_data - self.heartbeats_data[0])
+                    idx_nonzero_data   = np.argwhere(delta_time_data > 0)
+                    delta_nonzero_data = delta_time_data[idx_nonzero_data]
+                    
+                    if len(delta_nonzero_data) == 0:
+                        mean_delta_data     = np.nan
+                        variance_delta_data = np.nan
+                        mean_freq_data      = np.nan
+                    else:
+                        mean_delta_data     = np.mean(delta_nonzero_data) / 1e9
+                        variance_delta_data = np.var(delta_nonzero_data) / 1e9
+                        mean_freq_data      = 1 / mean_delta_data
+                    
+                    if np.isnan(mean_delta_data) or mean_delta_data == 0:
+                        print('\nNo Chopper found or all data is in one single Pulse Time')
+                    else:
+                        print(
+                            f'Timing/Chopper Period (not empty unique packets: {len(delta_nonzero_data)+1:d}) '
+                            f'is {mean_delta_data:.6f} s (variance {variance_delta_data:.6f} s) --> frequency {mean_freq_data:.3f} Hz'
+                        )
+            except Exception:
+                print(f'\t {WARN}WARNING: Unable to calculate timing/chopper frequency from non-empty packets!{RESET}')
+                time.sleep(2)
+
+        except Exception:
+            print(f'\t {WARN}WARNING: Unable to calculate timing/chopper frequency!{RESET}')
+            time.sleep(2)
+            
+            
+    def _check_invalid_tofs(self) -> None:
+        """
+         Accumulates Time-of-Flight validation metrics from all active hardware
+         containers and prints a single unified status summary.
+        """
+        # Explicit Change: Extracted out of the main orchestrator block for modular cleanliness
+        total_num_readouts = 0
+        total_counter_1    = 0
+        total_counter_2    = 0
+
+        for c in self._all_containers():
+            n_readouts, c1, c2 = c.check_invalid_tofs()
+            total_num_readouts += n_readouts
+            total_counter_1    += c1
+            total_counter_2    += c2
+
+        if total_num_readouts > 0:
+            valid_tofs   = total_num_readouts - total_counter_2
+            valid_valid  = total_num_readouts - total_counter_1
+            valid_prev_p = total_counter_1 - total_counter_2
+            
+            print(
+                f'\n {WARN}\t Readouts {total_num_readouts}: {valid_tofs} ToFs valid '
+                f'({valid_valid} valid, {valid_prev_p} PrevPulse corrected) - invalid {total_counter_2} {RESET}'
+            )
     # ------------------------------------------------------------------
     # Debug helper
     # ------------------------------------------------------------------
@@ -1105,84 +1208,6 @@ class PcapngFileReader:
 # =============================================================================
 # Module-level diagnostic utility functions
 # =============================================================================
-
-
-def analyse_heartbeats(
-    heartbeats_all: np.ndarray,
-    heartbeats_data: np.ndarray,
-) -> None:
-    """
-    Pass 1 operates on ``heartbeats_all`` — all valid ESS header pulse times
-
-    Pass 2 operates on ``heartbeats_data`` — pulse times from packets that
-    carried readout data i.e. valid non empty packets
-
-    Parameters
-    ----------
-    heartbeats_all  : np.ndarray, int64
-        One entry per valid ESS header packet (from ``PcapngFileReader.heartbeats_all``).
-    heartbeats_data : np.ndarray, int64
-        One entry per data-carrying packet (from ``PcapngFileReader.heartbeats_data``).
-    """
-    try:
-        # ------------------------------------------------------------------ #
-        # Pass 1 — all ESS-header packets (mirrors legacy heartbeats pass)   #
-        # ------------------------------------------------------------------ #
-        try:
-            # Unique dedup still needed: multiple readouts per pulse share
-            # the same pulse_t; heartbeats_all has one entry per ESS packet,
-            # but two consecutive packets can carry the same pulse time.
-            heartbeats_unique = np.unique(heartbeats_all)
-
-            delta_time2         = np.diff(heartbeats_unique - heartbeats_unique[0])
-            idx_nonzero3        = np.argwhere(delta_time2 > 0)
-            delta_nonzero3      = delta_time2[idx_nonzero3]
-            mean_delta2         = np.mean(delta_nonzero3) / 1e9
-            variance_delta2     = np.var(delta_nonzero3) / 1e9
-            mean_freq2          = 1 / mean_delta2
-
-            if np.isnan(mean_delta2):
-                print('\nNo Chopper found or all data is in one single Pulse Time')
-            else:
-                print(
-                    '\nHeartbeats Period     (all unique packets: %d)       '
-                    'is %.6f s (variance %.6f s) --> frequency %.3f Hz'
-                    % (len(delta_nonzero3) + 1, mean_delta2, variance_delta2, mean_freq2)
-                )
-
-        except Exception:
-            print(
-                f'\t {WARN}WARNING: Unable to calculate timing/chopper frequency '
-                f'from all packets!{RESET}'
-            )
-            time.sleep(2)
-
-        # ------------------------------------------------------------------ #
-        # Pass 2 — data-carrying packets only (mirrors legacy PulseT pass)   #
-        # ------------------------------------------------------------------ #
-        try:
-            if len(heartbeats_data) == 0:
-                print(f'\t {WARN}WARNING: Packets might be all empty! Data timeline is empty. {RESET}')
-            else:
-                delta2 = np.diff(heartbeats_data)
-                delta2_nonzero = delta2[delta2 > 0]
-                mean_delta2_s = np.mean(delta2_nonzero) / 1e9
-                var_delta2_s = np.var(delta2_nonzero) / 1e9
-                
-                if np.isnan(mean_delta2_s):
-                    print('\nNo Chopper found or all data is in one single Pulse Time')
-                else:
-                    print(f'Timing/Chopper Period (not empty unique packets: {len(delta2_nonzero)+1:d}) is {mean_delta2_s:.6f} s (variance {var_delta2_s:.6f} s) --> frequency {1/mean_delta2_s:.3f} Hz')
-        except Exception:
-            print(f'\t {WARN}WARNING: Unable to calculate timing/chopper frequency from non-empty packets!{RESET}')
-            time.sleep(2)
-
-    except Exception:
-        print(
-            f'\t {WARN}WARNING: Unable to calculate timing/chopper frequency!{RESET}'
-        )
-        time.sleep(2)
-
 
 def check_which_ring_fen_hybrid_in_file(file_path: str, parameters, config: dict) -> None:
     """
@@ -1210,20 +1235,17 @@ if __name__ == '__main__':
     print(f'{WARN}TEST WARNING COLOR{RESET}')
     import time
     from types import SimpleNamespace
-    from instrument_registry import check_valid_data_stream
-
+    import json 
     t_start = time.time()
 
     # ------------------------------------------------------------------ #
     # Configuration — edit these for your environment
     # ------------------------------------------------------------------ #
-    file_path = r'C:\Projects\dg_MultiBlade_MBUTY_original\MBUTYcap\data/sampleData_ClusteredMode.pcapng'
+    file_path = r"C:\Projects\dg_MultiBlade_MBUTY_original\MBUTYcap\data\testDataVMM_pkts100_allEmptyPkts.pcapng"
 
-    config = {
-        'operationMode': 'clustered',
-        'Monitor': [{'hardwareType': 'GENERIC', 'connectionType': 'RING', 'Ring': 11}],
-    }
-
+    with open("C:\Projects\dg_MultiBlade_MBUTY_original\MBUTYcap\config\AMOR26.json") as json_file:
+        config = json.load(json_file)
+    
     # Minimal stub — mirrors only the attributes PcapngFileReader reads
     parameters = SimpleNamespace(
         acqMode       = 'pcap',
@@ -1252,21 +1274,6 @@ if __name__ == '__main__':
     bm            = reader.readouts_bm
     ibm           = reader.readouts_ibm
     skadi         = reader.readouts_skadi
-
-    # ------------------------------------------------------------------ #
-    # Post-read checks (application-layer, called manually here)
-    # These live in MBUTY.py in normal pipeline use.
-    # ------------------------------------------------------------------ #
-
-    # Timestamp integrity checks — run on whichever container has data
-    # checkChopperFreq(reader.heartbeats)
-    # checkInvalidToFsInReadouts(vmm_normal.matrix[:vmm_normal.fill_count])
-
-    # Stream / config matching — needs config dict from MBUTY
-    # match_data_stream_with_config(config['InstrumentName'],
-    #                               config['DetectorType'],
-    #                               reader.instr_ids_found)
-    # check_bm_type(bm.matrix[:bm.fill_count], mon_hw)
 
     # ------------------------------------------------------------------ #
     # Quick sanity print

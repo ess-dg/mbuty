@@ -34,8 +34,9 @@ class BaseHardwareDecoder:
         dest_block['fen']    = raw['fen'].astype(np.int64)
         dest_block['length'] = raw['length'].astype(np.int64)
 
-        time_hi_ns = np.round(raw['timeHI'].astype(np.float64) * 1_000_000_000.0).astype(np.int64)
-        time_lo_ns = np.round(raw['timeLO'].astype(np.float64) * self.ns_per_clock_tick).astype(np.int64)
+        time_hi_ns = (raw['timeHI'].astype(np.int64)) * 1_000_000_000
+        time_lo_ns = np.round(raw['timeLO'] * self.ns_per_clock_tick).astype(np.int64)
+        
         dest_block['timeStamp'] = time_hi_ns + time_lo_ns
 
     def decode(
@@ -91,6 +92,9 @@ class VMMNormalDecoder(BaseHardwareDecoder):
                             count=n_readouts, offset=data_start_idx)
 
         self.decode_common_fields(raw, dest_block)
+        
+        # Save the coarse baseline timestamp to timeCoarse strictly for VMM normal data tracks
+        dest_block['timeCoarse'] = dest_block['timeStamp']
 
         dest_block['bc'] = raw['bc'].astype(np.int64)
 
