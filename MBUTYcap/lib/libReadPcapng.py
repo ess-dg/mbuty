@@ -2060,7 +2060,7 @@ if __name__ == '__main__':
 
 
 
-   confFile  = '/Users/francescopiscitelli/Documents/PYTHON/MBUTYcap/config/'
+   confFile  = 'C:\Projects\dg_MultiBlade_MBUTY_original\MBUTYcap/config/'
    fileName  = "MIRACLES24.json"
    fileName  = "AMOR.json"
     # fileName  = "MGEMMA.json"
@@ -2074,9 +2074,8 @@ if __name__ == '__main__':
    parameters.loadConfigAndUpdate(config)
     
     
-   filePath = '/Users/francescopiscitelli/Documents/PYTHON/MBUTYcap/data/'
+   filePath = 'C:\Projects\dg_MultiBlade_MBUTY_original\MBUTYcap/data/'
    file = 'miracles_trig2.pcapng'
-   file = 'ESSmask2023_1000pkts.pcapng'
    # file = 'ESSmask2023.pcapng'
    
    file = 'sampleData_NormalMode.pcapng'
@@ -2088,7 +2087,7 @@ if __name__ == '__main__':
    # file = 'miracles_source_on_left_red.pcapng'
 
    # file = 'CSPEC1.pcapng'
-
+   file = '20260611_083055_pkts100_Test-full_00000.pcapng'
 
    filePathAndFileName = filePath+file
    

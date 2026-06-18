@@ -32,77 +32,66 @@ from hardware_decoders import (
     
 )
 
+class BaseReader:
+    """
+    Abstract base class for all ESS detector data ingestion sources.
 
-class PcapngFileReader:
+    Owns all shared state, the full packet processing pipeline, and every
+    post-read diagnostic. Subclasses must implement these methods:
+
+        run()                       — prepends source-specific allocation before
+                                        calling super().run()
+        _fetch_packets()            — generator that yields (packet_data, packet_length)
+                                        for each iteration; all ESS parsing from cookie
+                                        location onward is handled here in _read_packets().
+        _run_warnings_and_checks()  — calls other functions to run the appropriate post 
+                                        checks in the right order
+
+    Containers
+    ----------
+    All six typed readout containers (VMM normal, VMM clustered, R5560, BM,
+    IBM, SKADI) are allocated once by _allocate_all_containers(), trimmed to
+    actual fill counts after reading, and exposed as public attributes:
+
+        self.readouts_vmm_normal, self.readouts_vmm_clustered,
+        self.readouts_r5560, self.readouts_bm,
+        self.readouts_ibm, self.readouts_skadi
+
+    Empty containers (no data routed to them) remain as zero-length arrays.
     """
-    Master orchestrator for reading ESS pcapng network capture files into
-    typed, contiguous NumPy structured-array readout containers.
- 
-    Replaces the original pcapng_reader / pcapng_reader_PreAlloc pair.
-    Kafka stream support is structurally preserved (kafkaStream=True path)
-    but is not restructured in this refactor pass; see inline NOTE comments.
- 
-    The original 'slowAppend' method has been removed entirely. Two loading
-    methods remain:
-      'allocate' — full scan pass; counts readouts exactly from packet sizes.
-                   Slower but exact; preferred for testing and analysis.
-      'quick'    — single-packet scan; estimates from file_size / readout_size.
-                   Slight overestimate, trimmed after reading. Faster for
-                   routine data reduction.
- 
-    Public interface
-    ----------------
-    reader = PcapngFileReader(...)
-    reader.run()
-    # Containers are then available as reader.readouts_vmm_normal,
-    # reader.readouts_vmm_clustered, reader.readouts_r5560,
-    # reader.readouts_bm, reader.readouts_ibm, reader.readouts_skadi
-    # Empty containers (no data routed to them) remain as zero-length arrays.
-    """
- 
-    # ------------------------------------------------------------------
-    # Construction
-    # ------------------------------------------------------------------
- 
     def __init__(
         self,
-        file_path:  str,
         parameters,
-        config:     dict,
+        config: dict,
     ):
-        self._parameters         = parameters
+        self._parameters = parameters
+
         # ---- physics / timing -----------------------------------------------
         self.ns_per_clock_tick    = float(parameters.clockTicks.NSperClockTick)
         self.time_resolution_type = parameters.VMMsettings.timeResolutionType
         self.operation_mode       = config.get('operationMode', 'normal')
-        self.instrument_name       = config.get('instrumentName')
-        self.detector_type       = config.get('detectorType')
+        self.instrument_name      = config.get('instrumentName')
+        self.detector_type        = config.get('detectorType')
 
         # ---- beam-monitor routing — extracted from config -------------------
-        _mon = config.get('Monitor', [{}])[0]
+        _mon          = config.get('Monitor', [{}])[0]
         self.mon_hw   = _mon.get('hardwareType', 'GENERIC')
         self.mon_conn = _mon.get('connectionType', 'RING')
         self.mon_ring = int(_mon.get('Ring', 11))
 
-        # ---- file / stream config -------------------------------------------
-        self.kafka_stream        = (parameters.acqMode == 'kafka')
-        self.pcap_loading_method = parameters.fileManagement.pcapLoadingMethod
-        # Valid values are 'allocate' (exact, full scan) and 'quick' (estimated, single-packet scan).
-
- 
         # ---- ESS header geometry (resolved during scan, not hardcoded) ------
         # Populated by extract_common_ess_header() on the first valid packet.
         # Consumed by _read_packets().
         self._ess_header_size:  int = None  # 30 (v0) or 32 (v>=1)
         self._main_header_size: int = None  # 42 for pcap file, 0 for kafka
         self._full_header_size: int = None  # _main_header_size + _ess_header_size
- 
+
         # ---- per-packet record geometry -------------------------------------
         # singleReadoutSize is confirmed per packet via instrID lookup.
         # Default used only for the quick preallocation estimate.
         self._single_readout_size: int = 20
         self._roe_type: str = None  # 'VMM' | 'R5560' | 'SKADI' | 'BM'
- 
+
         # ---- packet-level diagnostic counters (preserved exactly) -----------
         self._counter_packets            = 0
         self._counter_candidate_packets  = 0
@@ -111,43 +100,27 @@ class PcapngFileReader:
         self._counter_empty_ess_packets  = 0
         self._total_readout_count        = 0
         self._prealloc_length            = 0
- 
+
         # ---- instrument IDs seen during scan pass ---------------------------
         self.instr_ids_found:  set = set()
-        self.unknown_instr_ids:  set = set()
+        self.unknown_instr_ids: set = set()
 
-        # Dedicated list buffers to track file-wide firmware versions and network IP signatures across both modes
-        self._fw_versions_raw       = []
-        self._ip_tuples_raw         = []
+        # ---- per-file accumulator lists (consumed by _run_warnings_and_checks) ----
+        self._fw_versions_raw = []
+        self._ip_tuples_raw   = []
 
         # ---- one-shot warning flags -----------------------------------------
         self._warned_bm = False  # BM data found in ring < 11
- 
+
         # ---- debug toggle ---------------------------------------------------
         self.debug = False
- 
+
         # ---- internal option: strip mode-mismatched / calib readouts --------
         self._remove_other_data_types = True
- 
-        # ---- file path handling ---------------------------------------------
-        if not self.kafka_stream:
-            self.file_path = file_path
-            self._validate_file()
- 
-            self._file_size = os.path.getsize(self.file_path)  # bytes
-            _filename = os.path.basename(self.file_path)
-            print(f"{_filename} is {self._file_size / 1_000_000:.4f} Mbytes")
- 
-            self._main_header_size = 42  # pcap file Ethernet/IP/UDP overhead
- 
-        else:
-            # NOTE (Kafka): Kafka stream path preserved from original.
-            # Full Kafka restructuring is deferred to a dedicated Kafka pass.
-            self._steps_for_progress = 1
-            self._main_header_size   = 0
-            self._file_size          = 0  # unknown for streams
- 
-        # ---- readout containers -----------------------------------------
+        # ---- loading method (pcapng only; None for all other sources) -------
+        self.pcap_loading_method = None
+        
+        # ---- readout containers ---------------------------------------------
         # Intentionally not constructed here. _allocate_all_containers() builds
         # them exactly once after the scan pass resolves _prealloc_length.
         # Accessing a container before run() will raise AttributeError by design.
@@ -157,6 +130,7 @@ class PcapngFileReader:
         self.readouts_bm            = None
         self.readouts_ibm           = None
         self.readouts_skadi         = None
+
         # ---- dual heartbeat timelines ---------------------------------------
         # heartbeats_all  : pulse_t from every valid ESS header (incl. empty packets)
         # heartbeats_data : pulse_t only from packets that carried decoded physics data
@@ -172,16 +146,14 @@ class PcapngFileReader:
     def run(self) -> None:
         """
         Full execution pipeline:
-          1. Scan file to resolve prealloc_length (row count only, no diagnostics)
-          2. Allocate all containers to prealloc_length
-          3. Read all packets — ingest data and accumulate diagnostic metadata
+          1. Allocate all containers to prealloc_length
+          2. Read all packets — ingest data and accumulate diagnostic metadata
             - Once filled, trim containers to actual fill counts
-          4. Warnings and checks phase (FW, IP, time source, stream validation) 
+          3. Warnings and checks phase (FW, IP, time source, stream validation) 
             — all general diagnostics run here, after reading is complete
-          5. Sorting and cleaning the containers
-          6. Report instrument IDs found
+          4. Sorting and cleaning the containers
+          5. Report instrument IDs found
         """
-        self._scan_and_allocate()
         self._allocate_all_containers(self._prealloc_length)
         self._read_packets()
         self._report_instrument_ids()
@@ -190,20 +162,6 @@ class PcapngFileReader:
         for c in self._all_containers():
             c.clean_and_sort(self._parameters)
         
- 
-    # ------------------------------------------------------------------
-    # Private: validation helpers
-    # ------------------------------------------------------------------
- 
-    def _validate_file(self) -> None:
-        """Checks if file exists and prints error if not"""
-        if not os.path.isfile(self.file_path):
-            print(
-                f"\n{ERR}ERROR: File not found: {self.file_path} "
-                f"---> Exiting.{RESET}"
-            )
-            sys.exit()
- 
     # ------------------------------------------------------------------
     # Private: container allocation
     # ------------------------------------------------------------------
@@ -231,173 +189,21 @@ class PcapngFileReader:
             self.readouts_ibm,
             self.readouts_skadi,
         )
- 
-    # ------------------------------------------------------------------
-    # Private: scan pass
-    # ------------------------------------------------------------------
- 
-    def _scan_and_allocate(self) -> None:
-        """
-        Pre-scan pass: resolves _prealloc_length only.
 
-        This method has one job: return a row count large enough to hold all
-        readouts in the file. 
-
-        The only diagnostic side-effect is resolving _ess_header_size, which
-        requires peeking at the FW version byte of the first valid ESS packet.
-        This is done silently via _resolve_fw_version_and_header() with no print
-        output.
-
-        'allocate' mode
-        ---------------
-        Iterates all blocks. For each ESS packet, computes exact readout count:
-            n = (packet_size - _full_header_size) / _single_readout_size
-        Sums these across all packets for an exact prealloc_length.
-
-        'quick' mode
-        ------------
-        Reads only the first valid ESS packet to resolve header sizes, then
-        estimates from file size:
-            prealloc_length = file_size / _single_readout_size
-        This overestimates; unused rows are trimmed after reading
-        _counter_candidate_packets is also set to this estimate so the progress
-        ticker in _read_packets() has a valid denominator; corrected post-read.
-        """
-        if self.kafka_stream:
-            self._prealloc_length           = int(round(self._file_size / self._single_readout_size))
-            self._counter_candidate_packets = self._prealloc_length
-            self._counter_packets           = self._prealloc_length
-            return
-
-        if self.pcap_loading_method not in ('allocate', 'quick'):
-            print(
-                f'{WARN}WARNING: Wrong data loading option: select either quick or allocate '
-                f'--> setting it to allocate method!{RESET}'
-            )
-            self.pcap_loading_method = 'allocate'
-
-        if self.pcap_loading_method == 'allocate':
-            print('pcap loading method: allocate')
-        else:
-            print(
-                f'pcap loading method: quick {WARN}---> WARNING: when load method is quick '
-                f'the check of FW version and IP is done only on the first packet and not all '
-                f'of them.{RESET}'
-            )
-
-        print('allocating memory...', end='')
-
-        ff      = open(self.file_path, 'rb')
-        scanner = pg.FileScanner(ff)
-
-        packet_sizes        = []
-        header_resolved     = False
-        max_ess_for_quick   = 1
-        ess_packets_scanned = np.int64(0)
-
-        # Track the fallback packet marker for time source checking
-        self._scan_last_packet_data = None
-        self._scan_last_index_ess   = None
-
-        try:
-            for block in scanner:
-
-                self._counter_packets += 1
-                if self._counter_packets == 4 or self._counter_packets % 5000 == 0:
-                    print('.', end='')
-
-                try:
-                    packet_size = block.packet_len
-                    packet_data = block.packet_data
-                except Exception:
-                    self._dprint(
-                        f'--> other packet found No. '
-                        f'{self._counter_packets - self._counter_candidate_packets}'
-                    )
-                    continue
-                
-                self._counter_candidate_packets += 1
-                index_ess = self.locate_ess_cookie(packet_data)
-                if index_ess == -1:
-                    continue
-
-                ess_packets_scanned += np.int64(1)
-
-                # Resolve FW version and header size from the first ESS packet only.
-                if not header_resolved:
-                    self._resolve_fw_version_and_header(packet_data, index_ess)
-                    header_resolved = True
-
-                # Track the last packet seen for checkTimeSrc
-                self._scan_last_packet_data = packet_data
-                self._scan_last_index_ess   = index_ess
-
-                if self.pcap_loading_method == 'allocate':
-                    packet_sizes.append(np.int64(packet_size))
-
-                if self.pcap_loading_method == 'quick' and ess_packets_scanned >= max_ess_for_quick:
-                    break
-
-        except Exception as e:
-            print(
-                f"\n{ERR}ERROR: {e} ---> probably data is being created and "
-                f"file not closed -> exiting.{RESET}"
-            )
-            time.sleep(2)
-            sys.exit()
-
-        ff.close()
-
-        if self.pcap_loading_method == 'allocate':
-            sizes_arr      = np.array(packet_sizes, dtype='int64')
-            readout_counts = (sizes_arr - self._full_header_size) / self._single_readout_size
-            total_readouts = np.sum(readout_counts[readout_counts >= 0])
-            self._prealloc_length = int(round(total_readouts))
-
-        else:  # 'quick'
-            self._prealloc_length           = int(round(self._file_size / self._single_readout_size))
-            self._counter_candidate_packets = self._prealloc_length
-            self._counter_packets           = self._prealloc_length
-
-        self._dprint(f'prealloc_length {self._prealloc_length}')
-
-        
 
     # ------------------------------------------------------------------
-  # ------------------------------------------------------------------
     # Private: main read loop and post-read helpers
     # ------------------------------------------------------------------
-
-    def _resolve_fw_version_and_header(self, packet_data: bytes, index_ess: int) -> None:
-        """
-        Read the firmware version byte from the first valid ESS packet and set
-        _ess_header_size and _full_header_size accordingly. Silent — no print output.
-
-        Version mapping:
-            version == 0  →  _ess_header_size = 30
-            version >= 1  →  _ess_header_size = 32
-
-        Parameters
-        ----------
-        packet_data : bytes — raw bytes of the first valid ESS packet
-        index_ess   : int   — byte index of the ESS cookie in packet_data
-        """
-        fw_version = int.from_bytes(
-            packet_data[index_ess - 1 : index_ess], byteorder='little'
-        )
-        if fw_version == 0:
-            self._ess_header_size = 30
-        else:
-            self._ess_header_size = 32
-
-        self._full_header_size = self._main_header_size + self._ess_header_size
+        
+    def _process_network_layer(self, packet_data: bytes, index_ess: int, ip_accumulator: list) -> None:
+        pass
 
     def _read_packets(self) -> None:
         """
-        Main packet ingestion loop.
-
-        Opens the pcapng file and iterates every block via pg.FileScanner.
-        For each block, the loop:
+        Main packet ingestion loop — shared across all ingestion sources.
+        Raw bytes for each iteration are provided by _fetch_next_packet(),
+        which subclasses implement. Everything from ESS cookie location onward
+        is identical regardless of source (pcapng file or Kafka stream).
 
           1.  Locates ESS cookie; skips non-ESS blocks.
           2.  Checks cookie position and ICMP flag.
@@ -412,44 +218,6 @@ class PcapngFileReader:
           9.  Advances container.fill_count by n_readouts.
          10.  Records heartbeat (pulse_t) for this packet.
          11.  Emits progress ticker at _steps_for_progress intervals.
-
-        Accumulator arrays
-        ------------------
-        Four arrays are built during reading and stored on self for use in
-        _run_warnings_and_checks():
-
-            self._fw_versions_raw      : int64 array, one entry per valid ESS packet
-            self._ip_tuples_raw        : list of (src_ip, src_port, dst_ip, dst_port)
-            self._time_source_bytes_raw: int64 array, one entry per valid ESS packet
-            self.heartbeats            : int64 array, one entry per valid ESS packet
-                                         (pulse_t; 0 for empty/ICMP packets)
-
-        instr_ids_found and unknown_instr_ids are sets updated per packet.
-
-        Beam Monitor routing
-        ---------------------------------------------
-            is_lemo_mode = (self.mon_conn == 'LEMO' and ring >= 11)
-            is_ring_mode = (self.mon_conn == 'RING'  and ring == self.mon_ring)
-
-        If either is True → BM packet. Route to readouts_bm (mon_hw == 'GENERIC')
-        or readouts_ibm (mon_hw == 'IBM').
-
-        If neither is True but hw == 'BM' and ring < 11 → decode into readouts_bm
-        with a one-shot warning
-
-        Unknown hw types
-        ----------------
-        If hw is None (unrecognised instrID), the packet is skipped entirely.
-        The instrID is added to self.unknown_instr_ids. No container write occurs.
-
-        Write-pointer management
-        ------------------------
-        Each container has a fill_count int. Per packet:
-            start      = container.fill_count
-            stop       = start + n_readouts
-            dest_block = container.matrix[start:stop]
-        After decode(), fill_count is advanced to stop. Correct because each hw
-        type writes exclusively to one container.
         """
         print('\n', end='')
 
@@ -457,31 +225,19 @@ class PcapngFileReader:
         icmp_counter            = np.int64(0)
         other_counter           = np.int64(0)
 
-        # Per-packet accumulator lists.
-        _heartbeats_all_list    = []   # pulse_t from every valid ESS header
-        _heartbeats_data_list   = []   # pulse_t only from packets with decoded readouts
+        _heartbeats_all_list  = []
+        _heartbeats_data_list = []
 
-        # Instantiate one decoder per hw type — reused across all packets.
         vmm_normal_decoder    = VMMNormalDecoder(self.ns_per_clock_tick, self)
         vmm_clustered_decoder = VMMClusteredDecoder(self.ns_per_clock_tick, self)
-        r5560_decoder = R5560Decoder(self.ns_per_clock_tick, self)
-        skadi_decoder = SkadiDecoder(self.ns_per_clock_tick, self)
-        bm_decoder    = BMDecoder(self.ns_per_clock_tick, self)
-        ibm_decoder   = IBMMonitorDecoder(self.ns_per_clock_tick, self)
+        r5560_decoder         = R5560Decoder(self.ns_per_clock_tick, self)
+        skadi_decoder         = SkadiDecoder(self.ns_per_clock_tick, self)
+        bm_decoder            = BMDecoder(self.ns_per_clock_tick, self)
+        ibm_decoder           = IBMMonitorDecoder(self.ns_per_clock_tick, self)
 
         self._steps_for_progress = max(1, int(self._counter_candidate_packets / 5) + 1)
 
-        ff      = open(self.file_path, 'rb')
-        scanner = pg.FileScanner(ff)
-
-        for block in scanner:
-
-            try:
-                packet_length = np.int64(block.packet_len)
-                packet_data   = block.packet_data
-            except Exception:
-                self._dprint('--> other packet found')
-                continue
+        for packet_data, packet_length in self._fetch_packets():
 
             # ------------------------------------------------------------------
             # 1. ESS cookie location
@@ -520,10 +276,8 @@ class PcapngFileReader:
 
             # Accumulate telemetry parameters dynamically on every valid packet step during decoding
             self._fw_versions_raw.append(np.int64(hdr['fw_version']))
-            try:
-                self._process_network_layer(packet_data, index_ess, self._ip_tuples_raw)
-            except Exception:
-                pass
+            # For kafka this is just a simple pass - nothing happens
+            self._process_network_layer(packet_data, index_ess, self._ip_tuples_raw)
 
             instr_id       = np.int64(hdr['instr_id'])
             pulse_t        = np.int64(hdr['pulse_time'])
@@ -712,9 +466,9 @@ class PcapngFileReader:
         # ---- end of scanner loop ------------------------------------------------
 
         print('[100%]')
-
+        
         self._print_data_warnings(out_of_position_counter, icmp_counter, other_counter)
-
+        
         self._dprint(
             f'\n All Packets {self._counter_packets}, '
             f'Candidates for Data {self._counter_candidate_packets} --> '
@@ -723,17 +477,16 @@ class PcapngFileReader:
             f'NonESS {self._counter_non_ess_packets}'
         )
 
-        # Trim containers
+        # trim containers
         for c in self._all_containers():
             c.trim()
-            
-        # Correct quick-mode overestimates now that real packet counts are known.
+
         if self.pcap_loading_method == 'quick':
             self._counter_candidate_packets = (
                 self._counter_valid_ess_packets + self._counter_non_ess_packets
             )
             self._counter_packets = self._counter_candidate_packets
-            
+
         print(
             f'\ndata loaded - found {self._total_readout_count} readouts - '
             f'Packets: all {self._counter_candidate_packets} --> '
@@ -745,7 +498,6 @@ class PcapngFileReader:
         self.heartbeats_all  = np.array(_heartbeats_all_list,  dtype='int64')
         self.heartbeats_data = np.array(_heartbeats_data_list, dtype='int64')
 
-        ff.close()
 
     def _print_data_warnings(self, out_of_position_counter, icmp_counter, other_counter) -> None:
         """
@@ -769,41 +521,7 @@ class PcapngFileReader:
                 )
 
     def _run_warnings_and_checks(self) -> None:
-        """
-        Dedicated post-read stream validation phase.
-        Aggregates all network, firmware, timing, and instrument stream 
-        diagnostics to run once all file data is completely loaded.
-        """
-        # 1. Firmware version consistency check
-        # Explicit Change: Check firmware consistency across the full file run
-        fw_versions_arr = np.array(self._fw_versions_raw, dtype='int64')
-        if len(fw_versions_arr) > 0:
-            self._check_fw_version_consistency(fw_versions_arr)
-
-        # 2. Hardware time source flag decoding
-        if self._scan_last_packet_data is not None:
-            ts_byte = int(self._scan_last_packet_data[self._scan_last_index_ess + 7])
-            self._check_time_src(ts_byte)
-
-        # 3. Deduplicated IP and Port network map report
-        if not self.kafka_stream and self._ip_tuples_raw:
-            self._print_ip_report(self._ip_tuples_raw)
-
-        # 4. Valid instrument stream verification lookup
-        check_valid_data_stream(self.instr_ids_found, self.unknown_instr_ids)
-        
-        # 5. Match config parameters with actual data 
-        match_data_stream_with_config(self.instrument_name, self.detector_type, self.instr_ids_found)
-        
-        # 6. Heartbeat timing analysis print out
-        self._analyse_heartbeats()
-        
-        # 7. Global Time-of-Flight validation summary pass
-        self._check_invalid_tofs()
-        
-        # Flush internal telemetry accumulation collections to free memory overhead after validation finishes
-        self._fw_versions_raw.clear()
-        self._ip_tuples_raw.clear()
+        pass
         
     # ------------------------------------------------------------------    
     # Step 2 — Layer 1: ESS cookie location
@@ -816,97 +534,6 @@ class PcapngFileReader:
         """
         return packet_data.find(b'ESS')
  
-    # ------------------------------------------------------------------
-    # Step 2 — Layer 2a: network layer extraction and ICMP gate
-    # ------------------------------------------------------------------
- 
-    def _process_network_layer(
-        self,
-        packet_data: bytes,
-        index_ess:   int,
-        ip_accumulator: list,
-    ) -> None:
-        """
-        Extract connection metadata using relative backward offsets from the
-        ESS cookie index. All slices are expressed as (index_ess - N) so that
-        variable network padding (e.g. VLAN tags) never shifts the extraction
-        window — only index_ess itself absorbs any such variation.
- 
-        Relative offset map (all measured backwards from index_ess):
-        ---------------------------------------------------------------
-        The packet layout arriving at index_ess looks like this in memory,
-        reading left-to-right toward index_ess:
- 
-          [ Ethernet (14) | IP header (20) | UDP header (8) | 2-byte pad | ESS... ]
-                                                                          ^
-                                                                      index_ess
- 
-        Working back from index_ess:
-          index_ess - 2        : start of 2-byte pad before cookie (not used)
-          index_ess - 2 - 8    : start of UDP header (8 bytes)
-          index_ess - 2 - 8 - 20 : start of IP header (20 bytes)
- 
-        Within the IP header (20 bytes starting at index_ess - 30):
-          Protocol byte  : offset +9  inside IP header
-                         → absolute: index_ess - 30 + 9 = index_ess - 21
-          Src IP         : offset +12 → bytes [index_ess-18 : index_ess-14]
-          Dst IP         : offset +16 → bytes [index_ess-14 : index_ess-10]
- 
-        Within the UDP header (8 bytes starting at index_ess - 10):
-          Src port       : bytes [index_ess-10 : index_ess-8]
-          Dst port       : bytes [index_ess-8  : index_ess-6]
- 
-        ICMP check:
-          IP protocol byte == 1 means ICMP. The RMM firmware occasionally sends
-          ping packets that embed ESS data but must be discarded. We detect this
-          here so the caller can skip payload extraction cleanly.
- 
-        Parameters
-        ----------
-        packet_data     : raw bytes of the current pcapng block
-        index_ess       : byte index returned by locate_ess_cookie()
-        ip_accumulator  : list to which (src_ip, src_port, dst_ip, dst_port)
-                          tuples are appended during the scan pass; consumed
-                          by _print_ip_report() after the scan loop.
-        """
- 
-        # ---- IPv4 source and destination ------------------------------------
-        src_ip = str(ipaddress.IPv4Address(packet_data[index_ess - 18 : index_ess - 14]))
-        dst_ip = str(ipaddress.IPv4Address(packet_data[index_ess - 14 : index_ess - 10]))
- 
-        # ---- UDP ports ------------------------------------------------------
-        src_port = np.int64(int.from_bytes(packet_data[index_ess - 10 : index_ess - 8], byteorder='big'))
-        dst_port = np.int64(int.from_bytes(packet_data[index_ess - 8  : index_ess - 6], byteorder='big'))
- 
-        # ---- accumulate for post-scan unique-connection report --------------
-        ip_accumulator.append((src_ip, int(src_port), dst_ip, int(dst_port)))
- 
- 
-    def _print_ip_report(self, ip_accumulator: list) -> None:
-        """
-        Deduplicate the connection tuples gathered during the scan pass and
-        print the unique-connection map in the original diagnostic format.
- 
-        Called once by _scan_and_allocate() after the scan loop completes.
-        In 'allocate' mode, all candidate packets contribute.
-        In 'quick' mode, only the first valid ESS packet contributes.
-        """
-        print("checking IPs:ports ...")
- 
-        arr = np.array(
-            [(s_ip, s_p, d_ip, d_p) for s_ip, s_p, d_ip, d_p in ip_accumulator],
-            dtype=[('src_ip', 'U40'), ('src_port', 'i8'),
-                   ('dst_ip', 'U40'), ('dst_port', 'i8')],
-        )
-        unique_rows, counts = np.unique(arr, return_counts=True)
- 
-        for kk, (conn, num) in enumerate(zip(unique_rows, counts)):
-            print(
-                f"\tConnection {kk} found ({num} pkts) --> "
-                f"Source: {conn['src_ip']}:{conn['src_port']} | "
-                f"Dest: {conn['dst_ip']}:{conn['dst_port']}"
-            )
-            print()
     # ------------------------------------------------------------------
     # Step 2 — Layer 2b: ESS common header decode
     # ------------------------------------------------------------------
@@ -1205,6 +832,365 @@ class PcapngFileReader:
             print(f"{msg}")
             
             
+            
+            
+
+class PcapngFileReader(BaseReader):
+    """
+    Concrete reader for ESS pcapng network capture files.
+
+    Extends BaseReader with pcapng-specific concerns: file validation, two
+    preallocation strategies, Ethernet/IP/UDP header stripping, and IP
+    network layer reporting.
+
+    Loading methods (set via parameters.fileManagement.pcapLoadingMethod):
+        'allocate' — full scan pass; counts readouts exactly from packet sizes.
+                     Slower but exact; preferred for testing and analysis.
+        'quick'    — single-packet scan; estimates from file_size / readout_size.
+                     Slight overestimate, trimmed after reading. Faster for
+                     routine data reduction.
+
+    Public interface
+    ----------------
+    reader = PcapngFileReader(file_path, parameters, config)
+    reader.run()
+    """
+    def __init__(
+        self,
+        file_path:  str,
+        parameters,
+        config:     dict,
+    ):
+        super().__init__(parameters, config)
+
+        # ---- pcapng loading strategy ----------------------------------------
+        self.pcap_loading_method = parameters.fileManagement.pcapLoadingMethod
+        # Valid values: 'allocate' (exact, full scan) and 'quick' (estimated, single-packet scan).
+
+        # ---- file path and size ---------------------------------------------
+        self.file_path  = file_path
+        self._file_size = os.path.getsize(self.file_path)
+        self._validate_file()
+        _filename = os.path.basename(self.file_path)
+        print(f"{_filename} is {self._file_size / 1_000_000:.4f} Mbytes")
+
+        # ---- pcapng-specific header geometry --------------------------------
+        self._main_header_size = 42  # Ethernet/IP/UDP overhead
+    
+    
+    def run(self) -> None:
+        "Allocates memory then runs the main loop"
+        self._scan_and_allocate()
+        super().run()
+    # ------------------------------------------------------------------
+    # Private: validation helpers
+    # ------------------------------------------------------------------
+ 
+    def _validate_file(self) -> None:
+        """Checks if file exists and prints error if not"""
+        if not os.path.isfile(self.file_path):
+            print(
+                f"\n{ERR}ERROR: File not found: {self.file_path} "
+                f"---> Exiting.{RESET}"
+            )
+            sys.exit()
+   
+    def _resolve_fw_version_and_header(self, packet_data: bytes, index_ess: int) -> None:
+        """
+        Read the firmware version byte from the first valid ESS packet and set
+        _ess_header_size and _full_header_size accordingly. Silent — no print output.
+
+        Version mapping:
+            version == 0  →  _ess_header_size = 30
+            version >= 1  →  _ess_header_size = 32
+
+        Parameters
+        ----------
+        packet_data : bytes — raw bytes of the first valid ESS packet
+        index_ess   : int   — byte index of the ESS cookie in packet_data
+        """
+        fw_version = int.from_bytes(
+            packet_data[index_ess - 1 : index_ess], byteorder='little'
+        )
+        if fw_version == 0:
+            self._ess_header_size = 30
+        else:
+            self._ess_header_size = 32
+
+        self._full_header_size = self._main_header_size + self._ess_header_size
+    
+    # ------------------------------------------------------------------
+    # Private: scan pass
+    # ------------------------------------------------------------------
+ 
+    def _scan_and_allocate(self) -> None:
+        """
+        Pre-scan pass: resolves _prealloc_length only.
+
+        This method has one job: return a row count large enough to hold all
+        readouts in the file. 
+
+        The only diagnostic side-effect is resolving _ess_header_size, which
+        requires peeking at the FW version byte of the first valid ESS packet.
+        This is done silently via _resolve_fw_version_and_header() with no print
+        output.
+
+        'allocate' mode
+        ---------------
+        Iterates all blocks. For each ESS packet, computes exact readout count:
+            n = (packet_size - _full_header_size) / _single_readout_size
+        Sums these across all packets for an exact prealloc_length.
+
+        'quick' mode
+        ------------
+        Reads only the first valid ESS packet to resolve header sizes, then
+        estimates from file size:
+            prealloc_length = file_size / _single_readout_size
+        This overestimates; unused rows are trimmed after reading
+        _counter_candidate_packets is also set to this estimate so the progress
+        ticker in _read_packets() has a valid denominator; corrected post-read.
+        """
+        if self.pcap_loading_method not in ('allocate', 'quick'):
+            print(
+                f'{WARN}WARNING: Wrong data loading option: select either quick or allocate '
+                f'--> setting it to allocate method!{RESET}'
+            )
+            self.pcap_loading_method = 'allocate'
+
+        elif self.pcap_loading_method == 'allocate':
+            print('pcap loading method: allocate')
+        else:
+            print('pcap loading method: quick')
+
+        print('allocating memory...', end='')
+
+        ff      = open(self.file_path, 'rb')
+        scanner = pg.FileScanner(ff)
+
+        packet_sizes        = []
+        header_resolved     = False
+        max_ess_for_quick   = 1
+        ess_packets_scanned = np.int64(0)
+
+        # Track the fallback packet marker for time source checking
+        self._scan_last_packet_data = None
+        self._scan_last_index_ess   = None
+
+        try:
+            for block in scanner:
+
+                self._counter_packets += 1
+                if self._counter_packets == 4 or self._counter_packets % 5000 == 0:
+                    print('.', end='')
+
+                try:
+                    packet_size = block.packet_len
+                    packet_data = block.packet_data
+                except Exception:
+                    self._dprint(
+                        f'--> other packet found No. '
+                        f'{self._counter_packets - self._counter_candidate_packets}'
+                    )
+                    continue
+                
+                self._counter_candidate_packets += 1
+                index_ess = self.locate_ess_cookie(packet_data)
+                if index_ess == -1:
+                    continue
+
+                ess_packets_scanned += np.int64(1)
+
+                # Resolve FW version and header size from the first ESS packet only.
+                if not header_resolved:
+                    self._resolve_fw_version_and_header(packet_data, index_ess)
+                    header_resolved = True
+
+                # Track the last packet seen for checkTimeSrc
+                self._scan_last_packet_data = packet_data
+                self._scan_last_index_ess   = index_ess
+
+                if self.pcap_loading_method == 'allocate':
+                    packet_sizes.append(np.int64(packet_size))
+
+                if self.pcap_loading_method == 'quick' and ess_packets_scanned >= max_ess_for_quick:
+                    break
+
+        except Exception as e:
+            print(
+                f"\n{ERR}ERROR: {e} ---> probably data is being created and "
+                f"file not closed -> exiting.{RESET}"
+            )
+            time.sleep(2)
+            sys.exit()
+
+        ff.close()
+
+        if self.pcap_loading_method == 'allocate':
+            sizes_arr      = np.array(packet_sizes, dtype='int64')
+            readout_counts = (sizes_arr - self._full_header_size) / self._single_readout_size
+            total_readouts = np.sum(readout_counts[readout_counts >= 0])
+            self._prealloc_length = int(round(total_readouts))
+
+        else:  # 'quick'
+            self._prealloc_length           = int(round(self._file_size / self._single_readout_size))
+            self._counter_candidate_packets = self._prealloc_length
+            self._counter_packets           = self._prealloc_length
+
+        self._dprint(f'prealloc_length {self._prealloc_length}')
+
+    # ------------------------------------------------------------------
+    # Network layer extraction and ICMP gate
+    # ------------------------------------------------------------------
+ 
+    def _process_network_layer(
+        self,
+        packet_data: bytes,
+        index_ess:   int,
+        ip_accumulator: list,
+    ) -> None:
+        """
+        Extract connection metadata using relative backward offsets from the
+        ESS cookie index. All slices are expressed as (index_ess - N) so that
+        variable network padding (e.g. VLAN tags) never shifts the extraction
+        window — only index_ess itself absorbs any such variation.
+ 
+        Relative offset map (all measured backwards from index_ess):
+        ---------------------------------------------------------------
+        The packet layout arriving at index_ess looks like this in memory,
+        reading left-to-right toward index_ess:
+ 
+          [ Ethernet (14) | IP header (20) | UDP header (8) | 2-byte pad | ESS... ]
+                                                                          ^
+                                                                      index_ess
+ 
+        Working back from index_ess:
+          index_ess - 2        : start of 2-byte pad before cookie (not used)
+          index_ess - 2 - 8    : start of UDP header (8 bytes)
+          index_ess - 2 - 8 - 20 : start of IP header (20 bytes)
+ 
+        Within the IP header (20 bytes starting at index_ess - 30):
+          Protocol byte  : offset +9  inside IP header
+                         → absolute: index_ess - 30 + 9 = index_ess - 21
+          Src IP         : offset +12 → bytes [index_ess-18 : index_ess-14]
+          Dst IP         : offset +16 → bytes [index_ess-14 : index_ess-10]
+ 
+        Within the UDP header (8 bytes starting at index_ess - 10):
+          Src port       : bytes [index_ess-10 : index_ess-8]
+          Dst port       : bytes [index_ess-8  : index_ess-6]
+ 
+        ICMP check:
+          IP protocol byte == 1 means ICMP. The RMM firmware occasionally sends
+          ping packets that embed ESS data but must be discarded. We detect this
+          here so the caller can skip payload extraction cleanly.
+ 
+        Parameters
+        ----------
+        packet_data     : raw bytes of the current pcapng block
+        index_ess       : byte index returned by locate_ess_cookie()
+        ip_accumulator  : list to which (src_ip, src_port, dst_ip, dst_port)
+                          tuples are appended during the scan pass; consumed
+                          by _print_ip_report() after the scan loop.
+        """
+        try:
+            # ---- IPv4 source and destination ------------------------------------
+            src_ip = str(ipaddress.IPv4Address(packet_data[index_ess - 18 : index_ess - 14]))
+            dst_ip = str(ipaddress.IPv4Address(packet_data[index_ess - 14 : index_ess - 10]))
+    
+            # ---- UDP ports ------------------------------------------------------
+            src_port = np.int64(int.from_bytes(packet_data[index_ess - 10 : index_ess - 8], byteorder='big'))
+            dst_port = np.int64(int.from_bytes(packet_data[index_ess - 8  : index_ess - 6], byteorder='big'))
+    
+            # ---- accumulate for post-scan unique-connection report --------------
+            ip_accumulator.append((src_ip, int(src_port), dst_ip, int(dst_port)))
+        except Exception:
+            pass
+ 
+ 
+    def _print_ip_report(self, ip_accumulator: list) -> None:
+        """
+        Deduplicate the connection tuples gathered during the scan pass and
+        print the unique-connection map in the original diagnostic format.
+ 
+        Called once by _scan_and_allocate() after the scan loop completes.
+        In 'allocate' mode, all candidate packets contribute.
+        In 'quick' mode, only the first valid ESS packet contributes.
+        """
+        print("checking IPs:ports ...")
+ 
+        arr = np.array(
+            [(s_ip, s_p, d_ip, d_p) for s_ip, s_p, d_ip, d_p in ip_accumulator],
+            dtype=[('src_ip', 'U40'), ('src_port', 'i8'),
+                   ('dst_ip', 'U40'), ('dst_port', 'i8')],
+        )
+        unique_rows, counts = np.unique(arr, return_counts=True)
+ 
+        for kk, (conn, num) in enumerate(zip(unique_rows, counts)):
+            print(
+                f"\tConnection {kk} found ({num} pkts) --> "
+                f"Source: {conn['src_ip']}:{conn['src_port']} | "
+                f"Dest: {conn['dst_ip']}:{conn['dst_port']}"
+            )
+            print()
+    
+    
+    def _fetch_packets(self):
+        """
+        Generator: opens the pcapng file and yields (packet_data, packet_length)
+        for every block. Handles network layer IP extraction as a side effect.
+        Consumed by BaseReader._read_packets().
+        """
+        ff      = open(self.file_path, 'rb')
+        scanner = pg.FileScanner(ff)
+
+        try:
+            for block in scanner:
+                try:
+                    packet_length = np.int64(block.packet_len)
+                    packet_data   = block.packet_data
+                except Exception:
+                    self._dprint('--> other packet found')
+                    continue
+                
+                yield packet_data, packet_length
+        finally:
+            ff.close()
+
+    def _run_warnings_and_checks(self) -> None:
+        """
+        Dedicated post-read stream validation phase.
+        Aggregates all network, firmware, timing, and instrument stream 
+        diagnostics to run once all file data is completely loaded.
+        """
+        # 1. Firmware version consistency check across the full file run
+        fw_versions_arr = np.array(self._fw_versions_raw, dtype='int64')
+        if len(fw_versions_arr) > 0:
+            self._check_fw_version_consistency(fw_versions_arr)
+
+        # 2. Hardware time source flag decoding
+        if self._scan_last_packet_data is not None:
+            ts_byte = int(self._scan_last_packet_data[self._scan_last_index_ess + 7])
+            self._check_time_src(ts_byte)
+
+        # 3. Deduplicated IP and Port network map report
+        if self._ip_tuples_raw:
+            self._print_ip_report(self._ip_tuples_raw)
+
+        # 4. Valid instrument stream verification lookup
+        check_valid_data_stream(self.instr_ids_found, self.unknown_instr_ids)
+        
+        # 5. Match config parameters with actual data 
+        match_data_stream_with_config(self.instrument_name, self.detector_type, self.instr_ids_found)
+        
+        # 6. Heartbeat timing analysis print out
+        self._analyse_heartbeats()
+        
+        # 7. Global Time-of-Flight validation summary pass
+        self._check_invalid_tofs()
+        
+        # Flush internal telemetry accumulation collections to free memory overhead after validation finishes
+        self._fw_versions_raw.clear()
+        self._ip_tuples_raw.clear()
+           
 # =============================================================================
 # Module-level diagnostic utility functions
 # =============================================================================
@@ -1241,9 +1227,9 @@ if __name__ == '__main__':
     # ------------------------------------------------------------------ #
     # Configuration — edit these for your environment
     # ------------------------------------------------------------------ #
-    file_path = r"C:\Projects\dg_MultiBlade_MBUTY_original\MBUTYcap\data\testDataVMM_pkts100_allEmptyPkts.pcapng"
+    file_path = r"C:\Projects\dg_MultiBlade_MBUTY_original\MBUTYcap\data\20260611_083055_pkts100_Test-full_00000.pcapng"
 
-    with open("C:\Projects\dg_MultiBlade_MBUTY_original\MBUTYcap\config\AMOR26.json") as json_file:
+    with open(r"C:\Projects\dg_MultiBlade_MBUTY_original\MBUTYcap\config\AMOR26.json") as json_file:
         config = json.load(json_file)
     
     # Minimal stub — mirrors only the attributes PcapngFileReader reads

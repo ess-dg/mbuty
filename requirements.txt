@@ -1,0 +1,9 @@
+flatbuffers
+configargparse
+python-pcapng
+confluent-kafka
+numpy
+pandas
+matplotlib
+h5py
+PyQt5
