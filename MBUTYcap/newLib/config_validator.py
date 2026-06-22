@@ -26,6 +26,9 @@ import sys
 import time
 import os
 import numpy as np
+from pathlib import Path
+import json
+
 
 # =============================================================================
 # RUNTIME PATH BOOTSTRAP (Ensures absolute imports always work)
@@ -38,6 +41,46 @@ if _workspace not in sys.path:
 from newLib.colors import WARN, ERR, INFO, OK, RESET
 
 
+# =============================================================================
+# BASIC FILE LOADING CHECKS - (common file name errors e.g double extension)
+# =============================================================================
+def load_config(config_file_path: str) -> dict:
+    """
+    Safely load a JSON config file into a plain dict.
+    Equivalent to legacy openFile() — covers all three failure modes:
+    double extension, file not found, and malformed JSON.
+    """
+    path     = Path(config_file_path)
+    filename = path.name
+    folder   = str(path.parent)
+
+    # --- Double extension guard (e.g. 'AMOR26.json.json') -------------------
+    if len(path.suffixes) > 1 and path.suffixes[-1] == path.suffixes[-2]:
+        print(f"\n {ERR}---> Double extension detected in '{filename}'! Please check your file naming convention.{RESET}")
+        time.sleep(2)
+        sys.exit()
+
+    # --- File not found ------------------------------------------------------
+    try:
+        fh = open(config_file_path, 'r')
+    except (FileNotFoundError, OSError):
+        print(f"\n {ERR}---> Config File: {filename} not found{RESET}")
+        print(f"\n ---> in folder: {folder} \n -> exiting.")
+        time.sleep(2)
+        sys.exit()
+
+    # --- Malformed JSON -------------------------------------------------------
+    try:
+        config = json.load(fh)
+    except json.JSONDecodeError:
+        print(f"\n {ERR}---> Error in config File: {filename}{RESET}", end='')
+        print(' ---> common mistake: last entry in topology must not have a trailing comma! \n -> exiting.')
+        time.sleep(2)
+        sys.exit()
+    finally:
+        fh.close()
+
+    return config
 # =============================================================================
 # Instrument <-> detectorType verification map (legacy verifyTypeWithInstrument)
 # =============================================================================
@@ -65,12 +108,13 @@ VALID_INSTRUMENT_NAMES = (
 # validate_instrument_and_detector
 # =============================================================================
 
-def validate_instrument_and_detector(config: dict) -> None:
+def validate_instrument_and_detector(config: dict, printFlag: bool = True) -> None:
     """Validate 'detectorType', 'instrumentName', and their cross-mapping.
 
     Equivalent to legacy: get_DETtype() + get_instrumName() + verifyTypeWithInstrument().
     Exits on invalid detectorType or invalid instrumentName.
     Prints a (non-fatal) warning on instrument/type mismatch.
+    The final success print is gated by printFlag.
     """
     det_type   = config.get('detectorType')
     instrument = config.get('instrumentName')
@@ -99,6 +143,10 @@ def validate_instrument_and_detector(config: dict) -> None:
         print(f"\tAnalysis will proceed, but please verify your JSON settings.{RESET}\n")
         time.sleep(1)
 
+    if printFlag:
+        det_name = config.get('detectorName', None)
+        print(f"{INFO}Configuration for Detector {det_name}, type {det_type}, instrument {instrument}{RESET}")
+
 
 # =============================================================================
 # validate_operation_mode
@@ -111,12 +159,9 @@ def validate_operation_mode(config: dict) -> None:
     VMM-based detectors ('MB' or 'MG') must be 'normal' or 'clustered'.
     Other detector types must be 'normal'.
     Exits immediately on an invalid mode.
-
-    NOTE: legacy version always prints the success line on the way out
-    ('Operation Mode: {}'); kept here for behavioral parity.
     """
     det_type       = config.get('detectorType')
-    operation_mode = config.get('operationMode')
+    operation_mode = config.get('operationMode', 'normal')
 
     if det_type == 'MG' or det_type == 'MB':
         if operation_mode == "normal" or operation_mode == "clustered":
@@ -129,16 +174,16 @@ def validate_operation_mode(config: dict) -> None:
         if operation_mode == "normal":
             print(f"{INFO}Operation Mode: {operation_mode}{RESET}")
         else:
-            print(f"\n\t{ERR}ERROR: Operation mode (found {operation_mode}) can only be either normal for {det_type} detectors -> check config file! ---> Exiting ... \n{RESET}", end='')
+            print(f"\n\t{ERR}ERROR: Operation mode (found {operation_mode}) can only be normal for {det_type} detectors -> check config file! ---> Exiting ... \n{RESET}", end='')
             time.sleep(2)
             sys.exit()
 
 
 # =============================================================================
-# validate_cassette_configuration
+# validate_unit_configuration
 # =============================================================================
 
-def validate_cassette_configuration(config: dict) -> None:
+def validate_unit_configuration(config: dict) -> None:
     """Validate unit count consistency and guard against ring 11 misuse.
 
     Equivalent to legacy: check_cassetteLabelling() + checkRing11().
@@ -162,7 +207,7 @@ def validate_cassette_configuration(config: dict) -> None:
     num_units_found  = np.shape(units_in_config)[0]
 
     if num_units_found != num_units_decl:
-        print(f"{ERR} CONFIG FILE JSON ERROR: Num of cassettes ({num_units_found}) not matching num of cassettes in list ({num_units_decl}) in Config file{RESET}")
+        print(f"{ERR} CONFIG FILE JSON ERROR: Num of units ({num_units_found}) not matching num of units in list ({num_units_decl}) in Config file{RESET}")
         print(' \n -> exiting.')
         time.sleep(2)
         sys.exit()
@@ -172,18 +217,23 @@ def validate_cassette_configuration(config: dict) -> None:
 # validate_monitor_configuration
 # =============================================================================
 
-def validate_monitor_configuration(config: dict) -> None:
+def validate_monitor_configuration(config: dict, printFlag: bool = True) -> None:
     """Validate the 'monitor' block (hardwareType, connectionType, ring rules).
 
     Equivalent to legacy: get_MONmap() + checkBMsettings().
     NOTE: legacy code supports only ONE monitor entry (mapm[0]); preserved here.
     This is config-time validation only — distinct from `check_bm_type()` in
     instrument_registry.py, which validates the BM *data* array post-read.
+    The "no monitor found" warning always prints; the hardwareType /
+    connectionType / ring checks below it are gated by printFlag.
     """
     monitor_block = config.get('monitor')
 
     if monitor_block is None:
         print(f"\t {WARN}WARNING: No monitor config found in json file {RESET}")
+        return
+
+    if not printFlag:
         return
 
     # legacy only ever reads the first monitor entry
@@ -229,14 +279,15 @@ def validate_monitor_configuration(config: dict) -> None:
 # Convenience: run all upfront checks in legacy order
 # =============================================================================
 
-def validate_config(config: dict) -> None:
+def validate_config(config: dict, printFlag: bool = True) -> None:
     """Run all upfront validations in the same order the legacy constructor did:
-    instrument/detector -> operation mode -> cassette configuration -> monitor.
+    instrument/detector -> monitor -> unit configuration -> operation mode.
     """
-    validate_instrument_and_detector(config)
-    validate_operation_mode(config)
-    validate_cassette_configuration(config)
-    validate_monitor_configuration(config)
+    validate_instrument_and_detector(config, printFlag)
+    validate_monitor_configuration(config, printFlag)
+    validate_unit_configuration(config)
+    if printFlag:
+        validate_operation_mode(config)
     
     
     
@@ -245,36 +296,26 @@ if __name__ == '__main__':
     # STANDALONE COMPONENT TEST HARNESS
     # =============================================================================
     import os
-    import json
 
     print(f"{INFO}--- Starting Standalone Config Validator Test ---{RESET}")
 
     # Define paths to test context files locally
     current_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.abspath(os.path.join(current_dir, ".."))
-    
+
     # Target your specific lower-camelCase configuration profile
     test_config_path = os.path.join(project_root, "config", "AMOR26.json")
 
     print(f"{INFO}Loading target test configuration: {test_config_path}{RESET}")
 
-    if not os.path.exists(test_config_path):
-        print(f"{ERR}Test Aborted: Configuration file not found at {test_config_path}{RESET}")
-        sys.exit(1)
-
-    try:
-        with open(test_config_path, 'r') as f:
-            test_config = json.load(f)
-        print(f"{OK}JSON parsed successfully.{RESET}")
-    except Exception as e:
-        print(f"{ERR}JSON Parsing Error: {e}{RESET}")
-        sys.exit(1)
+    test_config = load_config(test_config_path)
+    print(f"{OK}JSON parsed successfully.{RESET}")
 
     print(f"\n{INFO}Executing functional validation pipeline passes...{RESET}")
     print("-------------------------------------------------------------")
-    
+
     # Execute the global validation suite
     validate_config(test_config)
-    
+
     print("-------------------------------------------------------------")
     print(f"{OK}Success: Configuration validation passes verified successfully!{RESET}")

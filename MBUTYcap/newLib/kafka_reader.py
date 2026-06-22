@@ -229,7 +229,13 @@ class KafkaReader(BaseReader):
 
         # 4. Match config parameters with actual data
         match_data_stream_with_config(self.instrument_name, self.detector_type, self.instr_ids_found)
-
+        
+        # 5. Heartbeat timing analysis print out
+        self._analyse_heartbeats()
+        
+        # 6. Global Time-of-Flight validation summary pass
+        self._check_invalid_tofs()
+        
         # Flush accumulators
         self._fw_versions_raw.clear()
         self._ip_tuples_raw.clear()
