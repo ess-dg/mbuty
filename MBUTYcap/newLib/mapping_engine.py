@@ -263,7 +263,7 @@ class MBClustMapper:
 
     WireASIC == 1  ('reverse'):
         Wire   slot → channel1, adc1, mult1  →  index0 = channel1 - 16
-        Strip  slot → channel0, adc0, mult0  →  index1 = channel0   (already [0,63])
+        Strip  slot → channel0, adc0, mult0  →  index1 = 63 - channel0
 
     WireASIC == 0  ('straight'):
         Wire   slot → channel0, adc0, mult0  →  index0 = 31 - (channel0 - 16)
@@ -321,7 +321,7 @@ class MBClustMapper:
             )
             local_strip_index = np.where(
                 valid_mask & strip_in_range,
-                strip_ch,
+                np.int64(63) - strip_ch,
                 np.int64(-1)
             )
         else:

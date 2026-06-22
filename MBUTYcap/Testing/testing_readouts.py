@@ -14,8 +14,14 @@ import traceback
 from types import SimpleNamespace
 import numpy as np
 import time
-
-import libReadPcapng as old_lib
+# =============================================================================
+# RUNTIME PATH BOOTSTRAP
+# =============================================================================
+_workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _workspace not in sys.path:
+    sys.path.insert(0, _workspace)
+    
+import lib.libReadPcapng as old_lib
 
 # from lib import libReadPcapng as old_lib
 

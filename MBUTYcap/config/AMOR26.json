@@ -109,7 +109,7 @@
             "hardwareType": "generic",
             "connectionType": "ring",
             "ring": 11,
-            "channel": 0
+            "channel": 1
         }
     ]
 }

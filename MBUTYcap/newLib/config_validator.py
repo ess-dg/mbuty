@@ -305,7 +305,7 @@ if __name__ == '__main__':
 
     # Target your specific lower-camelCase configuration profile
     test_config_path = os.path.join(project_root, "config", "AMOR26.json")
-
+  
     print(f"{INFO}Loading target test configuration: {test_config_path}{RESET}")
 
     test_config = load_config(test_config_path)
