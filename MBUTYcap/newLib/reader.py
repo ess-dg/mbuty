@@ -5,15 +5,23 @@ import ipaddress
  
 import numpy as np
 import pcapng as pg  # python-pcapng
-from colors import WARN, ERR, INFO, OK, RESET
 
-from instrument_registry import (
+# =============================================================================
+# RUNTIME PATH BOOTSTRAP (Ensures absolute imports always work)
+# =============================================================================
+_workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _workspace not in sys.path:
+    sys.path.insert(0, _workspace)
+
+from newLib.colors import WARN, ERR, INFO, OK, RESET
+
+from newLib.instrument_registry import (
     get_readout_spec,
     check_valid_data_stream,
     print_info_data_stream,
     match_data_stream_with_config,
 )
-from readout_containers import (
+from newLib.readout_containers import (
     readoutsVMMnormal,
     readoutsVMMclustered,
     readoutsR5560,
@@ -22,7 +30,7 @@ from readout_containers import (
     readoutsSKADI,
 )
 
-from hardware_decoders import (
+from newLib.hardware_decoders import (
     VMMNormalDecoder,
     VMMClusteredDecoder,
     R5560Decoder,
@@ -75,8 +83,8 @@ class BaseReader:
 
         # ---- beam-monitor routing — extracted from config -------------------
         _mon          = config.get('Monitor', [{}])[0]
-        self.mon_hw   = _mon.get('hardwareType', 'GENERIC')
-        self.mon_conn = _mon.get('connectionType', 'RING')
+        self.mon_hw   = _mon.get('hardwareType', 'generic')
+        self.mon_conn = _mon.get('connectionType', 'ring')
         self.mon_ring = int(_mon.get('Ring', 11))
 
         # ---- ESS header geometry (resolved during scan, not hardcoded) ------
@@ -345,18 +353,18 @@ class BaseReader:
             # ------------------------------------------------------------------
             # 9. BM routing conditions 
             # ------------------------------------------------------------------
-            is_lemo_mode = (self.mon_conn == 'LEMO' and ring >= 11)
-            is_ring_mode = (self.mon_conn == 'RING'  and ring == self.mon_ring)
+            is_lemo_mode = (self.mon_conn == 'lemo' and ring >= 11)
+            is_ring_mode = (self.mon_conn == 'ring'  and ring == self.mon_ring)
             is_bm_packet = is_lemo_mode or is_ring_mode
 
             # ------------------------------------------------------------------
             # 10. Select destination container and decoder
             # ------------------------------------------------------------------
             if is_bm_packet:
-                if self.mon_hw == 'GENERIC':
+                if self.mon_hw == 'generic':
                     dest_container = self.readouts_bm
                     active_decoder = bm_decoder
-                elif self.mon_hw == 'IBM':
+                elif self.mon_hw == 'ibm':
                     dest_container = self.readouts_ibm
                     active_decoder = ibm_decoder
                 else:
@@ -1130,7 +1138,7 @@ class PcapngFileReader(BaseReader):
                 f"Source: {conn['src_ip']}:{conn['src_port']} | "
                 f"Dest: {conn['dst_ip']}:{conn['dst_port']}"
             )
-            print()
+        print()
     
     
     def _fetch_packets(self):

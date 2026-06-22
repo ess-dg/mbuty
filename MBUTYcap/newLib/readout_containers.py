@@ -1,7 +1,7 @@
 import numpy as np
 import time
-from calibration import load_calibration_map, calibrate_adc_channels
-from colors import WARN, RESET
+from .calibration import load_calibration_map, calibrate_adc_channels
+from .colors import WARN, RESET, INFO
 import pandas as pd 
 
 class readouts():
@@ -269,8 +269,8 @@ class readoutsVMMnormal(readoutsVMM):
         if self.fill_count == 0:
             return
 
-        adc_calib_on = getattr(parameters, 'calibrateVMM_ADC_ONOFF', False)
-        tdc_calib_on = getattr(parameters, 'calibrateVMM_TDC_ONOFF', False)
+        adc_calib_on = getattr(getattr(parameters, 'dataReduction', None), 'calibrateVMM_ADC_ONOFF', False)
+        tdc_calib_on = getattr(getattr(parameters, 'dataReduction', None), 'calibrateVMM_TDC_ONOFF', False)
 
         if not adc_calib_on and not tdc_calib_on:
             return
@@ -289,7 +289,7 @@ class readoutsVMMnormal(readoutsVMM):
         """Applies per-channel linear ADC calibrations to the matrix using a pre-loaded calibration map."""
         if not calib_map:
             return
-
+        print(f'{INFO}Calibrating ADC ...{RESET}')
         ring_col   = self.matrix['ring']
         fen_col    = self.matrix['fen']
         hybrid_col = self.matrix['hybrid']

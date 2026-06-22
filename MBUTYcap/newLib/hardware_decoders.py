@@ -1,5 +1,5 @@
 import numpy as np
-from instrument_registry import get_readout_spec
+from .instrument_registry import get_readout_spec
 
 
 class BaseHardwareDecoder:

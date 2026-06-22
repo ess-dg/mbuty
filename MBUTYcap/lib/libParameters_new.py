@@ -49,7 +49,7 @@ class checkPackageInstallation():
         # for pyhton <3.10
         if sys.version_info < (3,10):
             self.installed = {dist.metadata['Name'] for dist in importlib.metadata.distributions()}
-        elif sys.version_info >= (3,10):
+        elif sys.version_info >= (3,10):\
             self.installed = {dist.name for dist in importlib.metadata.distributions()}
         
         self.normalizedInstalled = {name.lower().replace('_', '-') for name in self.installed}
@@ -174,18 +174,19 @@ class fileManagement():
 
             self.reducedCompressionHDFT  = 'gzip'  
             self.reducedCompressionHDFL  = 9     # gzip compression level 0 - 9
-            
-      def importConfigFileDetails(self,config=None):
+       
+        #  this can go 
+      # def importConfigFileDetails(self,config=None):
           
-          if config is None:
+      #     if config is None:
               
-             self.configFilePath = './'
-             self.configFileName = './'
+      #        self.configFilePath = './'
+      #        self.configFileName = './'
               
-          else:
+      #     else:
           
-            self.configFilePath = config.configFilePath
-            self.configFileName = config.configFileName
+      #       self.configFilePath = config.configFilePath
+      #       self.configFileName = config.configFileName
             
       def parseFileSerialsList(self):
           
@@ -216,7 +217,7 @@ class kafkaSettings():
         self.topic        = 'freia_debug'
         self.numOfPackets = 100
             
-class VMMsettings():
+class timeSettings():
     def __init__(self):
         
         self.timeResolutionType    = 'fine'
@@ -270,9 +271,16 @@ class dataReduction():
           self.calibrateVMM_ADC_ONOFF = False
 
          
-    def createThArrays(self, parameters, config):   
+    def createThArrays(self, parameters):   
         
-        cassettes = config.DETparameters.cassInConfig
+        if (parameters.config) is None :
+            
+            config = maps.read_json_config(os.path.join(parameters.fileManagement.configFilePath,parameters.fileManagement.configFileName))
+            parameters.config = config
+            cassettes = config.DETparameters.cassInConfig
+        else:
+            cassettes = parameters.config.DETparameters.cassInConfig
+            
             
         self.softThArray = thre.softThresholds(cassettes, parameters)
 
@@ -314,6 +322,8 @@ class plotting():
           self.ToFrange        = 0.1   # s
           self.ToFbinning      = 100e-6 # s
           
+          # self.ToFbins  = round(self.ToFrange/self.ToFbinning) 
+          
           self.ToFGate         = False
           self.ToFGateRange    = [0.0,0.5]   # s
                     
@@ -334,6 +344,8 @@ class plotting():
           
           self.bareReadoutsCalculation = False
           
+          
+      # move out
       def calculateDerivedParam(self, config):
           
           self.config = config
@@ -384,9 +396,11 @@ class wavelength():
           self.numOfBunchesPerPulse  = 2
           self.lambdaMIN             = 2.7     #A
 
-            # PickUpTimeShift = -0.002 #s on chopper, time shift betweeen chopper edge 
+            # PickUpTimeShift = -0.002 #s on chopper, time shift betweeen pickup and chopper edge 
           self.chopperPickUpDelay =  13.5/(2.*180.) * self.chopperPeriod/self.numOfBunchesPerPulse  #s  
           
+          
+          # move in some other calculation 
       def update(self):
          
           self.chopperFreq  = 1/self.chopperPeriod    #Hz
@@ -402,9 +416,11 @@ class parameters():
         
         self.acqMode = None
         
-        self.initializeParam()
+        self.initializeParam(config=None)
         
-    def initializeParam(self):
+    def initializeParam(self,config=None):
+        
+        self.loadConfig(config)
         
         self.dumpSettings   = dumpSettings(self.fileManagement.currentPath)
          
@@ -415,15 +431,35 @@ class parameters():
         self.pulseHeigthSpect = pulseHeigthSpect()
         
         self.plotting = plotting()
+        self.plotting.calculateDerivedParam(self.config)
         
         self.wavelength = wavelength()
         
         self.MONitor = MONitor()
         
-        self.kafkaSettings = kafkaSettings()
+        self.kafkaSettings  = kafkaSettings()
         
-        self.VMMsettings   = VMMsettings()
+        self.timeSettings   = timeSettings()
            
+        
+      #################  
+     #  no config in param, so this can go 
+    def loadConfig(self,config=None):
+        
+        self.config = config
+        self.fileManagement.importConfigFileDetails(self.config)
+     #################   
+        
+    def update(self,config):
+            
+        self.plotting.calculateDerivedParam(config)
+        self.wavelength.update()
+        self.fileManagement.parseFileSerialsList()
+        
+    def loadConfigAndUpdate(self,config=None):
+            
+        self.loadConfig(config)
+        self.update(config)
 
              
 #################
@@ -538,3 +574,95 @@ class parameters():
                 sys.exit()        
 
             self.check_acqMode()
+            
+###############################################################################
+###############################################################################
+
+if __name__ == '__main__' :
+    
+    currentPath = '/Users/francescopiscitelli/Documents/PYTHON/MBUTYcap/'
+    
+    parameters = parameters(currentPath)
+    
+    parameters.fileManagement.fileSerials = ["0-2","11-13"]
+
+    configFilePath  = currentPath+'config/'
+    configFileName  = "AMOR.json"
+    config = maps.read_json_config(configFilePath+configFileName)
+
+    parameters.loadConfigAndUpdate(config)
+    
+    print(parameters.fileManagement.fileSerials)
+    
+    # configFilePath  = './'+"MB300_AMOR_config.json"
+    # config = maps.read_json_config(configFilePath)
+    
+    # aa = parameters(config)
+    
+    # aa.cassettes.cassettes = [1,3,4]
+
+    # aa.update()
+
+    # bb = aa.dataReduction.sth
+    
+    # checkPythonVersion()
+    
+    # prof= profiling()
+    
+    # time.sleep(2)
+    
+    # prof.lap()
+    
+    # prof.restart()
+    
+    # time.sleep(1)
+    
+    # prof.lap()
+    
+    # time.sleep(1.3)
+    
+    # prof.stop()
+    
+    # parameters2  = parameters('/Users/francescopiscitelli/Documents/PYTHON/MBUTYcap/')
+
+    # currentPath  = '/Users/francescopiscitelli/Documents/PYTHON/MBUTYcap/'
+    # configFilePath  = currentPath +'config/'
+    # # configFileName  = "MB300_AMOR_config.json"
+    # configFileName  = "AMOR.json"
+    
+    # # config = maps.read_json_config(configFilePath+configFileName)
+    # # # parameters.loadConfigParameters(config)
+    
+    # parameters  = parameters(currentPath)
+    # config = maps.read_json_config(configFilePath+configFileName)
+    # parameters.loadConfigAndSetParameters(config)
+    
+    # parameters.set_acqMode('pcap-local-overwrite')
+    
+    
+    # parameters2.loadConfigParameters()
+    
+    # parr = parameters()
+    # parr.init_empty()
+    
+    # parameters  = parameters(configFilePath)
+    
+    # config = maps.read_json_config(configFilePath+configFileName)
+    # parameters.loadConfigParameters(config)
+    
+    
+    # aa = acqMode('pcap-local')
+    
+    # aa.set_acqMode()
+    
+    
+    # parameters.dataReduction.softThArray.ThW[:,1] = 5000
+    
+    
+    # aa = checkPackageInstallation()
+    
+    # aa.checkPackagePcap()
+    
+    # flag = aa.checkPackageKafka()
+    
+    # print(flag)

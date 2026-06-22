@@ -17,12 +17,19 @@ import numpy as np
 import os
 from confluent_kafka import Consumer, TopicPartition
 
-from reader import BaseReader
-from libKafkaRawReadoutMessage import RawReadoutMessage
-import libKafkaRX as krx
-from colors import WARN, ERR, RESET
+# =============================================================================
+# RUNTIME PATH BOOTSTRAP (Ensures absolute imports always work)
+# =============================================================================
+_workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _workspace not in sys.path:
+    sys.path.insert(0, _workspace)
 
-from instrument_registry import (
+from newLib.reader import BaseReader
+from newLib.libKafkaRawReadoutMessage import RawReadoutMessage
+import newLib.libKafkaRX as krx
+from newLib.colors import WARN, ERR, RESET
+
+from newLib.instrument_registry import (
     check_valid_data_stream,
     match_data_stream_with_config,
 )
@@ -30,7 +37,6 @@ from instrument_registry import (
 # =============================================================================
 # Testing simulator
 # =============================================================================
-# NEW
 def load_test_packet() -> bytes:
     """Load a single saved ESS packet for Kafka pipeline testing."""
     _here = os.path.dirname(os.path.abspath(__file__))
@@ -79,23 +85,20 @@ class KafkaReader(BaseReader):
     # guarantees we never under-allocate regardless of actual firmware version.
     _ESS_HEADER_ESTIMATE: int = 32
     _SINGLE_READOUT_SIZE: int = 20
-    _READOUTS_PER_PACKET: int = 446  # matches original estimate
+    _READOUTS_PER_PACKET: int = 447  # matches original estimate
 
     def __init__(
         self,
         parameters,
         config:     dict,
-        broker:     str  = '127.0.0.1:9092',
-        topic:      str  = 'freia_debug',
-        n_packets:  int  = 1,
         testing:    bool = False,
     ):
         super().__init__(parameters, config)
 
         # ---- Kafka connection parameters ------------------------------------
-        self._broker    = broker
-        self._topic     = topic
-        self._n_packets = n_packets
+        self._broker    = getattr(getattr(parameters, 'kafkaSettings', None), 'broker',    '127.0.0.1:9092')
+        self._topic     = getattr(getattr(parameters, 'kafkaSettings', None), 'topic',     'freia_debug')
+        self._n_packets = getattr(getattr(parameters, 'kafkaSettings', None), 'n_packets', 1)
         self._testing   = testing
 
         # ---- Kafka has no network layer — ESS bytes start at offset 0 ------

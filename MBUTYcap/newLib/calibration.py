@@ -12,7 +12,7 @@ import os
 import sys
 from dataclasses import dataclass, field
 import numpy as np
-from colors import ERR, WARN, INFO, RESET
+from .colors import ERR, WARN, INFO, RESET
 
 # =============================================================================
 # 1. CALIBRATION DATA STRUCTURES

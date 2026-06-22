@@ -396,7 +396,41 @@ class readouts():
         validPrevP = invalidToFsCounter1 - invalidToFsCounter2 
            
         print('\n \033[1;33m\t Readouts %d: %d ToFs valid (%d valid, %d PrevPulse corrected) - invalid %d \033[1;37m' % (NumReadouts,validToFs,validValid,validPrevP,invalidToFsCounter2))
-  
+ 
+    
+class extractReoudoutSelection():
+           
+           def extract(self,readouts1,selection):
+                    
+               readoutsEx = readouts()
+               
+               readoutsEx.Ring     = readouts1.Ring[selection]
+               readoutsEx.Fen      = readouts1.Fen[selection]
+               readoutsEx.VMM      = readouts1.VMM[selection]
+               readoutsEx.hybrid   = readouts1.hybrid[selection]
+               readoutsEx.ASIC     = readouts1.ASIC[selection]
+               readoutsEx.Channel  = readouts1.Channel[selection]
+               readoutsEx.ADC      = readouts1.ADC[selection]
+               readoutsEx.Channel1 = readouts1.Channel1[selection]
+               readoutsEx.ADC1     = readouts1.ADC1[selection]
+               readoutsEx.timeStamp  = readouts1.timeStamp[selection]
+               readoutsEx.BC      = readouts1.BC[selection]
+               readoutsEx.OTh     = readouts1.OTh[selection]
+               readoutsEx.TDC     = readouts1.TDC[selection]
+               readoutsEx.GEO     = readouts1.GEO[selection]
+               readoutsEx.G0      = readouts1.G0[selection]
+               readoutsEx.PulseT  = readouts1.PulseT[selection] 
+               readoutsEx.PrevPT  = readouts1.PrevPT[selection]
+               readoutsEx.timeCoarse = readouts1.timeCoarse[selection]
+               # readoutsEx.Durations  = readouts1.Durations[selection]
+               readoutsEx.mult0     = readouts1.mult0[selection] 
+               readoutsEx.mult1     = readouts1.mult1[selection]
+               # readoutsEx.heartbeats = readouts1.heartbeats[selection]
+               # readoutsEx.instrID    = readouts1.instrID[selection]
+               readoutsEx.instrIDpkt    = readouts1.instrIDpkt[selection]
+               # readoutsEx.instrIDUnique = readouts1.instrIDUnique[selection]
+           
+               return readoutsEx 
         
 ###############################################################################
 ###############################################################################
@@ -1214,7 +1248,7 @@ class pcapng_reader_PreAlloc():
     
         ##########################################################
         
-        self.readoutsPerPacket   = 446 #packets NOT USED here and dinamically recalcualted in extractfrombytes but used as a default to init kafka 
+        self.readoutsPerPacket   = 447 #packets NOT USED here and dinamically recalcualted in extractfrombytes but used as a default to init kafka 
         self.ESSheaderSize       = None  # 30 bytes if version is 0  or 32 bytes if version is 1   
         self.headerSize          = None  # self.mainHeaderSize+self.ESSheaderSize #bytes  (72 if mainHeaderSize = 42)
         self.singleReadoutSize   = 20  # bytes, dinamically recalcualted in extractfrombytes but used as a default to init kafka 
@@ -1411,7 +1445,7 @@ class pcapng_reader_PreAlloc():
                     try:
                         packetSize = block.packet_len
                         self.dprint("packetSize {} bytes".format(packetSize))
-                        
+                                                
                         packetData = block.packet_data
                         
                         indexESS   = packetData.find(b'ESS')
@@ -2060,7 +2094,7 @@ if __name__ == '__main__':
 
 
 
-   confFile  = 'C:\Projects\dg_MultiBlade_MBUTY_original\MBUTYcap/config/'
+   confFile  = '/Users/francescopiscitelli/Documents/PYTHON/MBUTYcap/config/'
    fileName  = "MIRACLES24.json"
    fileName  = "AMOR.json"
     # fileName  = "MGEMMA.json"
@@ -2074,8 +2108,9 @@ if __name__ == '__main__':
    parameters.loadConfigAndUpdate(config)
     
     
-   filePath = 'C:\Projects\dg_MultiBlade_MBUTY_original\MBUTYcap/data/'
+   filePath = '/Users/francescopiscitelli/Documents/PYTHON/MBUTYcap/data/'
    file = 'miracles_trig2.pcapng'
+   file = 'ESSmask2023_1000pkts.pcapng'
    # file = 'ESSmask2023.pcapng'
    
    file = 'sampleData_NormalMode.pcapng'
@@ -2087,7 +2122,7 @@ if __name__ == '__main__':
    # file = 'miracles_source_on_left_red.pcapng'
 
    # file = 'CSPEC1.pcapng'
-   file = '20260611_083055_pkts100_Test-full_00000.pcapng'
+
 
    filePathAndFileName = filePath+file
    

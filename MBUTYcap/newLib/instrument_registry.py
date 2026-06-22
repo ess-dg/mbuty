@@ -12,7 +12,7 @@ is in plain functions.
 
 import sys
 import numpy as np
-from colors import WARN, ERR, RESET
+from .colors import WARN, ERR, RESET
 
 # =============================================================================
 # Registry
@@ -273,19 +273,19 @@ def check_bm_type(geo: np.ndarray, bm_hw: str) -> None:
 
     for geo_val in np.unique(geo):
         if geo_val == 1:
-            if bm_hw == 'IBM':
+            if bm_hw == 'ibm':
                 print(f"\n\t{WARN}WARNING: found BM data type 1 (GENERIC - 0D) but config says {bm_hw}!")
                 print("\tThe BM data may be parsed incorrectly.{RESET}")
             else:
                 print(f"\n\tBM data is type 1 (GENERIC - 0D)")
         elif geo_val == 2:
-            if bm_hw == 'IBM':
+            if bm_hw == 'ibm':
                 print(f"\n\t{WARN}WARNING: found BM data type 2 (GENERIC - 1D or 2D) but config says {bm_hw}!")
                 print("\tThe BM data may be parsed incorrectly.{RESET}")
             else:
                 print(f"\n\tBM data is type 2 (GENERIC - 1D or 2D)")
         elif geo_val == 3:
-            if bm_hw == 'GENERIC':
+            if bm_hw == 'generic':
                 print(f"\n\t{WARN}WARNING: found BM data type 3 (IBM) but config says {bm_hw}!")
                 print("\tThe BM data may be parsed incorrectly.{RESET}")
             else:
