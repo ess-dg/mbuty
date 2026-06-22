@@ -98,7 +98,7 @@ class KafkaReader(BaseReader):
         # ---- Kafka connection parameters ------------------------------------
         self._broker    = getattr(getattr(parameters, 'kafkaSettings', None), 'broker',    '127.0.0.1:9092')
         self._topic     = getattr(getattr(parameters, 'kafkaSettings', None), 'topic',     'freia_debug')
-        self._n_packets = getattr(getattr(parameters, 'kafkaSettings', None), 'n_packets', 1)
+        self._n_packets = getattr(getattr(parameters, 'kafkaSettings', None), 'numOfPackets', 1)
         self._testing   = testing
 
         # ---- Kafka has no network layer — ESS bytes start at offset 0 ------
@@ -295,7 +295,6 @@ if __name__ == '__main__':
     reader = KafkaReader(
         parameters = parameters,
         config     = config,
-        n_packets  = 5,
         testing    = True,
     )
 

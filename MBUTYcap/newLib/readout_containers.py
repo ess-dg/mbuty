@@ -70,7 +70,7 @@ class readouts():
         if self.fill_count == 0:
             return
 
-        sort_enabled = getattr(parameters, 'sortByTimeStampsONOFF', False)
+        sort_enabled = getattr(getattr(parameters, 'VMMsettings', None), 'sortReadoutsByTimeStampsONOFF', False)
         if sort_enabled:
             print("Readouts are sorted by timestamp")
             idx = self.matrix['timeStamp'].argsort(kind='quicksort')
