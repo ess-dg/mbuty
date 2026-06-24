@@ -1,112 +1,112 @@
 {
-    "DetectorName": "FREIA_sect0and1",
-    "DetectorType": "MB",
-    "InstrumentName": "FREIA",
-    "operationMode": "normal",
-    "cassettes": 16,
+    "detectorName": "FREIA_sect0and1",
+    "detectorType": "MB",
+    "instrumentName": "FREIA",
+    "units": 16,
     "orientation": "horizontal",
-    "Cassette2ElectronicsConfig": [
+    "operationMode": "normal",
+    "topology": [
         {
             "ID": 0,
-            "Ring": 0,
-            "Fen": 0,
-            "Hybrid": 0
+            "ring": 0,
+            "fen": 0,
+            "hybrid": 0
         },
         {
             "ID": 1,
-            "Ring": 0,
-            "Fen": 0,
-            "Hybrid": 1
+            "ring": 0,
+            "fen": 0,
+            "hybrid": 1
         },
         {
             "ID": 2,
-            "Ring": 0,
-            "Fen": 0,
-            "Hybrid": 2
+            "ring": 0,
+            "fen": 0,
+            "hybrid": 2
         },
         {
             "ID": 3,
-            "Ring": 0,
-            "Fen": 0,
-            "Hybrid": 3
+            "ring": 0,
+            "fen": 0,
+            "hybrid": 3
         },
         {
             "ID": 4,
-            "Ring": 0,
-            "Fen": 0,
-            "Hybrid": 4
+            "ring": 0,
+            "fen": 0,
+            "hybrid": 4
         },
         {
             "ID": 5,
-            "Ring": 1,
-            "Fen": 0,
-            "Hybrid": 0
+            "ring": 1,
+            "fen": 0,
+            "hybrid": 0
         },
         {
             "ID": 6,
-            "Ring": 1,
-            "Fen": 0,
-            "Hybrid": 1
+            "ring": 1,
+            "fen": 0,
+            "hybrid": 1
         },
         {
             "ID": 7,
-            "Ring": 1,
-            "Fen": 0,
-            "Hybrid": 2
+            "ring": 1,
+            "fen": 0,
+            "hybrid": 2
         },
         {
             "ID": 8,
-            "Ring": 1,
-            "Fen": 0,
-            "Hybrid": 3
+            "ring": 1,
+            "fen": 0,
+            "hybrid": 3
         },
         {
             "ID": 9,
-            "Ring": 1,
-            "Fen": 0,
-            "Hybrid": 4
+            "ring": 1,
+            "fen": 0,
+            "hybrid": 4
         },
         {
             "ID": 10,
-            "Ring": 2,
-            "Fen": 0,
-            "Hybrid": 0
+            "ring": 2,
+            "fen": 0,
+            "hybrid": 0
         },
         {
             "ID": 11,
-            "Ring": 2,
-            "Fen": 0,
-            "Hybrid": 1
+            "ring": 2,
+            "fen": 0,
+            "hybrid": 1
         },
         {
             "ID": 12,
-            "Ring": 2,
-            "Fen": 0,
-            "Hybrid": 2
+            "ring": 2,
+            "fen": 0,
+            "hybrid": 2
         },
         {
             "ID": 13,
-            "Ring": 2,
-            "Fen": 0,
-            "Hybrid": 3
+            "ring": 2,
+            "fen": 0,
+            "hybrid": 3
         },
         {
             "ID": 14,
-            "Ring": 2,
-            "Fen": 0,
-            "Hybrid": 4
+            "ring": 2,
+            "fen": 0,
+            "hybrid": 4
         },
         {
             "ID": 15,
-            "Ring": 3,
-            "Fen": 0,
-            "Hybrid": 0
+            "ring": 3,
+            "fen": 0,
+            "hybrid": 0
         }
     ],
-    "ChannelMapping": [
+    "channelMapping": [
         {
-            "WireASIC": 1,
-            "StripASIC": 0
+            "wireASIC": 1,
+            "stripASIC": 0
         }
     ],
     "wires": 32,
@@ -115,13 +115,13 @@
     "stripPitch_mm": 4,
     "bladesInclination_deg": 5.1,
     "offset1stWires_mm": 10.5,
-    "Monitor": [
+    "monitor": [
         {
             "ID": 99,
-            "hardwareType": "GENERIC",
-            "connectionType": "RING",
-            "Ring": 11,
-            "Channel": 0
+            "hardwareType": "generic",
+            "connectionType": "ring",
+            "ring": 11,
+            "channel": 0
         }
     ]
 }

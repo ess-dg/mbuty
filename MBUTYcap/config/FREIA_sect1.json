@@ -1,64 +1,64 @@
 {
-    "DetectorName": "FREIA_sect1",
-    "DetectorType": "MB",
-    "InstrumentName": "FREIA",
-    "operationMode": "normal",
-    "cassettes": 8,
+    "detectorName": "FREIA_sect1",
+    "detectorType": "MB",
+    "instrumentName": "FREIA",
+    "units": 8,
     "orientation": "horizontal",
-    "Cassette2ElectronicsConfig": [
-         {
-             "ID": 8,
-             "Ring": 1,
-             "Fen": 0,
-             "Hybrid": 3
-         },
-         {
-             "ID": 9,
-             "Ring": 1,
-             "Fen": 0,
-             "Hybrid": 4
-         },
-         {
-             "ID": 10,
-             "Ring": 2,
-             "Fen": 0,
-             "Hybrid": 0
-         },
-         {
-             "ID": 11,
-             "Ring": 2,
-             "Fen": 0,
-             "Hybrid": 1
-         },
-         {
-             "ID": 12,
-             "Ring": 2,
-             "Fen": 0,
-             "Hybrid": 2
-         },
-         {
-             "ID": 13,
-             "Ring": 2,
-             "Fen": 0,
-             "Hybrid": 3
-         },
-         {
-             "ID": 14,
-             "Ring": 2,
-             "Fen": 0,
-             "Hybrid": 4
-         },
-         {
-             "ID": 15,
-             "Ring": 3,
-             "Fen": 0,
-             "Hybrid": 0
-         }
-    ],
-    "ChannelMapping": [
+    "operationMode": "normal",
+    "topology": [
         {
-            "WireASIC": 1,
-            "StripASIC": 0
+            "ID": 8,
+            "ring": 1,
+            "fen": 0,
+            "hybrid": 3
+        },
+        {
+            "ID": 9,
+            "ring": 1,
+            "fen": 0,
+            "hybrid": 4
+        },
+        {
+            "ID": 10,
+            "ring": 2,
+            "fen": 0,
+            "hybrid": 0
+        },
+        {
+            "ID": 11,
+            "ring": 2,
+            "fen": 0,
+            "hybrid": 1
+        },
+        {
+            "ID": 12,
+            "ring": 2,
+            "fen": 0,
+            "hybrid": 2
+        },
+        {
+            "ID": 13,
+            "ring": 2,
+            "fen": 0,
+            "hybrid": 3
+        },
+        {
+            "ID": 14,
+            "ring": 2,
+            "fen": 0,
+            "hybrid": 4
+        },
+        {
+            "ID": 15,
+            "ring": 3,
+            "fen": 0,
+            "hybrid": 0
+        }
+    ],
+    "channelMapping": [
+        {
+            "wireASIC": 1,
+            "stripASIC": 0
         }
     ],
     "wires": 32,
@@ -67,13 +67,13 @@
     "stripPitch_mm": 4,
     "bladesInclination_deg": 5.1,
     "offset1stWires_mm": 10.5,
-    "Monitor": [
+    "monitor": [
         {
             "ID": 99,
-            "hardwareType": "GENERIC",
-            "connectionType": "RING",
-            "Ring": 11,
-            "Channel": 0
+            "hardwareType": "generic",
+            "connectionType": "ring",
+            "ring": 11,
+            "channel": 0
         }
     ]
 }

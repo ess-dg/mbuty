@@ -1,0 +1,34 @@
+{
+    "DetectorName": "MG1column",
+    "DetectorType": "MG",
+    "InstrumentName" : "TREX",
+    "operationMode": "normal",
+    "cassettes": 1,
+    "orientation": "vertical",
+    "Cassette2ElectronicsConfig": [
+        {
+            "ID": 0,
+            "Ring": 0,
+            "Fen": 0,
+            "HybridW": 0,
+            "HybridS": 1
+        }
+    ],
+    "wires": 120,
+    "strips": 88,
+    "wirePitchX_mm": 23.5,
+    "wirePitchZ_mm": 10,
+    "stripPitchY_mm": 25,
+    "wiresPerRow": 20,
+    "angularOffset_deg": 0,
+    "linearOffset1stWires_mm": 80,
+    "Monitor": [
+        {
+            "ID": 99,
+            "hardwareType": "GENERIC",
+            "connectionType": "RING",
+            "Ring": 11,
+            "Channel": 0
+        }
+    ]
+}

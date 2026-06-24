@@ -1,29 +1,28 @@
 {
-    "DetectorName": "MIRACLES1",
-    "DetectorType": "He3",
-    "InstrumentName" : "MIRACLES",
-    "operationMode": "normal",
-    "cassettes": 1,
+    "detectorName": "MIRACLES1",
+    "detectorType": "He3",
+    "instrumentName": "MIRACLES",
+    "units": 1,
     "orientation": "vertical",
-    "Cassette2ElectronicsConfig": [
+    "topology": [
         {
             "ID": 0,
-            "Ring": 0,
-            "Fen": 0,
-            "Tube": 2
+            "ring": 0,
+            "fen": 0,
+            "tube": 2
         }
     ],
     "positionBins": 256,
     "tubesPerRow": 8,
-    "tubeLength": 150,
+    "tubeLength": 300,
     "tubeSpacing": 10,
-    "Monitor": [
+    "monitor": [
         {
             "ID": 99,
-            "hardwareType": "GENERIC",
-            "connectionType": "RING",
-            "Ring": 11,
-            "Channel": 0
+            "hardwareType": "generic",
+            "connectionType": "ring",
+            "ring": 11,
+            "channel": 0
         }
     ]
 }

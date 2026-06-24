@@ -1,0 +1,167 @@
+{
+    "DetectorName": "MIRACLES24",
+    "DetectorType": "He3",
+    "InstrumentName" : "MIRACLES",
+    "operationMode": "normal",
+    "cassettes": 24,
+    "orientation": "vertical",
+    "Cassette2ElectronicsConfig": [
+        {
+            "ID": 0,
+            "Ring": 0,
+            "Fen": 0,
+            "Tube": 0
+        },
+        {
+            "ID": 1,
+            "Ring": 0,
+            "Fen": 0,
+            "Tube": 1
+        },
+        {
+            "ID": 2,
+            "Ring": 0,
+            "Fen": 0,
+            "Tube": 2
+        },
+        {
+            "ID": 3,
+            "Ring": 0,
+            "Fen": 0,
+            "Tube": 3
+        },
+        {
+            "ID": 4,
+            "Ring": 0,
+            "Fen": 0,
+            "Tube": 4
+        },
+        {
+            "ID": 5,
+            "Ring": 0,
+            "Fen": 0,
+            "Tube": 5
+        },
+        {
+            "ID": 6,
+            "Ring": 0,
+            "Fen": 0,
+            "Tube": 6
+        },
+        {
+            "ID": 7,
+            "Ring": 0,
+            "Fen": 0,
+            "Tube": 7
+        },
+        {
+            "ID": 8,
+            "Ring": 0,
+            "Fen": 0,
+            "Tube": 8
+        },
+        {
+            "ID": 9,
+            "Ring": 0,
+            "Fen": 0,
+            "Tube": 9
+        },
+        {
+            "ID": 10,
+            "Ring": 0,
+            "Fen": 0,
+            "Tube": 10
+        },
+        {
+            "ID": 11,
+            "Ring": 0,
+            "Fen": 0,
+            "Tube": 11
+        },
+        {
+            "ID": 12,
+            "Ring": 1,
+            "Fen": 0,
+            "Tube": 0
+        },
+        {
+            "ID": 13,
+            "Ring": 1,
+            "Fen": 0,
+            "Tube": 1
+        },
+        {
+            "ID": 14,
+            "Ring": 1,
+            "Fen": 0,
+            "Tube": 2
+        },
+        {
+            "ID": 15,
+            "Ring": 1,
+            "Fen": 0,
+            "Tube": 3
+        },
+        {
+            "ID": 16,
+            "Ring": 1,
+            "Fen": 0,
+            "Tube": 4
+        },
+        {
+            "ID": 17,
+            "Ring": 1,
+            "Fen": 0,
+            "Tube": 5
+        },
+        {
+            "ID": 18,
+            "Ring": 1,
+            "Fen": 0,
+            "Tube": 6
+        },
+        {
+            "ID": 19,
+            "Ring": 1,
+            "Fen": 0,
+            "Tube": 7
+        },
+        {
+            "ID": 20,
+            "Ring": 1,
+            "Fen": 0,
+            "Tube": 8
+        },
+        {
+            "ID": 21,
+            "Ring": 1,
+            "Fen": 0,
+            "Tube": 9
+        },
+        {
+            "ID": 22,
+            "Ring": 1,
+            "Fen": 0,
+            "Tube": 10
+        },
+        {
+            "ID": 23,
+            "Ring": 1,
+            "Fen": 0,
+            "Tube": 11
+        }
+    ],
+    "positionBins": 256,
+    "tubesPerRow": 8,
+    "tubeLength": 150,
+    "tubeSpacing": 10,
+    "Monitor": [
+        {
+            "ID": 99,
+            "hardwareType": "GENERIC",
+            "connectionType": "RING",
+            "Ring": 11,
+            "Channel": 0
+        }
+    ]
+}

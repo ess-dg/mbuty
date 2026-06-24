@@ -41,9 +41,9 @@ from newLib.mapping_engine import MBMapper, MBClustMapper, MonitorMapper
 path = 'C:\\Projects\\dg_MultiBlade_MBUTY_original\\MBUTYcap\\'
 
 confPath = path + 'config/'
-
+confPath_old = path + 'config_old/'
 confFileName_old = 'AMOR.json'     # legacy config — fed to libMapping_old + libParameters
-confFileName_new = 'AMOR26.json'   # new-style config — fed to reader + mapping_engine
+confFileName_new = 'AMOR.json'   # new-style config — fed to reader + mapping_engine
 
 filePath = path + 'data/'
 file     = 'ESSmask2023_1000pkts.pcapng'
@@ -202,7 +202,7 @@ if __name__ == '__main__':
     # The old pipeline uses its own read_json_config wrapper.
     # AMOR26.json must be compatible with the old loader too; if it is not,
     # point confFileName_old at the legacy AMOR.json instead.
-    config_old = maps.read_json_config(confPath + confFileName_old)
+    config_old = maps.read_json_config(confPath_old + confFileName_old)
     parameters = para.parameters(confPath + confFileName_old)
     parameters.loadConfigAndUpdate(config_old)
     

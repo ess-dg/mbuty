@@ -1,167 +1,166 @@
 {
-    "DetectorName": "MIRACLES24",
-    "DetectorType": "He3",
-    "InstrumentName" : "MIRACLES",
-    "operationMode": "normal",
-    "cassettes": 24,
+    "detectorName": "MIRACLES24",
+    "detectorType": "He3",
+    "instrumentName": "MIRACLES",
+    "units": 24,
     "orientation": "vertical",
-    "Cassette2ElectronicsConfig": [
+    "topology": [
         {
             "ID": 0,
-            "Ring": 0,
-            "Fen": 0,
-            "Tube": 0
+            "ring": 0,
+            "fen": 0,
+            "tube": 0
         },
         {
             "ID": 1,
-            "Ring": 0,
-            "Fen": 0,
-            "Tube": 1
+            "ring": 0,
+            "fen": 0,
+            "tube": 1
         },
         {
             "ID": 2,
-            "Ring": 0,
-            "Fen": 0,
-            "Tube": 2
+            "ring": 0,
+            "fen": 0,
+            "tube": 2
         },
         {
             "ID": 3,
-            "Ring": 0,
-            "Fen": 0,
-            "Tube": 3
+            "ring": 0,
+            "fen": 0,
+            "tube": 3
         },
         {
             "ID": 4,
-            "Ring": 0,
-            "Fen": 0,
-            "Tube": 4
+            "ring": 0,
+            "fen": 0,
+            "tube": 4
         },
         {
             "ID": 5,
-            "Ring": 0,
-            "Fen": 0,
-            "Tube": 5
+            "ring": 0,
+            "fen": 0,
+            "tube": 5
         },
         {
             "ID": 6,
-            "Ring": 0,
-            "Fen": 0,
-            "Tube": 6
+            "ring": 0,
+            "fen": 0,
+            "tube": 6
         },
         {
             "ID": 7,
-            "Ring": 0,
-            "Fen": 0,
-            "Tube": 7
+            "ring": 0,
+            "fen": 0,
+            "tube": 7
         },
         {
             "ID": 8,
-            "Ring": 0,
-            "Fen": 0,
-            "Tube": 8
+            "ring": 0,
+            "fen": 0,
+            "tube": 8
         },
         {
             "ID": 9,
-            "Ring": 0,
-            "Fen": 0,
-            "Tube": 9
+            "ring": 0,
+            "fen": 0,
+            "tube": 9
         },
         {
             "ID": 10,
-            "Ring": 0,
-            "Fen": 0,
-            "Tube": 10
+            "ring": 0,
+            "fen": 0,
+            "tube": 10
         },
         {
             "ID": 11,
-            "Ring": 0,
-            "Fen": 0,
-            "Tube": 11
+            "ring": 0,
+            "fen": 0,
+            "tube": 11
         },
         {
             "ID": 12,
-            "Ring": 1,
-            "Fen": 0,
-            "Tube": 0
+            "ring": 1,
+            "fen": 0,
+            "tube": 0
         },
         {
             "ID": 13,
-            "Ring": 1,
-            "Fen": 0,
-            "Tube": 1
+            "ring": 1,
+            "fen": 0,
+            "tube": 1
         },
         {
             "ID": 14,
-            "Ring": 1,
-            "Fen": 0,
-            "Tube": 2
+            "ring": 1,
+            "fen": 0,
+            "tube": 2
         },
         {
             "ID": 15,
-            "Ring": 1,
-            "Fen": 0,
-            "Tube": 3
+            "ring": 1,
+            "fen": 0,
+            "tube": 3
         },
         {
             "ID": 16,
-            "Ring": 1,
-            "Fen": 0,
-            "Tube": 4
+            "ring": 1,
+            "fen": 0,
+            "tube": 4
         },
         {
             "ID": 17,
-            "Ring": 1,
-            "Fen": 0,
-            "Tube": 5
+            "ring": 1,
+            "fen": 0,
+            "tube": 5
         },
         {
             "ID": 18,
-            "Ring": 1,
-            "Fen": 0,
-            "Tube": 6
+            "ring": 1,
+            "fen": 0,
+            "tube": 6
         },
         {
             "ID": 19,
-            "Ring": 1,
-            "Fen": 0,
-            "Tube": 7
+            "ring": 1,
+            "fen": 0,
+            "tube": 7
         },
         {
             "ID": 20,
-            "Ring": 1,
-            "Fen": 0,
-            "Tube": 8
+            "ring": 1,
+            "fen": 0,
+            "tube": 8
         },
         {
             "ID": 21,
-            "Ring": 1,
-            "Fen": 0,
-            "Tube": 9
+            "ring": 1,
+            "fen": 0,
+            "tube": 9
         },
         {
             "ID": 22,
-            "Ring": 1,
-            "Fen": 0,
-            "Tube": 10
+            "ring": 1,
+            "fen": 0,
+            "tube": 10
         },
         {
             "ID": 23,
-            "Ring": 1,
-            "Fen": 0,
-            "Tube": 11
+            "ring": 1,
+            "fen": 0,
+            "tube": 11
         }
     ],
     "positionBins": 256,
     "tubesPerRow": 8,
-    "tubeLength": 150,
+    "tubeLength": 300,
     "tubeSpacing": 10,
-    "Monitor": [
+    "monitor": [
         {
             "ID": 99,
-            "hardwareType": "GENERIC",
-            "connectionType": "RING",
-            "Ring": 11,
-            "Channel": 0
+            "hardwareType": "generic",
+            "connectionType": "ring",
+            "ring": 11,
+            "channel": 0
         }
     ]
 }

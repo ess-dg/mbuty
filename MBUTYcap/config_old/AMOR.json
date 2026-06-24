@@ -106,10 +106,10 @@
     "Monitor": [
         {
             "ID": 99,
-            "hardwareType": "IBM",
+            "hardwareType": "GENERIC",
             "connectionType": "RING",
             "Ring": 11,
-            "Channel": 0
+            "Channel": 1
         }
     ]
 }

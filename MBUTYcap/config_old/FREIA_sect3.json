@@ -1,0 +1,79 @@
+{
+    "DetectorName": "FREIA_sect3",
+    "DetectorType": "MB",
+    "InstrumentName": "FREIA",
+    "operationMode": "normal",
+    "cassettes": 8,
+    "orientation": "horizontal",
+    "Cassette2ElectronicsConfig": [
+        {
+            "ID": 24,
+            "Ring": 4,
+            "Fen": 0,
+            "Hybrid": 4
+        },
+        {
+            "ID": 25,
+            "Ring": 5,
+            "Fen": 0,
+            "Hybrid": 0
+        },
+        {
+            "ID": 26,
+            "Ring": 5,
+            "Fen": 0,
+            "Hybrid": 1
+        },
+        {
+            "ID": 27,
+            "Ring": 5,
+            "Fen": 0,
+            "Hybrid": 2
+        },
+        {
+            "ID": 28,
+            "Ring": 5,
+            "Fen": 0,
+            "Hybrid": 3
+        },
+        {
+            "ID": 29,
+            "Ring": 5,
+            "Fen": 0,
+            "Hybrid": 4
+        },
+        {
+            "ID": 30,
+            "Ring": 6,
+            "Fen": 0,
+            "Hybrid": 0
+        },
+        {
+            "ID": 31,
+            "Ring": 6,
+            "Fen": 0,
+            "Hybrid": 1
+        }
+    ],
+    "ChannelMapping": [
+        {
+            "WireASIC": 1,
+            "StripASIC": 0
+        }
+    ],
+    "wires": 32,
+    "strips": 64,
+    "wirePitch_mm": 4,
+    "stripPitch_mm": 4,
+    "bladesInclination_deg": 5.1,
+    "offset1stWires_mm": 10.5,
+    "Monitor": [
+        {
+            "ID": 99,
+            "hardwareType": "GENERIC",
+            "connectionType": "RING",
+            "Ring": 11,
+            "Channel": 0
+        }
+    ]
+}

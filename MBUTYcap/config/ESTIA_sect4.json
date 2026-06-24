@@ -1,47 +1,79 @@
 {
-	"DetectorName": "MB.ESTIA.sect4",
-
-	"DetectorType": "MB",	
-	
-	"InstrumentName" : "ESTIA",
-	
-	"operationMode" : "normal",
-
-	"cassettes" : 8,
-	
-	"orientation" : "vertical",
-
-	"Cassette2ElectronicsConfig" : [
-		{"ID" : 32, "Ring" : 6, "Fen" : 0, "Hybrid" : 2},
-		{"ID" : 33, "Ring" : 6, "Fen" : 0, "Hybrid" : 3},
-		{"ID" : 34, "Ring" : 6, "Fen" : 0, "Hybrid" : 4},
-		{"ID" : 35, "Ring" : 7, "Fen" : 0, "Hybrid" : 0},
-		{"ID" : 36, "Ring" : 7, "Fen" : 0, "Hybrid" : 1},
-        {"ID" : 37, "Ring" : 7, "Fen" : 0, "Hybrid" : 2},
-		{"ID" : 38, "Ring" : 7, "Fen" : 0, "Hybrid" : 3},
-		{"ID" : 39, "Ring" : 7, "Fen" : 0, "Hybrid" : 4}
-	],
-	
-	"ChannelMapping" : [
-        	{"WireASIC" : 1, "StripASIC" : 0}
-    ],    	
-
-	"wires"  : 32,
-	"strips" : 64,
-
-	"wirePitch_mm" : 4,
-	"stripPitch_mm" : 4,
-
-	"bladesInclination_deg" : 5,
-	"offset1stWires_mm" : 11,
-
-    "Monitor": [
+    "detectorName": "ESTIA_sect4",
+    "detectorType": "MB",
+    "instrumentName": "ESTIA",
+    "units": 8,
+    "orientation": "vertical",
+    "operationMode": "normal",
+    "topology": [
+        {
+            "ID": 32,
+            "ring": 6,
+            "fen": 0,
+            "hybrid": 2
+        },
+        {
+            "ID": 33,
+            "ring": 6,
+            "fen": 0,
+            "hybrid": 3
+        },
+        {
+            "ID": 34,
+            "ring": 6,
+            "fen": 0,
+            "hybrid": 4
+        },
+        {
+            "ID": 35,
+            "ring": 7,
+            "fen": 0,
+            "hybrid": 0
+        },
+        {
+            "ID": 36,
+            "ring": 7,
+            "fen": 0,
+            "hybrid": 1
+        },
+        {
+            "ID": 37,
+            "ring": 7,
+            "fen": 0,
+            "hybrid": 2
+        },
+        {
+            "ID": 38,
+            "ring": 7,
+            "fen": 0,
+            "hybrid": 3
+        },
+        {
+            "ID": 39,
+            "ring": 7,
+            "fen": 0,
+            "hybrid": 4
+        } 
+    ],
+    "channelMapping": [
+        {
+            "wireASIC": 1,
+            "stripASIC": 0
+        }
+    ],
+    "wires": 32,
+    "strips": 64,
+    "wirePitch_mm": 4,
+    "stripPitch_mm": 4,
+    "bladesInclination_deg": 5.1,
+    "offset1stWires_mm": 10.5,
+    "monitor": [
         {
             "ID": 99,
-            "hardwareType": "GENERIC",
-            "connectionType": "RING",
-            "Ring": 11,
-            "Channel": 0
+            "hardwareType": "generic",
+            "connectionType": "ring",
+            "ring": 11,
+            "channel": 0
         }
     ]
 }

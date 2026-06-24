@@ -1,6 +1,6 @@
 import numpy as np
 import time
-from .calibration import load_calibration_map, calibrate_adc_channels
+from .calibration import load_calibration_map
 from .colors import WARN, RESET, INFO
 import pandas as pd 
 
@@ -259,7 +259,7 @@ class readoutsVMMnormal(readoutsVMM):
         ns_per_clock_tick  = float(getattr(getattr(parameters, 'clockTicks', None), 'NSperClockTick', 11.35))
 
         if time_resolution == 'fine':
-            self._calculate_fine_timestamp(ns_per_clock_tick, time_offset=0.0, time_slope=1.0)
+            self._calculate_fine_timestamp(ns_per_clock_tick)
         else:
             self.matrix['timeStamp'] = self.matrix['timeCoarse']
 
@@ -286,10 +286,11 @@ class readoutsVMMnormal(readoutsVMM):
             
         
     def _calibrate_adc(self, calib_map: dict) -> None:
-        """Applies per-channel linear ADC calibrations to the matrix using a pre-loaded calibration map."""
+        """Applies per-channel linear ADC calibrations to the matrix."""
         if not calib_map:
             return
         print(f'{INFO}Calibrating ADC ...{RESET}')
+        
         ring_col   = self.matrix['ring']
         fen_col    = self.matrix['fen']
         hybrid_col = self.matrix['hybrid']
@@ -303,22 +304,20 @@ class readoutsVMMnormal(readoutsVMM):
                 continue
 
             for asic_idx, offset_arr, slope_arr in (
-                (0, entry.vmm0_offset, entry.vmm0_slope),
-                (1, entry.vmm1_offset, entry.vmm1_slope),
+                (0, entry.vmm0_adc_offset, entry.vmm0_adc_slope),
+                (1, entry.vmm1_adc_offset, entry.vmm1_adc_slope),
             ):
                 asic_mask = mask & (asic_col == asic_idx)
                 if not np.any(asic_mask):
                     continue
 
-                self.matrix['adc'][asic_mask] = calibrate_adc_channels(
-                    adc_col[asic_mask],
-                    chan_col[asic_mask],
-                    offset_arr,
-                    slope_arr,
-                )
+                adc_float   = adc_col[asic_mask].astype(np.float64, copy=True)
+                channel_idx = chan_col[asic_mask].astype(np.intp)
+                calibrated  = np.around((adc_float - offset_arr[channel_idx]) * slope_arr[channel_idx])
+                self.matrix['adc'][asic_mask] = np.clip(calibrated, 0, 1023).astype(np.int64)
 
     def _calibrate_tdc(self, calib_map: dict, parameters) -> None:
-        """Applies TDC fine-time correction across the full matrix in one vectorized pass."""
+        """Applies per-channel TDC fine-time calibration across the full matrix."""
         time_res_type     = getattr(getattr(parameters, 'VMMsettings', None), 'timeResolutionType', 'coarse')
         ns_per_clock_tick = float(getattr(getattr(parameters, 'clockTicks', None), 'NSperClockTick', 11.35))
 
@@ -326,21 +325,59 @@ class readoutsVMMnormal(readoutsVMM):
             print(f'\t {WARN}WARNING: calibrateVMM_TDC_ONOFF is True but timeResolutionType is coarse → TDC calibration skipped.{RESET}')
             return
 
-        # TODO: once TDC calibration file schema is confirmed, replace this block with a
-        # gather pass that builds offset_lookup and slope_lookup arrays (one entry per matrix row)
-        # indexed by (ring, fen, hybrid, asic, channel) — identical pattern to _calibrate_adc.
-        # Then feed those arrays into _calculate_fine_timestamp for a single vectorized math pass.
-        # For now, constants are identity defaults so one whole-matrix call is correct and sufficient.
-        self._calculate_fine_timestamp(ns_per_clock_tick, time_offset=0.0, time_slope=1.0)
+        if not calib_map:
+            return
+        
+        print(f'{INFO}Calibrating TDC and recalculating time stamp ...{RESET}')
+        
+        ring_col   = self.matrix['ring']
+        fen_col    = self.matrix['fen']
+        hybrid_col = self.matrix['hybrid']
+        asic_col   = self.matrix['asic']
+        chan_col   = self.matrix['channel']
+
+        for (ring, fen, hybrid), entry in calib_map.items():
+            mask = (ring_col == ring) & (fen_col == fen) & (hybrid_col == hybrid)
+            if not np.any(mask):
+                continue
+
+            for asic_idx, offset_arr, slope_arr in (
+                (0, entry.vmm0_tdc_offset, entry.vmm0_tdc_slope),
+                (1, entry.vmm1_tdc_offset, entry.vmm1_tdc_slope),
+            ):
+                asic_mask = mask & (asic_col == asic_idx)
+                if not np.any(asic_mask):
+                    continue
+
+                self._calculate_fine_timestamp(
+                    ns_per_clock_tick,
+                    mask=asic_mask,
+                    tdc_offset_array=offset_arr,
+                    tdc_slope_array=slope_arr,
+                )
 
 
-    def _calculate_fine_timestamp(self, ns_per_clock_tick: float, time_offset: float = 0.0, time_slope: float = 1.0, mask=None) -> None:
-        """Computes timeCoarse + tdc_ns and writes result into timeStamp. Optional mask for per-hybrid calibration passes."""
-        m           = mask if mask is not None else slice(None)
-        tdc_clipped = np.clip(self.matrix['tdc'][m], 0, 255).astype(np.float64)
-        tdc_ns      = np.round(
-            ((ns_per_clock_tick * 3.0) - (tdc_clipped * 60.0 / 255.0) - time_offset) * time_slope
-        ).astype(np.int64)
+    def _calculate_fine_timestamp(
+        self,
+        ns_per_clock_tick: float,
+        mask=None,
+        tdc_offset_array: np.ndarray = None,
+        tdc_slope_array: np.ndarray = None,
+    ) -> None:
+        """Apply TDC→ns conversion to timeStamp. Operates in-place on self.matrix."""
+        m = mask if mask is not None else slice(self.fill_count)
+        
+        tdc_raw = self.matrix['tdc'][m].astype(np.float64)
+        chan = self.matrix['channel'][m].astype(np.intp)
+        
+        if tdc_offset_array is not None and tdc_slope_array is not None:
+            tdc_calib = (tdc_raw - tdc_offset_array[chan]) * tdc_slope_array[chan]
+        else:
+            tdc_calib = tdc_raw
+        
+        tdc_clip = np.clip(tdc_calib, 0, 255).astype(np.float64)
+        tdc_ns = np.round((ns_per_clock_tick * 3.0) - (tdc_clip * 60.0 / 255.0) ).astype(np.int64)
+        
         self.matrix['timeStamp'][m] = self.matrix['timeCoarse'][m] + tdc_ns
 
 

@@ -1,0 +1,55 @@
+{
+	"DetectorName": "MB.ESTIA.sect2and3",
+	
+	"DetectorType": "MB",
+	
+	"InstrumentName" : "ESTIA",
+	
+	"operationMode" : "normal",
+
+	"cassettes" : 16,
+	
+	"orientation" : "vertical",
+
+	"Cassette2ElectronicsConfig" : [
+		{"ID" : 16, "Ring" : 3, "Fen" : 0, "Hybrid" : 1},
+		{"ID" : 17, "Ring" : 3, "Fen" : 0, "Hybrid" : 2},
+		{"ID" : 18, "Ring" : 3, "Fen" : 0, "Hybrid" : 3},
+		{"ID" : 19, "Ring" : 3, "Fen" : 0, "Hybrid" : 4},
+		{"ID" : 20, "Ring" : 4, "Fen" : 0, "Hybrid" : 0},
+        {"ID" : 21, "Ring" : 4, "Fen" : 0, "Hybrid" : 1},
+		{"ID" : 22, "Ring" : 4, "Fen" : 0, "Hybrid" : 2},
+		{"ID" : 23, "Ring" : 4, "Fen" : 0, "Hybrid" : 3},
+		{"ID" : 24, "Ring" : 4, "Fen" : 0, "Hybrid" : 4},
+        	{"ID" : 25, "Ring" : 5, "Fen" : 0, "Hybrid" : 0},
+        	{"ID" : 26, "Ring" : 5, "Fen" : 0, "Hybrid" : 1},
+        	{"ID" : 27, "Ring" : 5, "Fen" : 0, "Hybrid" : 2},
+        	{"ID" : 28, "Ring" : 5, "Fen" : 0, "Hybrid" : 3},
+        {"ID" : 29, "Ring" : 5, "Fen" : 0, "Hybrid" : 4},
+        	{"ID" : 30, "Ring" : 6, "Fen" : 0, "Hybrid" : 0},
+        	{"ID" : 31, "Ring" : 6, "Fen" : 0, "Hybrid" : 1}
+	],
+	
+	"ChannelMapping" : [
+        	{"WireASIC" : 1, "StripASIC" : 0}
+    ],    	
+
+	"wires"  : 32,
+	"strips" : 64,
+
+	"wirePitch_mm" : 4,
+	"stripPitch_mm" : 4,
+
+	"bladesInclination_deg" : 5,
+	"offset1stWires_mm" : 11,
+
+    "Monitor": [
+        {
+            "ID": 99,
+            "hardwareType": "GENERIC",
+            "connectionType": "RING",
+            "Ring": 11,
+            "Channel": 0
+        }
+    ]
+}

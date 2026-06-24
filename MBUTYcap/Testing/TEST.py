@@ -51,7 +51,7 @@ if __name__ == '__main__':
     path = 'C:\\Projects\\dg_MultiBlade_MBUTY_original\\MBUTYcap\\'
     tProfilingStart = time.time()
 
-    confPath      = path + 'config/'
+    confPath      = path + 'config_old/'
     confFileName  = "AMOR.json"
     
     # fileName  = "MIRACLES24.json"
@@ -121,7 +121,8 @@ if __name__ == '__main__':
     
     
     calibPath = path + 'calib/'
-    calibFile = 'AMOR_calib_20231111002842.json'
+    #calibFile = 'AMOR_calib_20231111002842.json'
+    calibFile = 'ill_efu_time_calib.json'
     
     calib = cal.read_json_calib(calibPath+calibFile,config)
     
@@ -141,8 +142,8 @@ if __name__ == '__main__':
     tProfilingStart = time.time()
     
     # confPath      = '/Users/francescopiscitelli/Documents/PYTHON/MBUTYcapWorkInProgress/config/'
-    confFileName  = 'AMOR26.json'
-    
+    confPath      = path + 'config/'
+    confFileName  = "AMOR.json"    
     
     ff   = open(confPath+confFileName,'r') 
     confignew = json.load(ff)

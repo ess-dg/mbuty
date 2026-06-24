@@ -1,7 +1,7 @@
 {
-    "detectorName": "MG1column",
-    "detectorType": "MG",
-    "instrumentName": "TREX",
+    "detectorName": "test1hybrid",
+    "detectorType": "MB",
+    "instrumentName": "ESTIA",
     "units": 1,
     "orientation": "vertical",
     "operationMode": "normal",
@@ -10,18 +10,21 @@
             "ID": 0,
             "ring": 0,
             "fen": 0,
-            "hybridW": 0,
-            "hybridG": 1
+            "hybrid": 0
         }
     ],
-    "wires": 120,
-    "grids": 12,
-    "wirePitchX_mm": 22,
-    "wirePitchZ_mm": 10,
-    "gridPitchY_mm": 25,
-    "wiresPerRow": 20,
-    "angularOffset_deg": 10,
-    "linearOffset1stWires_mm": 80,
+    "channelMapping": [
+        {
+            "wireASIC": 1,
+            "stripASIC": 0
+        }
+    ],
+    "wires": 32,
+    "strips": 64,
+    "wirePitch_mm": 4,
+    "stripPitch_mm": 4,
+    "bladesInclination_deg": 5.1,
+    "offset1stWires_mm": 10.5,
     "monitor": [
         {
             "ID": 99,

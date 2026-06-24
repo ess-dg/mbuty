@@ -7,19 +7,26 @@ class hits():
     Abstract base class for all detector hits.
     Houses the single contiguous memory matrix block and global file metrics.
 
-    Architectural contract (mirrors readout_containers.py):
+    Architectural contract:
     - ONE preallocated structured NumPy array (self.matrix) holds all rows.
-    - self.fill_count tracks how many rows have been written during the mapping pass.
-    - trim() slices matrix[:fill_count] once mapping is complete, releasing slack.
-    - get_data_frame() exposes the active rows as a labeled DataFrame for debugging.
-    - remove_invalid() discards rows whose ID field was never assigned (stayed -1),
-      i.e. readout rows that matched no topology entry in the config.
+      It is allocated to exactly readouts.fill_count — the full readout count
+      before mapping — so there is never any slack to release.
+    - absorb() is the single entry point for mappers to populate the container.
+      It writes timing, writes all computed coordinate fields, then calls
+      remove_invalid() to physically compact out unmapped rows.
+    - remove_invalid() physically slices self.matrix to keep only rows where
+      ID != -1, yielding a clean contiguous block ready for clustering or
+      plotting. After absorb() returns, len(self.matrix) == fill_count always.
+    - get_data_frame() exposes the active matrix as a labeled DataFrame for
+      interactive inspection in Spyder or a terminal.
+    - Mappers must NOT write to self.matrix directly, must NOT set fill_count,
+      and must NOT call remove_invalid() themselves — absorb() owns that lifecycle.
     """
 
     def __init__(self, size: int, subclass_fields: list):
         # 1. Non-negotiable core base fields common to every mapped hit.
-        #    ID replaces the legacy Cassette/Tube/Column field and carries
-        #    the physical unit identifier looked up from config topology.
+        #    ID carries the physical unit identifier looked up from config
+        #    topology, replacing the legacy Cassette/Tube/Column fields.
         base_fields = [
             ('ID',        'int64'),   # Physical unit ID from config topology
             ('timeStamp', 'int64'),
@@ -28,57 +35,130 @@ class hits():
             ('instrID',   'int64'),
         ]
 
-        # 2. Combine base fields with subclass unique mapped coordinates.
+        # 2. Combine base fields with subclass-specific mapped coordinates.
         full_schema = np.dtype(base_fields + subclass_fields)
 
         # 3. Preallocate ONE single contiguous memory matrix block.
-        #    ID and all index/plane fields default to -1 to mark unmapped rows.
+        #    All fields default to -1 as an unmapped sentinel.
         self.matrix = np.full(size, -1, dtype=full_schema)
 
-        # Zero-initialise the timing fields which are never sentinel-valued.
+        # Zero-initialise timing fields, which are never sentinel-valued.
         for field in ('timeStamp', 'pulseT', 'prevPT', 'instrID'):
             if field in full_schema.names:
                 self.matrix[field] = 0
 
-        # Tracks how many rows have been written during the mapping pass.
-        # remove_invalid() and trim() both operate relative to this cursor.
+        # Tracks the number of valid (post-remove_invalid) rows.
+        # After absorb() returns, fill_count == len(self.matrix) always.
         self.fill_count: int = 0
 
-        # Per-file duration scalars accumulated by the mapping engine.
+        # Duration scalar carried forward from the readouts container.
         self.durations = np.zeros(0, dtype='int64')
 
     # ------------------------------------------------------------------
-    # Memory lifecycle
+    # Primary mapper entry point
     # ------------------------------------------------------------------
 
-    def trim(self) -> bool:
+    def absorb(self, computed_fields: dict, timing_src) -> None:
         """
-        Slice matrix down to fill_count, releasing pre-allocated slack.
-        Returns True if unused rows were present (caller may log this).
-        Must be called AFTER remove_invalid() so the cursor is already exact.
+        Single entry point for mappers to populate this container.
+
+        Mappers prepare all coordinate arrays, then call this method once.
+        absorb() validates incoming fields, writes timing from the readout
+        source, writes all computed coordinate fields, sets fill_count, then
+        calls remove_invalid() to physically compact the matrix.
+
+        After this method returns:
+          - self.matrix contains only valid (mapped) rows.
+          - len(self.matrix) == self.fill_count.
+          - No further slicing or cursor arithmetic is needed downstream.
+
+        Parameters
+        ----------
+        computed_fields : dict
+            Mapping of field_name -> np.ndarray for every subclass field
+            the mapper has computed. Must include 'ID'.
+            Timing fields (timeStamp, pulseT, prevPT, instrID) are written
+            from timing_src and must NOT appear here.
+        timing_src : np.ndarray
+            The active slice of the readout matrix (readouts.matrix[:n]).
+            Must contain timeStamp, pulseT, prevPT, instrID fields.
+
+        Raises
+        ------
+        KeyError
+            If 'ID' is missing from computed_fields.
+        ValueError
+            If computed_fields contains a timing field, an unknown field name,
+            or any array whose length does not match the container size.
         """
-        had_slack = self.fill_count < len(self.matrix)
-        self.matrix     = self.matrix[:self.fill_count]
-        return had_slack
+        n = len(self.matrix)
+
+        # --- Guard: ID is mandatory ------------------------------------------
+        if 'ID' not in computed_fields:
+            raise KeyError("absorb(): 'ID' must be present in computed_fields.")
+
+        # --- Guard: timing fields belong to timing_src, not computed_fields ---
+        timing_fields = {'timeStamp', 'pulseT', 'prevPT', 'instrID'}
+        overlap = timing_fields & computed_fields.keys()
+        if overlap:
+            raise ValueError(
+                f"absorb(): timing fields {overlap} must not appear in "
+                f"computed_fields — they are sourced from timing_src."
+            )
+
+        # --- Guard: no unknown fields ----------------------------------------
+        schema_names = set(self.matrix.dtype.names)
+        unknown = set(computed_fields.keys()) - schema_names
+        if unknown:
+            raise ValueError(
+                f"absorb(): computed_fields contains keys not in schema: {unknown}. "
+                f"Schema fields are: {schema_names}."
+            )
+
+        # --- Guard: all arrays must match container size ----------------------
+        for key, arr in computed_fields.items():
+            if len(arr) != n:
+                raise ValueError(
+                    f"absorb(): array for '{key}' has length {len(arr)}, "
+                    f"expected {n} (container size)."
+                )
+
+        # --- Write timing from readout source --------------------------------
+        self.matrix['timeStamp'] = timing_src['timeStamp']
+        self.matrix['pulseT']    = timing_src['pulseT']
+        self.matrix['prevPT']    = timing_src['prevPT']
+        self.matrix['instrID']   = timing_src['instrID']
+
+        # --- Write all computed coordinate fields ----------------------------
+        for field_name, array in computed_fields.items():
+            self.matrix[field_name] = array
+
+        # --- Set cursor, then compact to valid rows only ---------------------
+        self.fill_count = n
+        self.remove_invalid()
 
     def remove_invalid(self) -> None:
         """
-        Remove rows whose ID field was never assigned during mapping (ID == -1).
-        These correspond to readout rows that matched no topology entry in the
-        config, i.e. the mapping equivalent of the legacy removeUnmappedData().
+        Physically compact the matrix, keeping only rows where ID != -1.
 
-        Uses a single boolean mask pass — no loops, no per-field concatenation.
-        fill_count is updated to match the surviving row count.
+        Rows with ID == -1 were never matched to any topology entry during
+        mapping (equivalent to the legacy removeUnmappedData()). This method
+        replaces self.matrix with a new contiguous array containing only the
+        surviving rows, so that downstream consumers (clustering, plotting)
+        can use self.matrix directly without cursor arithmetic.
+
+        After this call: len(self.matrix) == self.fill_count.
         """
-        active = self.matrix[:self.fill_count]
-        valid_mask = active['ID'] != -1
+        valid_mask = self.matrix[:self.fill_count]['ID'] != -1
+        removed    = int(np.sum(~valid_mask))
 
-        removed = int(np.sum(~valid_mask))
         if removed > 0:
-            self.matrix[:np.sum(valid_mask)] = active[valid_mask]
-            self.fill_count = int(np.sum(valid_mask))
+            self.matrix    = self.matrix[:self.fill_count][valid_mask].copy()
+            self.fill_count = len(self.matrix)
             print(f'\t --> removing {removed} unmapped rows from hits ...')
         else:
+            self.matrix    = self.matrix[:self.fill_count].copy()
+            self.fill_count = len(self.matrix)
             print('\t --> no unmapped data in hits ...')
 
     # ------------------------------------------------------------------
@@ -87,10 +167,10 @@ class hits():
 
     def get_data_frame(self) -> pd.DataFrame:
         """
-        Converts the active portion of the structured matrix into a labeled
-        Pandas DataFrame for interactive inspection in Spyder or a terminal.
+        Converts the active matrix into a labeled Pandas DataFrame for
+        interactive inspection in Spyder or a terminal.
         """
-        return pd.DataFrame(self.matrix[:self.fill_count])
+        return pd.DataFrame(self.matrix)
 
 
 # ----------------------------------------------------------------------
@@ -100,24 +180,24 @@ class hits():
 class hitsVMMnormal(hits):
     """
     Multi-Blade / Multi-Grid normal hits.
-    Mapped from readoutsVMMnormal after cassette ID lookup and
+    Mapped from readoutsVMMnormal after unit ID lookup and
     channel-to-wire/strip coordinate transformation.
 
     Fields
     ------
     plane : int64
-        Axis discriminator: 0 = wire plane, 1 = strip plane.
+        Axis discriminator: 0 = wire plane (or wire-equivalent), 1 = strip plane.
         Replaces legacy WorS.
     index : int64
-        Global mapped channel coordinate on that plane (wire number or
-        strip number after cassette offset is applied).
+        Global mapped channel coordinate on that plane (wire number or strip
+        number after cassette offset is applied).
         Replaces legacy WiresStrips / WiresStripsGlob.
     adc : int64
         Raw ADC value carried forward from the readout.
     """
     def __init__(self, size: int = 0):
         subclass_fields = [
-            ('plane', 'int64'),   # 0 = wire, 1 = strip
+            ('plane', 'int64'),   # 0 = wire (or wire-equivalent), 1 = strip
             ('index', 'int64'),   # Global coordinate on the plane
             ('adc',   'int64'),
         ]
@@ -173,8 +253,7 @@ class hitsR5560(hits):
 class hitsBM(hits):
     """
     Generic Beam Monitor diagnostic hits.
-    Mapped from readoutsBM or from VMM readouts filtered on Ring >= 11
-    when hardwareType == 'generic'.
+    Mapped from VMM readouts filtered on ring >= 11 when hardwareType == 'generic'.
     """
     def __init__(self, size: int = 0):
         subclass_fields = [
@@ -190,8 +269,7 @@ class hitsBM(hits):
 class hitsIBM(hits):
     """
     IBM variant Beam Monitor diagnostic hits.
-    Mapped from readoutsIBM or from VMM readouts filtered on Ring >= 11
-    when hardwareType == 'ibm'.
+    Mapped from VMM readouts filtered on ring >= 11 when hardwareType == 'ibm'.
     """
     def __init__(self, size: int = 0):
         subclass_fields = [
@@ -203,7 +281,8 @@ class hitsIBM(hits):
         ]
         super().__init__(size, subclass_fields)
 
-# Note wait to implement fully - need structure
+
+# Note: wait to implement fully — structure TBD
 class hitsSKADI(hits):
     """
     SKADI detector hits.

@@ -1,319 +1,319 @@
 {
-    "DetectorName": "MB.ESTIA",
-    "DetectorType": "MB",
-    "InstrumentName" : "ESTIA",
-    "operationMode": "normal",
-    "cassettes": 48,
+    "detectorName": "ESTIA",
+    "detectorType": "MB",
+    "instrumentName": "ESTIA",
+    "units": 48,
     "orientation": "vertical",
-    "Cassette2ElectronicsConfig": [
+    "operationMode": "normal",
+    "topology": [
         {
             "ID": 0,
-            "Ring": 0,
-            "Fen": 0,
-            "Hybrid": 0
+            "ring": 0,
+            "fen": 0,
+            "hybrid": 0
         },
         {
             "ID": 1,
-            "Ring": 0,
-            "Fen": 0,
-            "Hybrid": 1
+            "ring": 0,
+            "fen": 0,
+            "hybrid": 1
         },
         {
             "ID": 2,
-            "Ring": 0,
-            "Fen": 0,
-            "Hybrid": 2
+            "ring": 0,
+            "fen": 0,
+            "hybrid": 2
         },
         {
             "ID": 3,
-            "Ring": 0,
-            "Fen": 0,
-            "Hybrid": 3
+            "ring": 0,
+            "fen": 0,
+            "hybrid": 3
         },
         {
             "ID": 4,
-            "Ring": 0,
-            "Fen": 0,
-            "Hybrid": 4
+            "ring": 0,
+            "fen": 0,
+            "hybrid": 4
         },
         {
             "ID": 5,
-            "Ring": 1,
-            "Fen": 0,
-            "Hybrid": 0
+            "ring": 1,
+            "fen": 0,
+            "hybrid": 0
         },
         {
             "ID": 6,
-            "Ring": 1,
-            "Fen": 0,
-            "Hybrid": 1
+            "ring": 1,
+            "fen": 0,
+            "hybrid": 1
         },
         {
             "ID": 7,
-            "Ring": 1,
-            "Fen": 0,
-            "Hybrid": 2
+            "ring": 1,
+            "fen": 0,
+            "hybrid": 2
         },
         {
             "ID": 8,
-            "Ring": 1,
-            "Fen": 0,
-            "Hybrid": 3
+            "ring": 1,
+            "fen": 0,
+            "hybrid": 3
         },
         {
             "ID": 9,
-            "Ring": 1,
-            "Fen": 0,
-            "Hybrid": 4
+            "ring": 1,
+            "fen": 0,
+            "hybrid": 4
         },
         {
             "ID": 10,
-            "Ring": 2,
-            "Fen": 0,
-            "Hybrid": 0
+            "ring": 2,
+            "fen": 0,
+            "hybrid": 0
         },
         {
             "ID": 11,
-            "Ring": 2,
-            "Fen": 0,
-            "Hybrid": 1
+            "ring": 2,
+            "fen": 0,
+            "hybrid": 1
         },
         {
             "ID": 12,
-            "Ring": 2,
-            "Fen": 0,
-            "Hybrid": 2
+            "ring": 2,
+            "fen": 0,
+            "hybrid": 2
         },
         {
             "ID": 13,
-            "Ring": 2,
-            "Fen": 0,
-            "Hybrid": 3
+            "ring": 2,
+            "fen": 0,
+            "hybrid": 3
         },
         {
             "ID": 14,
-            "Ring": 2,
-            "Fen": 0,
-            "Hybrid": 4
+            "ring": 2,
+            "fen": 0,
+            "hybrid": 4
         },
         {
             "ID": 15,
-            "Ring": 3,
-            "Fen": 0,
-            "Hybrid": 0
+            "ring": 3,
+            "fen": 0,
+            "hybrid": 0
         },
         {
             "ID": 16,
-            "Ring": 3,
-            "Fen": 0,
-            "Hybrid": 1
+            "ring": 3,
+            "fen": 0,
+            "hybrid": 1
         },
         {
             "ID": 17,
-            "Ring": 3,
-            "Fen": 0,
-            "Hybrid": 2
+            "ring": 3,
+            "fen": 0,
+            "hybrid": 2
         },
         {
             "ID": 18,
-            "Ring": 3,
-            "Fen": 0,
-            "Hybrid": 3
+            "ring": 3,
+            "fen": 0,
+            "hybrid": 3
         },
         {
             "ID": 19,
-            "Ring": 3,
-            "Fen": 0,
-            "Hybrid": 4
+            "ring": 3,
+            "fen": 0,
+            "hybrid": 4
         },
         {
             "ID": 20,
-            "Ring": 4,
-            "Fen": 0,
-            "Hybrid": 0
+            "ring": 4,
+            "fen": 0,
+            "hybrid": 0
         },
         {
             "ID": 21,
-            "Ring": 4,
-            "Fen": 0,
-            "Hybrid": 1
+            "ring": 4,
+            "fen": 0,
+            "hybrid": 1
         },
         {
             "ID": 22,
-            "Ring": 4,
-            "Fen": 0,
-            "Hybrid": 2
+            "ring": 4,
+            "fen": 0,
+            "hybrid": 2
         },
         {
             "ID": 23,
-            "Ring": 4,
-            "Fen": 0,
-            "Hybrid": 3
+            "ring": 4,
+            "fen": 0,
+            "hybrid": 3
         },
         {
             "ID": 24,
-            "Ring": 4,
-            "Fen": 0,
-            "Hybrid": 4
+            "ring": 4,
+            "fen": 0,
+            "hybrid": 4
         },
         {
             "ID": 25,
-            "Ring": 5,
-            "Fen": 0,
-            "Hybrid": 0
+            "ring": 5,
+            "fen": 0,
+            "hybrid": 0
         },
         {
             "ID": 26,
-            "Ring": 5,
-            "Fen": 0,
-            "Hybrid": 1
+            "ring": 5,
+            "fen": 0,
+            "hybrid": 1
         },
         {
             "ID": 27,
-            "Ring": 5,
-            "Fen": 0,
-            "Hybrid": 2
+            "ring": 5,
+            "fen": 0,
+            "hybrid": 2
         },
         {
             "ID": 28,
-            "Ring": 5,
-            "Fen": 0,
-            "Hybrid": 3
+            "ring": 5,
+            "fen": 0,
+            "hybrid": 3
         },
         {
             "ID": 29,
-            "Ring": 5,
-            "Fen": 0,
-            "Hybrid": 4
+            "ring": 5,
+            "fen": 0,
+            "hybrid": 4
         },
         {
             "ID": 30,
-            "Ring": 6,
-            "Fen": 0,
-            "Hybrid": 0
+            "ring": 6,
+            "fen": 0,
+            "hybrid": 0
         },
         {
             "ID": 31,
-            "Ring": 6,
-            "Fen": 0,
-            "Hybrid": 1
+            "ring": 6,
+            "fen": 0,
+            "hybrid": 1
         },
         {
             "ID": 32,
-            "Ring": 6,
-            "Fen": 0,
-            "Hybrid": 2
+            "ring": 6,
+            "fen": 0,
+            "hybrid": 2
         },
         {
             "ID": 33,
-            "Ring": 6,
-            "Fen": 0,
-            "Hybrid": 3
+            "ring": 6,
+            "fen": 0,
+            "hybrid": 3
         },
         {
             "ID": 34,
-            "Ring": 6,
-            "Fen": 0,
-            "Hybrid": 4
+            "ring": 6,
+            "fen": 0,
+            "hybrid": 4
         },
         {
             "ID": 35,
-            "Ring": 7,
-            "Fen": 0,
-            "Hybrid": 0
+            "ring": 7,
+            "fen": 0,
+            "hybrid": 0
         },
         {
             "ID": 36,
-            "Ring": 7,
-            "Fen": 0,
-            "Hybrid": 1
+            "ring": 7,
+            "fen": 0,
+            "hybrid": 1
         },
         {
             "ID": 37,
-            "Ring": 7,
-            "Fen": 0,
-            "Hybrid": 2
+            "ring": 7,
+            "fen": 0,
+            "hybrid": 2
         },
         {
             "ID": 38,
-            "Ring": 7,
-            "Fen": 0,
-            "Hybrid": 3
+            "ring": 7,
+            "fen": 0,
+            "hybrid": 3
         },
         {
             "ID": 39,
-            "Ring": 7,
-            "Fen": 0,
-            "Hybrid": 4
+            "ring": 7,
+            "fen": 0,
+            "hybrid": 4
         },
         {
             "ID": 40,
-            "Ring": 8,
-            "Fen": 0,
-            "Hybrid": 0
+            "ring": 8,
+            "fen": 0,
+            "hybrid": 0
         },
         {
             "ID": 41,
-            "Ring": 8,
-            "Fen": 0,
-            "Hybrid": 1
+            "ring": 8,
+            "fen": 0,
+            "hybrid": 1
         },
         {
             "ID": 42,
-            "Ring": 8,
-            "Fen": 0,
-            "Hybrid": 2
+            "ring": 8,
+            "fen": 0,
+            "hybrid": 2
         },
         {
             "ID": 43,
-            "Ring": 8,
-            "Fen": 0,
-            "Hybrid": 3
+            "ring": 8,
+            "fen": 0,
+            "hybrid": 3
         },
         {
             "ID": 44,
-            "Ring": 8,
-            "Fen": 0,
-            "Hybrid": 4
+            "ring": 8,
+            "fen": 0,
+            "hybrid": 4
         },
         {
             "ID": 45,
-            "Ring": 9,
-            "Fen": 0,
-            "Hybrid": 0
+            "ring": 9,
+            "fen": 0,
+            "hybrid": 0
         },
         {
             "ID": 46,
-            "Ring": 9,
-            "Fen": 0,
-            "Hybrid": 1
+            "ring": 9,
+            "fen": 0,
+            "hybrid": 1
         },
         {
             "ID": 47,
-            "Ring": 9,
-            "Fen": 0,
-            "Hybrid": 2
+            "ring": 9,
+            "fen": 0,
+            "hybrid": 2
         }
     ],
-    "ChannelMapping": [
+    "channelMapping": [
         {
-            "WireASIC": 1,
-            "StripASIC": 0
+            "wireASIC": 1,
+            "stripASIC": 0
         }
     ],
     "wires": 32,
     "strips": 64,
     "wirePitch_mm": 4,
     "stripPitch_mm": 4,
-    "bladesInclination_deg": 5,
-    "offset1stWires_mm": 11,
-    "Monitor": [
+    "bladesInclination_deg": 5.1,
+    "offset1stWires_mm": 10.5,
+    "monitor": [
         {
             "ID": 99,
-            "hardwareType": "GENERIC",
-            "connectionType": "RING",
-            "Ring": 11,
-            "Channel": 0
+            "hardwareType": "generic",
+            "connectionType": "ring",
+            "ring": 11,
+            "channel": 0
         }
     ]
 }

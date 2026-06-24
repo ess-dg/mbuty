@@ -22,11 +22,10 @@ from .colors import ERR, WARN, INFO, RESET
 class VMMCalibrationEntry:
     """Immutable calibration constants for one VMM hybrid (two ASICs)."""
     hybrid_id: str            # e.g., "FEN0_3"
-    vmm0_offset: np.ndarray = field(repr=False)  # ASIC 0: Per-channel ADC offsets, shape (64,)
-    vmm0_slope: np.ndarray  = field(repr=False)  # ASIC 0: Per-channel ADC gains,   shape (64,)
-    vmm1_offset: np.ndarray = field(repr=False)  # ASIC 1: Per-channel ADC offsets, shape (64,)
-    vmm1_slope: np.ndarray  = field(repr=False)  # ASIC 1: Per-channel ADC gains,   shape (64,)
-    # TODO: populate from JSON once calibration file schema for TDC is confirmed
+    vmm0_adc_offset: np.ndarray = field(repr=False)  # ASIC 0: Per-channel ADC offsets, shape (64,)
+    vmm0_adc_slope: np.ndarray  = field(repr=False)  # ASIC 0: Per-channel ADC gains,   shape (64,)
+    vmm1_adc_offset: np.ndarray = field(repr=False)  # ASIC 1: Per-channel ADC offsets, shape (64,)
+    vmm1_adc_slope: np.ndarray  = field(repr=False)  # ASIC 1: Per-channel ADC gains,   shape (64,)
     vmm0_tdc_offset: np.ndarray = field(repr=False)  # ASIC 0: Per-channel TDC offsets, shape (64,)
     vmm0_tdc_slope: np.ndarray  = field(repr=False)  # ASIC 0: Per-channel TDC slopes,  shape (64,)
     vmm1_tdc_offset: np.ndarray = field(repr=False)  # ASIC 1: Per-channel TDC offsets, shape (64,)
@@ -40,14 +39,14 @@ def _default_entry(hybrid_id: str) -> VMMCalibrationEntry:
     """Return an identity-calibration entry (slope 1, offset 0) for a hybrid."""
     return VMMCalibrationEntry(
         hybrid_id       = hybrid_id,
-        vmm0_offset     = np.zeros(64, dtype=np.float64),
-        vmm0_slope      = np.ones(64,  dtype=np.float64),
-        vmm1_offset     = np.zeros(64, dtype=np.float64),
-        vmm1_slope      = np.ones(64,  dtype=np.float64),
-        vmm0_tdc_offset = np.zeros(64, dtype=np.float64),
-        vmm0_tdc_slope  = np.ones(64,  dtype=np.float64),
-        vmm1_tdc_offset = np.zeros(64, dtype=np.float64),
-        vmm1_tdc_slope  = np.ones(64,  dtype=np.float64),
+        vmm0_adc_offset     = np.zeros(64, dtype=np.float64),
+        vmm0_adc_slope      = np.ones(64,  dtype=np.float64),
+        vmm1_adc_offset     = np.zeros(64, dtype=np.float64),
+        vmm1_adc_slope      = np.ones(64,  dtype=np.float64),
+        vmm0_tdc_offset     = np.zeros(64, dtype=np.float64),
+        vmm0_tdc_slope      = np.ones(64,  dtype=np.float64),
+        vmm1_tdc_offset     = np.zeros(64, dtype=np.float64),
+        vmm1_tdc_slope      = np.ones(64,  dtype=np.float64),
     )
 
 
@@ -122,26 +121,26 @@ def load_calibration_map(calib_file_path: str, config: dict) -> dict[tuple[int, 
         # TODO: replace tdc_offset/tdc_slope key names once calibration file schema is confirmed
         json_lookup[key] = VMMCalibrationEntry(
             hybrid_id       = hybrid_id_text,
-            vmm0_offset     = np.asarray(vmm0.get('adc_offset', np.zeros(64)), dtype=np.float64),
-            vmm0_slope      = np.asarray(vmm0.get('adc_slope',  np.ones(64)),  dtype=np.float64),
-            vmm1_offset     = np.asarray(vmm1.get('adc_offset', np.zeros(64)), dtype=np.float64),
-            vmm1_slope      = np.asarray(vmm1.get('adc_slope',  np.ones(64)),  dtype=np.float64),
-            vmm0_tdc_offset = np.zeros(64, dtype=np.float64),
-            vmm0_tdc_slope  = np.ones(64,  dtype=np.float64),
-            vmm1_tdc_offset = np.zeros(64, dtype=np.float64),
-            vmm1_tdc_slope  = np.ones(64,  dtype=np.float64),
+            vmm0_adc_offset     = np.asarray(vmm0.get('adc_offset', np.zeros(64)), dtype=np.float64),
+            vmm0_adc_slope      = np.asarray(vmm0.get('adc_slope',  np.ones(64)),  dtype=np.float64),
+            vmm1_adc_offset     = np.asarray(vmm1.get('adc_offset', np.zeros(64)), dtype=np.float64),
+            vmm1_adc_slope      = np.asarray(vmm1.get('adc_slope',  np.ones(64)),  dtype=np.float64),
+            vmm0_tdc_offset     = np.asarray(vmm0.get('tdc_offset', np.zeros(64)), dtype=np.float64),
+            vmm0_tdc_slope      = np.asarray(vmm0.get('tdc_slope', np.zeros(64)), dtype=np.float64),
+            vmm1_tdc_offset     = np.asarray(vmm1.get('tdc_offset', np.zeros(64)), dtype=np.float64),
+            vmm1_tdc_slope      = np.asarray(vmm1.get('tdc_slope', np.zeros(64)), dtype=np.float64),
         )
 
     # -------------------------------------------------------------------------
     # Final Orchestration Map: Align strictly with configured cassettes
     # -------------------------------------------------------------------------
     final_map: dict[tuple[int, int, int], VMMCalibrationEntry] = {}
-    cassettes = config['topology']
+    units = config['topology']
     
-    for cassette in cassettes:
-        ring   = int(cassette['ring'])
-        fen    = int(cassette['fen'])
-        hybrid = int(cassette['hybrid'])
+    for unit in units:
+        ring   = int(unit['ring'])
+        fen    = int(unit['fen'])
+        hybrid = int(unit['hybrid'])
         key    = (ring, fen, hybrid)
         
         if key in json_lookup:
@@ -154,22 +153,6 @@ def load_calibration_map(calib_file_path: str, config: dict) -> dict[tuple[int, 
     return final_map
 
 
-# =============================================================================
-# 4. VECTORIZED MATHEMATICAL MATH OPERATIONS
-# =============================================================================
-
-def calibrate_adc_channels(adc_array: np.ndarray, channel_array: np.ndarray, offset_array: np.ndarray, slope_array: np.ndarray) -> np.ndarray:
-    """
-    Applies formula: calibrated = round((adc - offset[chan]) * slope[chan])
-    Clips outputs strictly inside standard 10-bit hardware bounds [0, 1023].
-    """
-    adc_float   = adc_array.astype(np.float64, copy=True)
-    channel_idx = channel_array.astype(np.intp)
-
-    # Vectorized gather: Map every single row index to its channel constant at once
-    calibrated = np.around((adc_float - offset_array[channel_idx]) * slope_array[channel_idx])
-    return np.clip(calibrated, 0, 1023).astype(np.int64)
 
 
-_pTAC_NS: float = 60.0   # Hardware Constant: TAC ramp duration in nanoseconds
 
