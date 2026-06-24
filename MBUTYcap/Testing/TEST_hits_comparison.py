@@ -33,7 +33,7 @@ from lib import libMapping_old  as maps       # legacy pipeline
 from lib import libParameters   as para
 
 from newLib import reader                     # new reader (produces readoutsVMMnormal)
-from newLib.mapping_engine import MBMapper, MBClustMapper, MonitorMapper
+from newLib.mapping_engine import MBMapper, MBClustMapper, BMMapper, IBMMonitorMapper
 
 # =============================================================================
 # CONFIGURATION — edit these paths to match your environment
@@ -92,14 +92,14 @@ def compare_hits_MB_normal(old_hits, new_hits) -> bool:
     Map legacy hits field names → new structured-array field names and compare.
 
     Legacy          New (hitsVMMnormal.matrix field)
-    -------         --------------------------------
-    timeStamp       timeStamp
-    Cassette        ID
-    WorS            plane
-    WiresStrips     index      (global after mapChannelsGlob)
-    ADC             adc
-    PulseT          pulseT
-    PrevPT          prevPT
+    -------          --------------------------------
+    timeStamp        timeStamp
+    Cassette         ID
+    WorS             plane
+    WiresStrips      index      (global after mapChannelsGlob)
+    ADC              adc
+    PulseT           pulseT
+    PrevPT           prevPT
     """
     section('Detector hits field-by-field comparison (MB normal)')
 
@@ -147,8 +147,8 @@ def compare_hits_MB_clustered(old_hits, new_hits) -> bool:
     all_pass &= compare_arrays('ID/Cassette', old_hits.Cassette,   m['ID'])
     all_pass &= compare_arrays('index0/WiresStrips', old_hits.WiresStrips, m['index0'])
     all_pass &= compare_arrays('index1/WiresStrips1', old_hits.WiresStrips1, m['index1'])
-    all_pass &= compare_arrays('adc0/ADC',   old_hits.ADC,         m['adc0'])
-    all_pass &= compare_arrays('adc1/ADC1',  old_hits.ADC1,        m['adc1'])
+    all_pass &= compare_arrays('adc0/ADC',   old_hits.ADC,          m['adc0'])
+    all_pass &= compare_arrays('adc1/ADC1',  old_hits.ADC1,         m['adc1'])
     all_pass &= compare_arrays('mult0',      old_hits.mult0,       m['mult0'])
     all_pass &= compare_arrays('mult1',      old_hits.mult1,       m['mult1'])
     all_pass &= compare_arrays('pulseT',     old_hits.PulseT,      m['pulseT'])
@@ -260,11 +260,14 @@ if __name__ == '__main__':
     section('Row count sanity (readouts, pre-mapping)')
 
     n_old = len(old_readouts.timeStamp)
-    n_new = new_reader.readouts_vmm_normal.fill_count
+    n_new = (new_reader.readouts_vmm_normal.fill_count + 
+             new_reader.readouts_bm.fill_count + 
+             new_reader.readouts_ibm.fill_count)
+             
     if n_old == n_new:
-        print(f'  [PASS]  Both pipelines have {n_old} readout rows')
+        print(f'  [PASS]  Both pipelines account for {n_old} combined readout rows')
     else:
-        print(f'  [WARN]  Row count differs: old={n_old}  new={n_new}')
+        print(f'  [WARN]  Row count differs: old={n_old}  new_combined={n_new}')
         print('  Hits comparison may fail or be misleading if row counts differ.')
 
     # -------------------------------------------------------------------------
@@ -279,9 +282,15 @@ if __name__ == '__main__':
     else:
         new_hits = MBMapper.map(new_reader.readouts_vmm_normal, config_new)
 
-    new_mon_hits, new_mon_found = MonitorMapper.map(
-        new_reader.readouts_bm, config_new
-    )
+    # Dispatch to the correct specialized mapper class based on configuration profile
+    hw_type = config_new['monitor'][0]['hardwareType'].lower()
+    if hw_type == 'ibm':
+        new_mon_hits = IBMMonitorMapper.map(new_reader.readouts_ibm, config_new)
+    else:
+        new_mon_hits = BMMapper.map(new_reader.readouts_bm, config_new)
+        
+    new_mon_found = new_mon_hits.fill_count > 0
+
     print(f'  New mapping done in {time.time() - t0:.2f}s')
     print(f'  new_hits rows         : {new_hits.fill_count}')
     print(f'  new_mon_hits rows     : {new_mon_hits.fill_count}  (found={new_mon_found})')
@@ -336,7 +345,7 @@ if __name__ == '__main__':
     # Durations
     # -------------------------------------------------------------------------
     section('Durations comparison')
-    if np.array_equal(old_hits.Durations, new_hits.durations):
+    if np.array_equal(np.ravel(old_hits.Durations), np.ravel(new_hits.durations)):
         print(f'  [PASS]  durations match ({len(new_hits.durations)} entries)')
     else:
         print(f'  [FAIL]  durations mismatch')

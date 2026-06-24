@@ -207,228 +207,143 @@ class DetectorMapper:
 # =============================================================================
 # MBMapper — Multi-Blade VMM normal mode
 # =============================================================================
-
 class MBMapper(DetectorMapper):
-    """
-    Maps readoutsVMMnormal → hitsVMMnormal for Multi-Blade detectors.
+    
+    @staticmethod
+    def _map_channels(src, valid_mask, adapter):
+        """Channel coordinate transformation."""
+        n = len(src)
+        asic, channel = src['asic'], src['channel']
+        is_wire  = valid_mask & (asic == 1) & (channel >= 16) & (channel <= 47)
+        is_strip = valid_mask & (asic == 0) & (channel >= 0) & (channel <= 63)
+        
+        local_index = np.full(n, -1, dtype='int64')
+        plane = np.full(n, -1, dtype='int64')
+        
+        if adapter == 'reverse':
+            local_index[is_wire] = channel[is_wire] - 16
+            local_index[is_strip] = 63 - channel[is_strip]
+        else:
+            local_index[is_wire] = 31 - (channel[is_wire] - 16)
+            local_index[is_strip] = channel[is_strip]
+        
+        plane[is_wire], plane[is_strip] = 0, 1
+        return plane, local_index
 
-    Topology key: single 'hybrid' per cassette entry.
-
-    Channel coordinate rules (from legacy libMapping.mapChannels):
-
-    Adapter 'reverse'  (wireASIC == 1):
-        Wires  : asic == wireASIC,  channel in [16, 47]  →  index = channel - 16
-        Strips : asic == stripASIC, channel in [0,  63]  →  index = 63 - channel
-
-    Adapter 'straight' (wireASIC == 0):
-        Wires  : asic == wireASIC,  channel in [16, 47]  →  index = 31 - (channel - 16)
-        Strips : asic == stripASIC, channel in [0,  63]  →  index = channel
-
-    Global wire offset (from legacy mapChannelsGlob):
-        index_global = index_local + cassette_rank * num_wires
-        where cassette_rank is the 0-based position of the cassette in the
-        topology list (not the ID value itself).
-    """
+    @staticmethod
+    def _apply_global_offset(local_index, plane, topo_idx, valid_mask, num_wires):
+        """Wire plane global offset."""
+        cassette_rank = np.where(valid_mask, topo_idx, 0)
+        wire_offset = cassette_rank * num_wires
+        global_index = local_index.copy()
+        is_wire = valid_mask & (plane == 0)
+        global_index[is_wire] = local_index[is_wire] + wire_offset[is_wire]
+        return global_index
 
     @staticmethod
     def map(readouts, config: dict) -> hitsVMMnormal:
-        """
-        Parameters
-        ----------
-        readouts : readoutsVMMnormal
-        config   : dict  (raw JSON config)
+        topology = config['topology']
+        wire_asic = int(config['channelMapping'][0]['wireASIC'])
+        num_wires = int(config['wires'])
+        adapter = _derive_adapter_type(wire_asic)
 
-        Returns
-        -------
-        hitsVMMnormal — populated, physically compacted, invalid rows removed.
-        """
-        topology   = config['topology']
-        wire_asic  = int(config['channelMapping'][0]['wireASIC'])
-        strip_asic = int(config['channelMapping'][0]['stripASIC'])
-        num_wires  = int(config['wires'])
-        adapter    = _derive_adapter_type(wire_asic)
-
-        if wire_asic == strip_asic:
-            raise ValueError(
-                'CONFIG ERROR: wireASIC and stripASIC are identical — '
-                'wires and strips cannot share an ASIC.'
-            )
-
-        topo = DetectorMapper._build_topology_arrays(
-            topology, ['ID', 'ring', 'fen', 'hybrid']
-        )
-
-        n   = readouts.fill_count
+        topo = DetectorMapper._build_topology_arrays(topology, ['ID', 'ring', 'fen', 'hybrid'])
+        n = readouts.fill_count
         src = readouts.matrix[:n]
 
-        # --- Step 1: topology ID lookup --------------------------------------
+        # Stage 1: Topology ID lookup
         assigned_ids, topo_idx, valid_mask = DetectorMapper._assign_ids_vectorized(
             src, topo, src_third_field='hybrid'
         )
 
-        # --- Step 2: channel coordinate masks --------------------------------
-        asic    = src['asic']
-        channel = src['channel']
+        # Stage 2: Channel mapping (coordinate transform)
+        plane, local_index = MBMapper._map_channels(src, valid_mask, adapter)
 
-        is_wire  = valid_mask & (asic == np.int64(wire_asic))  & (channel >= 16) & (channel <= 47)
-        is_strip = valid_mask & (asic == np.int64(strip_asic)) & (channel >= 0)  & (channel <= 63)
+        # Stage 3: Global offset
+        global_index = MBMapper._apply_global_offset(local_index, plane, topo_idx, valid_mask, num_wires)
 
-        # --- Step 3: local channel coordinate --------------------------------
-        local_index = np.full(n, -1, dtype='int64')
-        plane       = np.full(n, -1, dtype='int64')
-
-        if adapter == 'reverse':
-            local_index[is_wire]  = channel[is_wire] - np.int64(16)
-            local_index[is_strip] = np.int64(63) - channel[is_strip]
-        else:  # straight
-            local_index[is_wire]  = np.int64(31) - (channel[is_wire] - np.int64(16))
-            local_index[is_strip] = channel[is_strip]
-
-        plane[is_wire]  = np.int64(0)
-        plane[is_strip] = np.int64(1)
-
-        # --- Step 4: global wire offset (wire plane only) --------------------
-        cassette_rank = np.where(valid_mask, topo_idx, np.int64(0))
-        wire_offset   = (cassette_rank * np.int64(num_wires)).astype('int64')
-
-        global_index = local_index.copy()
-        global_index[is_wire] = local_index[is_wire] + wire_offset[is_wire]
-
-        # --- Step 5: hand off to hits container ------------------------------
+        # Stage 4: Absorption
         h = hitsVMMnormal(size=n)
         h.durations = readouts.durations.copy()
         h.absorb(
-            computed_fields={
-                'ID':    assigned_ids,
-                'plane': plane,
-                'index': global_index,
-                'adc':   src['adc'].astype('int64'),
-            },
+            computed_fields={'ID': assigned_ids, 'plane': plane, 'index': global_index, 'adc': src['adc'].astype('int64')},
             timing_src=src,
         )
 
         _report_unmapped_units(assigned_ids, topo['ID'], 'cassette')
         return h
-
-
 # =============================================================================
 # MBClustMapper — Multi-Blade VMM clustered mode
 # =============================================================================
-
 class MBClustMapper(DetectorMapper):
-    """
-    Maps readoutsVMMclustered → hitsVMMclustered for Multi-Blade detectors.
 
-    Topology key: single 'hybrid' per cassette (same as MBMapper).
+    @staticmethod
+    def _unpack_and_map_channels(src, valid_mask, adapter):
+        """Unpack wire/strip from correct slots, apply coordinate formula."""
+        if adapter == 'reverse':
+            wire_ch, wire_adc, wire_mult = src['channel1'], src['adc1'], src['mult1']
+            strip_ch, strip_adc, strip_mult = src['channel0'], src['adc0'], src['mult0']
+        else:
+            wire_ch, wire_adc, wire_mult = src['channel0'], src['adc0'], src['mult0']
+            strip_ch, strip_adc, strip_mult = src['channel1'], src['adc1'], src['mult1']
 
-    Each readout row already contains a pre-paired wire+strip event:
-    channel0/adc0/mult0 and channel1/adc1/mult1. Which slot carries wires
-    vs strips is determined by wireASIC:
+        wire_in_range = (wire_ch >= 16) & (wire_ch <= 47)
+        strip_in_range = (strip_ch >= 0) & (strip_ch <= 63)
 
-    wireASIC == 1  ('reverse'):
-        Wire  slot → channel1, adc1, mult1  →  index0 = channel1 - 16
-        Strip slot → channel0, adc0, mult0  →  index1 = 63 - channel0
+        if adapter == 'reverse':
+            local_wire = np.where(valid_mask & wire_in_range, wire_ch - 16, -1)
+            local_strip = np.where(valid_mask & strip_in_range, 63 - strip_ch, -1)
+        else:
+            local_wire = np.where(valid_mask & wire_in_range, 31 - (wire_ch - 16), -1)
+            local_strip = np.where(valid_mask & strip_in_range, strip_ch, -1)
 
-    wireASIC == 0  ('straight'):
-        Wire  slot → channel0, adc0, mult0  →  index0 = 31 - (channel0 - 16)
-        Strip slot → channel1, adc1, mult1  →  index1 = channel1
+        return local_wire, local_strip, wire_adc, strip_adc, wire_mult, strip_mult
 
-    Global wire offset applied to index0 exactly as in MBMapper.
-    """
+    @staticmethod
+    def _apply_global_offset(local_wire, valid_mask, topo_idx, num_wires):
+        """Wire plane only."""
+        cassette_rank = np.where(valid_mask, topo_idx, 0)
+        wire_offset = cassette_rank * num_wires
+        return np.where(local_wire >= 0, local_wire + wire_offset, -1)
 
     @staticmethod
     def map(readouts, config: dict) -> hitsVMMclustered:
-        topology  = config['topology']
+        topology = config['topology']
         wire_asic = int(config['channelMapping'][0]['wireASIC'])
         num_wires = int(config['wires'])
-        adapter   = _derive_adapter_type(wire_asic)
+        adapter = _derive_adapter_type(wire_asic)
 
-        topo = DetectorMapper._build_topology_arrays(
-            topology, ['ID', 'ring', 'fen', 'hybrid']
-        )
-
-        n   = readouts.fill_count
+        topo = DetectorMapper._build_topology_arrays(topology, ['ID', 'ring', 'fen', 'hybrid'])
+        n = readouts.fill_count
         src = readouts.matrix[:n]
 
-        # --- Step 1: topology ID lookup --------------------------------------
+        # Stage 1: Topology
         assigned_ids, topo_idx, valid_mask = DetectorMapper._assign_ids_vectorized(
             src, topo, src_third_field='hybrid'
         )
 
-        # --- Step 2: unpack wire and strip raw channels from correct slots ---
-        if adapter == 'reverse':
-            # wireASIC == 1 → wires in slot 1
-            wire_ch    = src['channel1']
-            wire_adc   = src['adc1']
-            wire_mult  = src['mult1']
-            strip_ch   = src['channel0']
-            strip_adc  = src['adc0']
-            strip_mult = src['mult0']
-        else:
-            # wireASIC == 0 → wires in slot 0
-            wire_ch    = src['channel0']
-            wire_adc   = src['adc0']
-            wire_mult  = src['mult0']
-            strip_ch   = src['channel1']
-            strip_adc  = src['adc1']
-            strip_mult = src['mult1']
-
-        # --- Step 3: channel-to-coordinate transform -------------------------
-        wire_in_range  = (wire_ch  >= 16) & (wire_ch  <= 47)
-        strip_in_range = (strip_ch >= 0)  & (strip_ch <= 63)
-
-        if adapter == 'reverse':
-            local_wire_index = np.where(
-                valid_mask & wire_in_range,
-                wire_ch - np.int64(16),
-                np.int64(-1),
-            )
-            local_strip_index = np.where(
-                valid_mask & strip_in_range,
-                np.int64(63) - strip_ch,
-                np.int64(-1),
-            )
-        else:
-            local_wire_index = np.where(
-                valid_mask & wire_in_range,
-                np.int64(31) - (wire_ch - np.int64(16)),
-                np.int64(-1),
-            )
-            local_strip_index = np.where(
-                valid_mask & strip_in_range,
-                strip_ch,
-                np.int64(-1),
-            )
-
-        # --- Step 4: global wire offset --------------------------------------
-        cassette_rank     = np.where(valid_mask, topo_idx, np.int64(0))
-        wire_offset       = (cassette_rank * np.int64(num_wires)).astype('int64')
-        global_wire_index = np.where(
-            local_wire_index >= 0,
-            local_wire_index + wire_offset,
-            np.int64(-1),
+        # Stage 2: Channel mapping + unpacking
+        local_w, local_s, adc0, adc1, mult0, mult1 = MBClustMapper._unpack_and_map_channels(
+            src, valid_mask, adapter
         )
 
-        # --- Step 5: hand off to hits container ------------------------------
+        # Stage 3: Global offset (wire plane only)
+        global_w = MBClustMapper._apply_global_offset(local_w, valid_mask, topo_idx, num_wires)
+
+        # Stage 4: Absorption
         h = hitsVMMclustered(size=n)
         h.durations = readouts.durations.copy()
         h.absorb(
             computed_fields={
-                'ID':     assigned_ids,
-                'index0': global_wire_index,
-                'index1': local_strip_index,
-                'adc0':   wire_adc.astype('int64'),
-                'adc1':   strip_adc.astype('int64'),
-                'mult0':  wire_mult.astype('int64'),
-                'mult1':  strip_mult.astype('int64'),
+                'ID': assigned_ids, 'index0': global_w, 'index1': local_s,
+                'adc0': adc0.astype('int64'), 'adc1': adc1.astype('int64'),
+                'mult0': mult0.astype('int64'), 'mult1': mult1.astype('int64'),
             },
             timing_src=src,
         )
 
         _report_unmapped_units(assigned_ids, topo['ID'], 'cassette')
         return h
-
-
 # =============================================================================
 # MGMapper — Multi-Grid VMM normal mode
 # =============================================================================
@@ -667,58 +582,49 @@ class MGMapper(DetectorMapper):
         return local_index
 
     @staticmethod
-    def map(readouts, config: dict) -> hitsVMMnormal:
-        """
-        Parameters
-        ----------
-        readouts : readoutsVMMnormal
-        config   : dict  (raw JSON config)
+    def _apply_global_offset(local_index, plane, topo_idx, valid_mask, num_wires):
+        """Wire plane offset."""
+        is_wire = valid_mask & (plane == 0)
+        cassette_rank = np.where(valid_mask, topo_idx, 0)
+        wire_offset = cassette_rank * num_wires
+        global_index = local_index.copy()
+        global_index[is_wire] = local_index[is_wire] + wire_offset[is_wire]
+        return global_index
 
-        Returns
-        -------
-        hitsVMMnormal — populated, physically compacted, invalid rows removed.
-        """
-        topology  = config['topology']
+    @staticmethod
+    def map(readouts, config: dict) -> hitsVMMnormal:
+        topology = config['topology']
         num_wires = int(config['wires'])
         num_grids = int(config['strips'])
 
         topo = DetectorMapper._build_topology_arrays(
             topology, ['ID', 'ring', 'fen', 'hybridW', 'hybridS']
         )
-
-        n   = readouts.fill_count
+        n = readouts.fill_count
         src = readouts.matrix[:n]
 
-        # --- Step 1: MG topology lookup (two-hybrid match + plane derivation) --
+        # Stage 1: Topology (MG override returns plane too)
         assigned_ids, topo_idx, valid_mask, plane = MGMapper._assign_ids_vectorized(src, topo)
 
-        # --- Step 2: channel-to-coordinate formulas --------------------------
+        # Stage 2: Channel mapping
         local_index = MGMapper._map_channels(src, valid_mask, plane, num_wires, num_grids)
 
-        # --- Step 3: global wire offset (wire plane only) --------------------
-        is_wire       = valid_mask & (plane == 0)
-        cassette_rank = np.where(valid_mask, topo_idx, np.int64(0))
-        wire_offset   = (cassette_rank * np.int64(num_wires)).astype('int64')
+        # Stage 3: Global offset
+        global_index = MGMapper._apply_global_offset(local_index, plane, topo_idx, valid_mask, num_wires)
 
-        global_index = local_index.copy()
-        global_index[is_wire] = local_index[is_wire] + wire_offset[is_wire]
-
-        # --- Step 4: hand off to hits container ------------------------------
+        # Stage 4: Absorption
         h = hitsVMMnormal(size=n)
         h.durations = readouts.durations.copy()
         h.absorb(
             computed_fields={
-                'ID':    assigned_ids,
-                'plane': plane,
-                'index': global_index,
-                'adc':   src['adc'].astype('int64'),
+                'ID': assigned_ids, 'plane': plane, 'index': global_index,
+                'adc': src['adc'].astype('int64'),
             },
             timing_src=src,
         )
 
         _report_unmapped_units(assigned_ids, topo['ID'], 'column')
         return h
-
 
 # =============================================================================
 # He3Mapper — Helium-3 CAEN R5560
@@ -749,32 +655,27 @@ class He3Mapper(DetectorMapper):
         hitsR5560 — populated, physically compacted, invalid rows removed.
         """
         topology = config['topology']
-
-        topo = DetectorMapper._build_topology_arrays(
-            topology, ['ID', 'ring', 'fen', 'tube']
-        )
-
-        n   = readouts.fill_count
+        topo = DetectorMapper._build_topology_arrays(topology, ['ID', 'ring', 'fen', 'tube'])
+        n = readouts.fill_count
         src = readouts.matrix[:n]
 
-        # --- Step 1: topology ID lookup --------------------------------------
+        # Stage 1: Topology only
         assigned_ids, _, valid_mask = DetectorMapper._assign_ids_vectorized(
             src, topo, src_third_field='tube'
         )
 
-        # For He3 the physical position IS the topology ID — no further formula.
-        index = np.where(valid_mask, assigned_ids, np.int64(-1))
+        # No Stage 2 or 3 for He3 — index IS the tube number
+        index = np.where(valid_mask, src['tube'].astype('int64'), np.int64(-1))
 
-        # --- Step 2: hand off to hits container ------------------------------
+        # Stage 4: Absorption
         h = hitsR5560(size=n)
         h.durations = readouts.durations.copy()
         h.absorb(
             computed_fields={
-                'ID':       assigned_ids,
-                'index':    index,
+                'ID': assigned_ids, 'index': index,
                 'counter1': src['counter1'].astype('int64'),
-                'ampA':     src['ampA'].astype('int64'),
-                'ampB':     src['ampB'].astype('int64'),
+                'ampA': src['ampA'].astype('int64'),
+                'ampB': src['ampB'].astype('int64'),
                 'counter2': src['counter2'].astype('int64'),
             },
             timing_src=src,
@@ -784,127 +685,90 @@ class He3Mapper(DetectorMapper):
         return h
 
 
-# =============================================================================
-# MonitorMapper — Beam Monitor (generic or IBM)
-# =============================================================================
+# ---------------------------------------------------------------------------
+# Base Monitor Mother Class using Standard Absorb Lifecycle
+# ---------------------------------------------------------------------------
 
-class MonitorMapper:
+class BaseMonitorMapper:
     """
-    Maps the monitor stream out of a VMM normal readout container into
-    hitsBM (hardwareType == 'generic') or hitsIBM (hardwareType == 'ibm').
-
-    Completely standalone — no topology lookup, does not inherit from
-    DetectorMapper.
-
-    The monitor occupies ring >= 11 in the readout stream. The specific
-    (ring, channel) pair to accept is declared in config['monitor'][0].
-
-    Detection logic (mirrors legacy mapMonitor):
-    1. Build a mask for the exact (ring, channel) pair from config.
-    2. Scan ring >= 11 rows for any (ring, channel) pairs actually present.
-    3. If the configured pair is found → map those rows.
-    4. If a different single pair is found → warn, return empty container.
-    5. If nothing at all in ring >= 11 → warn, return empty container.
-
-    Returns
-    -------
-    (hits_container, found_flag) : tuple
-        hits_container is hitsBM or hitsIBM depending on hardwareType.
-        found_flag is True if monitor data was successfully mapped.
-
-    NOTE: supports only ONE monitor entry (legacy behaviour preserved).
+    Abstract mother class for Beam Monitor mappers.
+    Validates channels and utilizes standard hits.absorb() contract.
     """
-
     @staticmethod
-    def map(readouts, config: dict) -> tuple:
-        mon_cfg       = config['monitor'][0]
-        mon_id        = int(mon_cfg['ID'])
-        hardware_type = str(mon_cfg['hardwareType']).lower()
-        mon_ring      = int(mon_cfg['ring'])
-        mon_channel   = int(mon_cfg['channel'])
-
-        n   = readouts.fill_count
+    def _prepare_base_fields(readouts, config: dict) -> tuple:
+        n = readouts.fill_count
         src = readouts.matrix[:n]
+        
+        mon_cfg = config['monitor'][0]
+        mon_id = int(mon_cfg['ID'])
+        mon_channel = int(mon_cfg['channel'])
 
-        ring_col    = src['ring']
-        channel_col = src['channel']
+        # Create target channel mask extraction
+        target_mask = src['channel'] == np.int64(mon_channel)
+        count = np.sum(target_mask)
 
-        target_mask   = (ring_col == np.int64(mon_ring)) & \
-                        (channel_col == np.int64(mon_channel))
-        mon_band_mask = ring_col >= np.int64(11)
+        # Vectorized Warning Checks
+        if n > 0:
+            unique_channels = np.unique(src['channel'])
+            
+            # CASE 1: Multiple monitor channels found
+            if len(unique_channels) > 1:
+                print(f"\t \033[1;33mWARNING: Found {len(unique_channels)} monitor channels in data. "
+                      f"MBUTY supports only one Monitor. Mapping channel {mon_channel} per config, "
+                      f"but data contains channels: {unique_channels.tolist()}\033[1;37m")
+            
+            # CASE 2: Mismatch -> Data exists, but nothing matches the configured channel
+            elif count == 0 and len(unique_channels) == 1:
+                wrong_ch = unique_channels[0]
+                # Note: Ring context can be dynamically read from src['ring'][0] if needed
+                wrong_ring = src['ring'][0]
+                print(f"\t \033[1;33mWARNING: mismatch → One monitor candidate found, but it is NOT the selected one in config file. "
+                      f"Data contains Ring {wrong_ring} and Channel {wrong_ch}.\033[1;37m")
 
-        if np.any(mon_band_mask):
-            mon_pairs = np.unique(
-                np.column_stack([
-                    ring_col[mon_band_mask],
-                    channel_col[mon_band_mask],
-                ]),
-                axis=0,
-            )
-        else:
-            mon_pairs = np.empty((0, 2), dtype='int64')
+        # Assign real ID to configured rows; unconfigured rows stay at -1 to be cleanly dropped
+        assigned_ids = np.where(target_mask, np.int64(mon_id), np.int64(-1))
 
-        found_flag = False
-        hits_out   = MonitorMapper._make_empty_container(hardware_type)
+        computed_base = {
+            'ID':       assigned_ids,
+            'type':     src['type'],
+            'channel':  src['channel'],
+            'adc':      src['adc'],
+        }
+        
+        return n, src, computed_base
 
-        if np.any(target_mask):
-            if len(mon_pairs) > 1:
-                print(
-                    f'\t {WARN}WARNING: Found {len(mon_pairs)} monitor sources in data. '
-                    f'MBUTY supports only one Monitor. Mapping according to config, '
-                    f'but data contains (ring, channel): {mon_pairs.tolist()}{RESET}'
-                )
-            hits_out   = MonitorMapper._fill(src, target_mask, hardware_type, mon_id)
-            found_flag = True
-            print(f'{INFO}Mapping Monitor ...{RESET}')
 
-        elif len(mon_pairs) == 1:
-            wrong_ring, wrong_ch = mon_pairs[0]
-            print(
-                f'\t {WARN}WARNING: mismatch → one monitor candidate found but it is '
-                f'NOT the one selected in config. '
-                f'Data contains ring {wrong_ring} and channel {wrong_ch}.{RESET}'
-            )
+# ---------------------------------------------------------------------------
+# Derived Concrete Monitor Mappers
+# ---------------------------------------------------------------------------
 
-        else:
-            print(f'\t {WARN}No MONITOR data found in data file{RESET}')
-
-        hits_out.durations = readouts.durations.copy()
-        return hits_out, found_flag
-
+class BMMapper(BaseMonitorMapper):
+    """Maps isolated readoutsBM into hitsBM using the standard absorb lifecycle."""
     @staticmethod
-    def _make_empty_container(hardware_type: str):
-        if hardware_type == 'ibm':
-            return hitsIBM(size=0)
-        return hitsBM(size=0)
+    def map(readouts, config: dict) -> hitsBM:
+        n, src, computed = BaseMonitorMapper._prepare_base_fields(readouts, config)
+        
+        computed['posX'] = src['posX']
+        computed['posY'] = src['posY']
 
+        h = hitsBM(size=n)
+        h.absorb(computed, src)
+        h.durations = readouts.durations.copy()
+        return h
+
+
+class IBMMonitorMapper(BaseMonitorMapper):
+    """Maps isolated readoutsIBM into hitsIBM using the standard absorb lifecycle."""
     @staticmethod
-    def _fill(src: np.ndarray, mask: np.ndarray, hardware_type: str, mon_id: int):
-        """
-        Pack selected rows into the correct monitor hits container.
+    def map(readouts, config: dict) -> hitsIBM:
+        n, src, computed = BaseMonitorMapper._prepare_base_fields(readouts, config)
+        
+        computed['debug']  = src['debug']
+        computed['mcaSum'] = src['mcaSum']
 
-        hitsBM  fields: ID, timeStamp, pulseT, prevPT, instrID, type, channel, adc, posX, posY
-        hitsIBM fields: ID, timeStamp, pulseT, prevPT, instrID, type, channel, debug, adc, mcaSum
-
-        The VMM normal readout carries adc and channel directly. The remaining
-        monitor-specific fields (posX, posY for BM; debug, mcaSum for IBM) have
-        no equivalent in a VMM readout stream and are left at the -1 sentinel
-        established by hits.__init__. This is correct — those fields are only
-        populated when the hardware itself provides them.
-        """
-        count = int(np.sum(mask))
-        rows  = src[mask]
-
-        h = hitsIBM(size=count) if hardware_type == 'ibm' else hitsBM(size=count)
-
-        h.absorb(
-            computed_fields={
-                'ID':      np.full(count, np.int64(mon_id), dtype='int64'),
-                'channel': rows['channel'].astype('int64'),
-                'adc':     rows['adc'].astype('int64'),
-            },
-            timing_src=rows,
-        )
+        h = hitsIBM(size=n)
+        h.absorb(computed, src)
+        h.durations = readouts.durations.copy()
         return h
 
 

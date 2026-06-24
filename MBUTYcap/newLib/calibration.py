@@ -118,7 +118,6 @@ def load_calibration_map(calib_file_path: str, config: dict) -> dict[tuple[int, 
         vmm0 = block.get('vmm0', {})
         vmm1 = block.get('vmm1', {})
 
-        # TODO: replace tdc_offset/tdc_slope key names once calibration file schema is confirmed
         json_lookup[key] = VMMCalibrationEntry(
             hybrid_id       = hybrid_id_text,
             vmm0_adc_offset     = np.asarray(vmm0.get('adc_offset', np.zeros(64)), dtype=np.float64),
@@ -149,6 +148,14 @@ def load_calibration_map(calib_file_path: str, config: dict) -> dict[tuple[int, 
             # Replicates legacy constructor fallback array mapping precisely
             print(f'\t {WARN}No calib found in calib file for Ring {ring}, Fen {fen}, Hybrid {hybrid} → using defaults: slope 1, offset 0{RESET}')
             final_map[key] = _default_entry(f"FEN{ring}_{hybrid}")
+
+    # Post-check for all-zero calibrations
+    for (ring, fen, hybrid), entry in final_map.items():
+        if np.allclose(entry.vmm0_adc_offset, 0.0) and np.allclose(entry.vmm1_adc_offset, 0.0):
+            print(f'\t {WARN}WARNING: ADC calibration all zeros for Ring {ring}, Fen {fen}, Hybrid {hybrid}{RESET}')
+        
+        if np.allclose(entry.vmm0_tdc_offset, 0.0) and np.allclose(entry.vmm1_tdc_offset, 0.0):
+            print(f'\t {WARN}WARNING: TDC calibration all zeros for Ring {ring}, Fen {fen}, Hybrid {hybrid}{RESET}')
 
     return final_map
 

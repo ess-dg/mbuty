@@ -26,7 +26,8 @@ def _generateTopologyMB(num_units):
             "ID": i,
             "ring": ring,
             "fen": 0,
-            "hybrid": hybrid
+            "hybrid": hybrid,
+            "serial": ''
         })
         hybrid += 1
         if hybrid >= 5:
@@ -48,7 +49,9 @@ def _generateTopologyMG(num_units):
             "ring": ring,
             "fen": 0,
             "hybridW": hybridW,
-            "hybridG": hybridG
+            "hybridG": hybridG,
+            "serialHW": '',
+            "serialHG": ''
         })
         hybridW += 2
         hybridG += 2
@@ -133,7 +136,7 @@ def generateDefaultDetConfig(path, detectorName, detectorType, instrumentName, n
     
     file_name = _createFileName(detectorName)
     
-    print(file_name)
+    # print(file_name)
 
     filePathName = os.path.join(path, file_name)
     # Check for existing file
@@ -298,23 +301,73 @@ def checkIfExists(pathFile):
 
 if __name__ == '__main__':
     path = '/Users/francescopiscitelli/Documents/PYTHON/MBUTYcapWorkInProgress/config/'
+    
+    
+    # path = '/Users/francescopiscitelli/git_repos/mbuty/MBUTYcap/config/'
 
-    detectorName = "AMOR26"
+    detectorName = "AMOR"
     detectorType = 'MB'
     instrumentName = 'AMOR'
     
-    detectorName = "CSPEC26"
-    detectorType = 'He3'
-    instrumentName = 'CSPEC'
+    # detectorName = "CAB"
+    # detectorType = 'MB'
+    # instrumentName = 'AMOR'
     
-    # detectorName = "MIRACLES26"
+    # detectorName = "CSPEC"
+    # detectorType = 'He3'
+    # instrumentName = 'CSPEC'
+    
+    # detectorName = "ESTIA_sect0"
+    # detectorType = 'MB'
+    # instrumentName = 'ESTIA'
+    
+    # detectorName = "ESTIA_sect0and1"
+    # detectorType = 'MB'
+    # instrumentName = 'ESTIA'
+    
+    # detectorName = "ESTIA"
+    # detectorType = 'MB'
+    # instrumentName = 'ESTIA'
+    
+    
+    
+    # detectorName = "FREIA_sect0"
+    # detectorType = 'MB'
+    # instrumentName = 'FREIA'
+    
+    # detectorName = "FREIA_sect0and1"
+    # detectorType = 'MB'
+    # instrumentName = 'FREIA'
+    
+    # detectorName = "FREIA"
+    # detectorType = 'MB'
+    # instrumentName = 'FREIA'
+    
+    
+    
+    
+    # detectorName = "MG1column"
+    # detectorType = 'MG'
+    # instrumentName = 'TREX'
+    
+    # detectorName = "MG_EMMA"
+    # detectorType = 'MG'
+    # instrumentName = 'TREX'
+
+    
+    # detectorName = "MIRACLES1"
     # detectorType = 'He3'
     # instrumentName = 'MIRACLES'
     
-    detectorName = "TREX26sss"
-    detectorType = 'MG'
-    instrumentName = 'TREX'
+    # detectorName = "MIRACLES24"
+    # detectorType = 'He3'
+    # instrumentName = 'MIRACLES'
     
+    # detectorName = "test1hybrid"
+    # detectorType = 'MB'
+    # instrumentName = 'ESTIA'
+    
+ 
     
     operationMode = 'normal'
     units = 14

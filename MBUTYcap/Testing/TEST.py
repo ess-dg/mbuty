@@ -42,6 +42,8 @@ from newLib import reader
 
 from lib import libMapping as mapsnew
 
+from newLib.mapping_engine import MBMapper, MBClustMapper, MonitorMapper
+
 ###############################################################################
 ###############################################################################
 
@@ -53,6 +55,8 @@ if __name__ == '__main__':
 
     confPath      = path + 'config_old/'
     confFileName  = "AMOR.json"
+    
+    # confFileName  = "test1h.json"
     
     # fileName  = "MIRACLES24.json"
     # fileName  = "MGEMMA.json"
@@ -85,90 +89,155 @@ if __name__ == '__main__':
 
     # file = 'CSPEC1.pcapng'
 
-
-    filePathAndFileName = filePath+file
     
+    # parameters.VMMsettings.sortReadoutsByTimeStampsONOFF = False
     
-    typeOfLoading = 'allocate'
-    # typeOfLoading = 'quick'
+    # typeOfLoading = 'allocate'
+    # # typeOfLoading = 'quick'
     
     timeResolutionType='fine'
     
     
-    temp = config.DETparameters.operationMode
-    
-    
-    pcap = pcapr.pcapng_reader(filePathAndFileName,NSperClockTick=11.356860963629653, MONhw=config.MONmap.hardwareType, MONconn=config.MONmap.connectionType, MONring=11, timeResolutionType=timeResolutionType, sortByTimeStampsONOFF=False, operationMode=temp,pcapLoadingMethod=typeOfLoading)
+    # operationMode = config.DETparameters.operationMode
 
-    readouts = pcap.readouts
-    
-    # pcap = pcapng_reader_PreAlloc(filePath,NSperClockTick)
-    # pcap.allocateMemory()
-    # pcap.read()
-    
-    # pcap = pcapng_reader(filePath, NSperClockTick, timeResolutionType = 'fine', sortByTimeStampsONOFF = False )
+    # pcap = pcapr.pcapng_reader(filePath+file,NSperClockTick=11.356860963629653,
+    #                            MONhw=config.MONmap.hardwareType, MONconn=config.MONmap.connectionType, MONring=11, 
+    #                            timeResolutionType=timeResolutionType, 
+    #                            sortByTimeStampsONOFF=parameters.VMMsettings.sortReadoutsByTimeStampsONOFF, 
+    #                            operationMode=operationMode,pcapLoadingMethod=typeOfLoading)
 
+    # readouts = pcap.readouts
+
+    # readoutsArray = readouts.concatenateReadoutsInArrayForDebug()
     
-    # readouts = pcap.readouts 
-    readoutsArray = readouts.concatenateReadoutsInArrayForDebug()
+    # heartbeats1 = readouts.heartbeats
+    # heartbeats2 = readouts.removeNonESSpacketsHeartbeats(readouts.heartbeats)
     
-    heartbeats1 = readouts.heartbeats
-    heartbeats2 = readouts.removeNonESSpacketsHeartbeats(readouts.heartbeats)
+    # readouts.checkChopperFreq()
     
-    readouts.checkChopperFreq()
+    # readouts.checkInvalidToFsInReadouts()
     
-    readouts.checkInvalidToFsInReadouts()
+    # parameters.VMMsettings.sortReadoutsByTimeStampsONOFF = True
     
+    
+    #######################################
+    #######################################
+    # CALIBRATION 
     
     calibPath = path + 'calib/'
-    #calibFile = 'AMOR_calib_20231111002842.json'
-    calibFile = 'ill_efu_time_calib.json'
+    calibFile = 'AMOR_calib_20231111002842.json'
     
-    calib = cal.read_json_calib(calibPath+calibFile,config)
     
-    if calib.calibFlag is True:
-            ca = cal.calibrate(readouts,config,calib)
-            ca.calibrateADC()
-            readoutsOUT = ca.readouts
+    # calibFile =  'ill_efu_time_calib_mod.json'
+    
+    # calib = cal.read_json_calib(calibPath+calibFile,config)
+    
+    # if calib.calibFlag is True:
+    #         ca = cal.calibrate(readouts,config,calib)
+    #         ca.calibrateADC()
+    #         readoutsOUT = ca.readouts
             
-    readoutsArrayOUT = readouts.concatenateReadoutsInArrayForDebug()      
+    # readoutsArrayOUT = readouts.concatenateReadoutsInArrayForDebug()      
 
+    #######################################
+    #######################################
+    
+    #######################################
+    #######################################
+    # MAPPING 
+    
+    # md  = maps.mapDetector(readouts, config)
+    # md.mappAllCassAndChannelsGlob()
+    # hits = md.hits
+    # hitsArray  = hits.concatenateHitsInArrayForDebug()
+    
+    # MON = maps.mapMonitor(readouts, config)
+    # hitsMON = MON.hits
+  
+    #######################################
+    #######################################
+    
+    
 
     tElapsedProfiling = time.time() - tProfilingStart
     print('\n Data Loading Completed in %.2f s' % tElapsedProfiling)    
     
+    print('\n ------------------------------------------------------ \n')
+    
     ###############################################################################
+    ###############################################################################
+    # HERE STARTS NEW CODE 
 
     tProfilingStart = time.time()
     
-    # confPath      = '/Users/francescopiscitelli/Documents/PYTHON/MBUTYcapWorkInProgress/config/'
     confPath      = path + 'config/'
-    confFileName  = "AMOR.json"    
+    
+    confFileName  = 'AMOR.json'
+    
+    confFileName  = 'test1hybrid.json'
     
     ff   = open(confPath+confFileName,'r') 
     confignew = json.load(ff)
-    # confignew = mapsnew.read_json_config(confPath+confFileName)
-    
     
     parameters.VMMsettings.timeResolutionType = timeResolutionType
 
-    parameters.fileManagement.calibFilePath = calibPath
-    parameters.fileManagement.calibFileName = calibFile
-    parameters.dataReduction.calibrateVMM_ADC_ONOFF = True
-
     newreader = reader.PcapngFileReader(
-            file_path  = filePathAndFileName,
+            file_path  = filePath+file,
             parameters = parameters,
             config     = confignew,
         )
     newreader.run()
+    
+    readoutsNEW  = newreader.readouts_vmm_normal
+    # readoutsNEWc = newreader.readouts_vmm_clustered
 
-    readoutsArrayNEW  = newreader.readouts_vmm_normal.get_data_frame()
+    readoutsArrayNEW  = readoutsNEW.get_data_frame()
+    
+    # readoutsArrayNEWc  = readoutsNEWc.get_data_frame()
+    
+    # bb = readoutsNEWc.matrix['adc'] - readouts.ADC
+    
+    #######################################
+    #######################################
+    # CALIBRATION 
+    
+    parameters.fileManagement.calibFilePath = calibPath
+    parameters.fileManagement.calibFileName = calibFile
+    parameters.dataReduction.calibrateVMM_ADC_ONOFF = True
+    
+    parameters.dataReduction.calibrateVMM_TDC_ONOFF = True
 
     newreader.readouts_vmm_normal.calibrate(parameters, confignew)
-
     readoutsArrayNEW_OUT  = newreader.readouts_vmm_normal.get_data_frame()
     
+    #######################################
+    #######################################
+
+    #######################################
+    #######################################
+    # MAPPING 
+    
+    # hitsNEW = MBMapper.map(newreader.readouts_vmm_normal, confignew)
+    
+    # hitsArrayNEW = hitsNEW.get_data_frame()
+    
+    
+    # tt = hitsNEW.matrix['timeStamp'] - hits.timeStamp
+    
+    
+    # tt = hitsArrayNEW['timeStamp'] - hits.timeStamp
+    
+    # aa = hitsArrayNEW['adc'] - hits.ADC
+    
+    #######################################
+    #######################################
 
     tElapsedProfiling = time.time() - tProfilingStart
     print('\n Data Loading Completed in %.2f s' % tElapsedProfiling)
+    
+    ###############################################################################
+    ###############################################################################
+   
+    
+    
+    

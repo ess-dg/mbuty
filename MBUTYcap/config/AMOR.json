@@ -10,85 +10,99 @@
             "ID": 0,
             "ring": 0,
             "fen": 0,
-            "hybrid": 0
+            "hybrid": 0,
+            "serial": ""
         },
         {
             "ID": 1,
             "ring": 0,
             "fen": 0,
-            "hybrid": 1
+            "hybrid": 1,
+            "serial": ""
         },
         {
             "ID": 2,
             "ring": 0,
             "fen": 0,
-            "hybrid": 2
+            "hybrid": 2,
+            "serial": ""
         },
         {
             "ID": 3,
             "ring": 0,
             "fen": 0,
-            "hybrid": 3
+            "hybrid": 3,
+            "serial": ""
         },
         {
             "ID": 4,
             "ring": 0,
             "fen": 0,
-            "hybrid": 4
+            "hybrid": 4,
+            "serial": ""
         },
         {
             "ID": 5,
             "ring": 1,
             "fen": 0,
-            "hybrid": 0
+            "hybrid": 0,
+            "serial": ""
         },
         {
             "ID": 6,
             "ring": 1,
             "fen": 0,
-            "hybrid": 1
+            "hybrid": 1,
+            "serial": ""
         },
         {
             "ID": 7,
             "ring": 1,
             "fen": 0,
-            "hybrid": 2
+            "hybrid": 2,
+            "serial": ""
         },
         {
             "ID": 8,
             "ring": 1,
             "fen": 0,
-            "hybrid": 3
+            "hybrid": 3,
+            "serial": ""
         },
         {
             "ID": 9,
             "ring": 1,
             "fen": 0,
-            "hybrid": 4
+            "hybrid": 4,
+            "serial": ""
         },
         {
             "ID": 10,
             "ring": 2,
             "fen": 0,
-            "hybrid": 0
+            "hybrid": 0,
+            "serial": ""
         },
         {
             "ID": 11,
             "ring": 2,
             "fen": 0,
-            "hybrid": 1
+            "hybrid": 1,
+            "serial": ""
         },
         {
             "ID": 12,
             "ring": 2,
             "fen": 0,
-            "hybrid": 2
+            "hybrid": 2,
+            "serial": ""
         },
         {
             "ID": 13,
             "ring": 2,
             "fen": 0,
-            "hybrid": 3
+            "hybrid": 3,
+            "serial": ""
         }
     ],
     "channelMapping": [
@@ -109,7 +123,7 @@
             "hardwareType": "generic",
             "connectionType": "ring",
             "ring": 11,
-            "channel": 0
+            "channel": 1
         }
     ]
 }
