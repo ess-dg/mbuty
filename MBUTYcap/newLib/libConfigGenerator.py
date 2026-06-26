@@ -164,7 +164,7 @@ def generateDefaultDetConfig(path, detectorName, detectorType, instrumentName, n
         data.update({
             "operationMode": operationMode,
             "topology": topology,
-            "channelMapping": [{"wireASIC": 1, "stripASIC": 0}],
+            # "channelMapping": [{"wireASIC": 1, "stripASIC": 0}],
             "wires": 32,
             "strips": 64,
             "wirePitch_mm": 4,

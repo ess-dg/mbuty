@@ -1,7 +1,7 @@
 {
     "detectorName": "AMOR",
     "detectorType": "MB",
-    "instrumentName": "AMOR",
+    "instrumentName": "AMO R",
     "units": 14,
     "orientation": "horizontal",
     "operationMode": "normal",
@@ -105,12 +105,6 @@
             "serial": ""
         }
     ],
-    "channelMapping": [
-        {
-            "wireASIC": 1,
-            "stripASIC": 0
-        }
-    ],
     "wires": 32,
     "strips": 64,
     "wirePitch_mm": 4,
@@ -123,7 +117,7 @@
             "hardwareType": "generic",
             "connectionType": "ring",
             "ring": 11,
-            "channel": 1
+            "channel": 0
         }
     ]
 }

@@ -181,39 +181,39 @@ def validate_operation_mode(config: dict) -> None:
 # validate_channel_mapping
 # =============================================================================
 
-def validate_channel_mapping(config: dict) -> None:
-    """Validate 'channelMapping' block for MB detectors only.
+# def validate_channel_mapping(config: dict) -> None:
+#     """Validate 'channelMapping' block for MB detectors only.
 
-    Checks that wireASIC and stripASIC are each 0 or 1, and that
-    they are not equal. The only valid pairs are (0, 1) and (1, 0).
-    Exits immediately on any violation.
-    """
-    if config.get('detectorType') != 'MB':
-        return
+#     Checks that wireASIC and stripASIC are each 0 or 1, and that
+#     they are not equal. The only valid pairs are (0, 1) and (1, 0).
+#     Exits immediately on any violation.
+#     """
+#     if config.get('detectorType') != 'MB':
+#         return
 
-    channel_mapping = config.get('channelMapping')
-    if not channel_mapping:
-        print(f"\n\t{ERR}ERROR: 'channelMapping' block missing for MB detector -> check config file! ---> Exiting ...{RESET}")
-        time.sleep(2)
-        sys.exit()
+#     channel_mapping = config.get('channelMapping')
+#     if not channel_mapping:
+#         print(f"\n\t{ERR}ERROR: 'channelMapping' block missing for MB detector -> check config file! ---> Exiting ...{RESET}")
+#         time.sleep(2)
+#         sys.exit()
 
-    entry = channel_mapping[0]
-    wire_asic  = entry.get('wireASIC')
-    strip_asic = entry.get('stripASIC')
+#     entry = channel_mapping[0]
+#     wire_asic  = entry.get('wireASIC')
+#     strip_asic = entry.get('stripASIC')
 
-    for name, val in [('wireASIC', wire_asic), ('stripASIC', strip_asic)]:
-        if val not in (0, 1):
-            print(f"\n\t{ERR}ERROR: '{name}' (found {val!r}) must be 0 or 1 -> check config file! ---> Exiting ...{RESET}")
-            time.sleep(2)
-            sys.exit()
+#     for name, val in [('wireASIC', wire_asic), ('stripASIC', strip_asic)]:
+#         if val not in (0, 1):
+#             print(f"\n\t{ERR}ERROR: '{name}' (found {val!r}) must be 0 or 1 -> check config file! ---> Exiting ...{RESET}")
+#             time.sleep(2)
+#             sys.exit()
 
-    if wire_asic == strip_asic:
-        print(f"\n\t{ERR}ERROR: wireASIC and stripASIC are both {wire_asic}. "
-              f"They must be different (valid pairs: (0,1) or (1,0)) -> check config file! ---> Exiting ...{RESET}")
-        time.sleep(2)
-        sys.exit()
+#     if wire_asic == strip_asic:
+#         print(f"\n\t{ERR}ERROR: wireASIC and stripASIC are both {wire_asic}. "
+#               f"They must be different (valid pairs: (0,1) or (1,0)) -> check config file! ---> Exiting ...{RESET}")
+#         time.sleep(2)
+#         sys.exit()
 
-    print(f"{INFO}Channel mapping: wireASIC={wire_asic}, stripASIC={strip_asic}{RESET}")
+    # print(f"{INFO}Channel mapping: wireASIC={wire_asic}, stripASIC={strip_asic}{RESET}")
 
 # =============================================================================
 # validate_unit_configuration
@@ -322,7 +322,7 @@ def validate_config(config: dict, printFlag: bool = True) -> None:
     validate_instrument_and_detector(config, printFlag)
     validate_monitor_configuration(config, printFlag)
     validate_unit_configuration(config)
-    validate_channel_mapping(config)
+    # validate_channel_mapping(config)
     if printFlag:
         validate_operation_mode(config)
     

@@ -197,7 +197,7 @@ class hitsVMMnormal(hits):
     """
     def __init__(self, size: int = 0):
         subclass_fields = [
-            ('plane', 'int64'),   # 0 = wire (or wire-equivalent), 1 = strip
+            ('plane', 'int64'),   # 0 = wire (or wire-equivalent), 1 = strip COMMENT or equivalent 
             ('index', 'int64'),   # Global coordinate on the plane
             ('adc',   'int64'),
         ]
@@ -241,7 +241,7 @@ class hitsR5560(hits):
     """
     def __init__(self, size: int = 0):
         subclass_fields = [
-            ('index',    'int64'),   # Physical tube coordinate
+            # ('index',    'int64'),   # Physical tube coordinate
             ('counter1', 'int64'),
             ('ampA',     'int64'),
             ('ampB',     'int64'),

@@ -73,13 +73,13 @@ MG_SWAP_IT = 0
 # Module-level helpers — private, not part of public API
 # =============================================================================
 
-def _derive_adapter_type(wire_asic: int) -> str:
-    """
-    MB adapter type is implicit in which ASIC carries the wires.
-    wireASIC == 1  →  'reverse'  (e.g. AMOR26)
-    wireASIC == 0  →  'straight'
-    """
-    return 'reverse' if wire_asic == 1 else 'straight'
+# def _derive_adapter_type(wire_asic: int) -> str:
+#     """
+#     MB adapter type is implicit in which ASIC carries the wires.
+#     wireASIC == 1  →  'reverse'  (e.g. AMOR26)
+#     wireASIC == 0  →  'straight'
+#     """
+#     return 'reverse' if wire_asic == 1 else 'straight'
 
 
 def _report_unmapped_units(
@@ -210,22 +210,22 @@ class DetectorMapper:
 class MBMapper(DetectorMapper):
     
     @staticmethod
-    def _map_channels(src, valid_mask, adapter):
+    def _map_channels(src, valid_mask):
         """Channel coordinate transformation."""
+  
         n = len(src)
         asic, channel = src['asic'], src['channel']
         is_wire  = valid_mask & (asic == 1) & (channel >= 16) & (channel <= 47)
         is_strip = valid_mask & (asic == 0) & (channel >= 0) & (channel <= 63)
-        
+
         local_index = np.full(n, -1, dtype='int64')
         plane = np.full(n, -1, dtype='int64')
-        
-        if adapter == 'reverse':
-            local_index[is_wire] = channel[is_wire] - 16
-            local_index[is_strip] = 63 - channel[is_strip]
-        else:
-            local_index[is_wire] = 31 - (channel[is_wire] - 16)
-            local_index[is_strip] = channel[is_strip]
+
+        local_index[is_wire]  = channel[is_wire] - 16
+        local_index[is_strip] = 63 - channel[is_strip]
+
+        #     local_index[is_wire] = 31 - (channel[is_wire] - 16)
+        #     local_index[is_strip] = channel[is_strip]
         
         plane[is_wire], plane[is_strip] = 0, 1
         return plane, local_index
@@ -233,8 +233,9 @@ class MBMapper(DetectorMapper):
     @staticmethod
     def _apply_global_offset(local_index, plane, topo_idx, valid_mask, num_wires):
         """Wire plane global offset."""
-        cassette_rank = np.where(valid_mask, topo_idx, 0)
-        wire_offset = cassette_rank * num_wires
+        # the cassette ID drives the position in the space, 0 is the bottom cassette or the most left 
+        cassette_rank = np.where(valid_mask, topo_idx, -1)
+        wire_offset  = cassette_rank * num_wires
         global_index = local_index.copy()
         is_wire = valid_mask & (plane == 0)
         global_index[is_wire] = local_index[is_wire] + wire_offset[is_wire]
@@ -242,14 +243,12 @@ class MBMapper(DetectorMapper):
 
     @staticmethod
     def map(readouts, config: dict) -> hitsVMMnormal:
-        topology = config['topology']
-        wire_asic = int(config['channelMapping'][0]['wireASIC'])
+        topology  = config['topology']
         num_wires = int(config['wires'])
-        adapter = _derive_adapter_type(wire_asic)
-
+ 
         topo = DetectorMapper._build_topology_arrays(topology, ['ID', 'ring', 'fen', 'hybrid'])
-        n = readouts.fill_count
-        src = readouts.matrix[:n]
+        n    = readouts.fill_count
+        src  = readouts.matrix[:n]
 
         # Stage 1: Topology ID lookup
         assigned_ids, topo_idx, valid_mask = DetectorMapper._assign_ids_vectorized(
@@ -257,7 +256,7 @@ class MBMapper(DetectorMapper):
         )
 
         # Stage 2: Channel mapping (coordinate transform)
-        plane, local_index = MBMapper._map_channels(src, valid_mask, adapter)
+        plane, local_index = MBMapper._map_channels(src, valid_mask)
 
         # Stage 3: Global offset
         global_index = MBMapper._apply_global_offset(local_index, plane, topo_idx, valid_mask, num_wires)
@@ -280,30 +279,29 @@ class MBClustMapper(DetectorMapper):
     @staticmethod
     def _unpack_and_map_channels(src, valid_mask, adapter):
         """Unpack wire/strip from correct slots, apply coordinate formula."""
-        if adapter == 'reverse':
-            wire_ch, wire_adc, wire_mult = src['channel1'], src['adc1'], src['mult1']
-            strip_ch, strip_adc, strip_mult = src['channel0'], src['adc0'], src['mult0']
-        else:
-            wire_ch, wire_adc, wire_mult = src['channel0'], src['adc0'], src['mult0']
-            strip_ch, strip_adc, strip_mult = src['channel1'], src['adc1'], src['mult1']
 
-        wire_in_range = (wire_ch >= 16) & (wire_ch <= 47)
+        wire_ch, wire_adc, wire_mult    = src['channel1'], src['adc1'], src['mult1']
+        strip_ch, strip_adc, strip_mult = src['channel0'], src['adc0'], src['mult0']
+        
+        #     wire_ch, wire_adc, wire_mult = src['channel0'], src['adc0'], src['mult0']
+        #     strip_ch, strip_adc, strip_mult = src['channel1'], src['adc1'], src['mult1']
+
+        wire_in_range  = (wire_ch >= 16) & (wire_ch <= 47)
         strip_in_range = (strip_ch >= 0) & (strip_ch <= 63)
 
-        if adapter == 'reverse':
-            local_wire = np.where(valid_mask & wire_in_range, wire_ch - 16, -1)
-            local_strip = np.where(valid_mask & strip_in_range, 63 - strip_ch, -1)
-        else:
-            local_wire = np.where(valid_mask & wire_in_range, 31 - (wire_ch - 16), -1)
-            local_strip = np.where(valid_mask & strip_in_range, strip_ch, -1)
+        local_wire  = np.where(valid_mask & wire_in_range, wire_ch - 16, -1)
+        local_strip = np.where(valid_mask & strip_in_range, 63 - strip_ch, -1)
+
+        #     local_wire = np.where(valid_mask & wire_in_range, 31 - (wire_ch - 16), -1)
+        #     local_strip = np.where(valid_mask & strip_in_range, strip_ch, -1)
 
         return local_wire, local_strip, wire_adc, strip_adc, wire_mult, strip_mult
 
     @staticmethod
     def _apply_global_offset(local_wire, valid_mask, topo_idx, num_wires):
         """Wire plane only."""
-        cassette_rank = np.where(valid_mask, topo_idx, 0)
-        wire_offset = cassette_rank * num_wires
+        cassette_rank = np.where(valid_mask, topo_idx, -1)
+        wire_offset   = cassette_rank * num_wires
         return np.where(local_wire >= 0, local_wire + wire_offset, -1)
 
     @staticmethod
@@ -321,7 +319,7 @@ class MBClustMapper(DetectorMapper):
         assigned_ids, topo_idx, valid_mask = DetectorMapper._assign_ids_vectorized(
             src, topo, src_third_field='hybrid'
         )
-
+        
         # Stage 2: Channel mapping + unpacking
         local_w, local_s, adc0, adc1, mult0, mult1 = MBClustMapper._unpack_and_map_channels(
             src, valid_mask, adapter
@@ -406,11 +404,12 @@ class MGMapper(DetectorMapper):
         Note: returns a 4-tuple (not 3) to carry the plane array.
         MGMapper.map() unpacks accordingly.
         """
+  
         ids      = topo_arrays['ID']
         rings    = topo_arrays['ring']
         fens     = topo_arrays['fen']
         hybridWs = topo_arrays['hybridW']
-        hybridSs = topo_arrays['hybridS']
+        hybridSs = topo_arrays['hybridG']
 
         r = src['ring']    # (n,)
         f = src['fen']     # (n,)
@@ -420,9 +419,9 @@ class MGMapper(DetectorMapper):
         ring_match = r[:, None] == rings[None, :]    # (n, N)
         fen_match  = f[:, None] == fens[None, :]     # (n, N)
         hybW_match = h[:, None] == hybridWs[None, :] # (n, N)
-        hybS_match = h[:, None] == hybridSs[None, :] # (n, N)
+        hybG_match = h[:, None] == hybridGs[None, :] # (n, N)
 
-        col_match  = ring_match & fen_match & (hybW_match | hybS_match)  # (n, N)
+        col_match  = ring_match & fen_match & (hybW_match | hybG_match)  # (n, N)
 
         valid_mask   = col_match.any(axis=1)
         topo_idx     = np.where(valid_mask, col_match.argmax(axis=1), np.int64(-1))
@@ -432,11 +431,11 @@ class MGMapper(DetectorMapper):
         safe_idx = np.where(valid_mask, topo_idx, np.int64(0))
 
         is_wire  = valid_mask & (h == hybridWs[safe_idx])
-        is_strip = valid_mask & (h == hybridSs[safe_idx])
+        is_grid  = valid_mask & (h == hybridGs[safe_idx])
 
         plane = np.full(len(src), -1, dtype='int64')
         plane[is_wire]  = np.int64(0)
-        plane[is_strip] = np.int64(1)
+        plane[is_grid]  = np.int64(1)
 
         return (
             assigned_ids.astype('int64'),
@@ -468,7 +467,7 @@ class MGMapper(DetectorMapper):
         local_index = np.full(n, -1, dtype='int64')
 
         is_wire  = valid_mask & (plane == 0)
-        is_strip = valid_mask & (plane == 1)
+        is_grid  = valid_mask & (plane == 1)
 
         if MG_SWAP_IT == 0:
             # -----------------------------------------------------------------
@@ -484,12 +483,12 @@ class MGMapper(DetectorMapper):
             local_index[is_wire] = tempW
 
             # GRIDS: index = channel - 10 + 44 * asic
-            tempS = channel[is_strip] - np.int64(10) + np.int64(44) * asic[is_strip]
+            tempS = channel[is_grid] - np.int64(10) + np.int64(44) * asic[is_grid]
             bad_s = tempS >= np.int64(num_grids)
             if np.any(bad_s):
                 print(f'Warning: found Grids above {num_grids - 1} in MG column — setting to -1')
             tempS[bad_s] = np.int64(-1)
-            local_index[is_strip] = tempS
+            local_index[is_grid] = tempS
 
         elif MG_SWAP_IT == 1:
             # -----------------------------------------------------------------
@@ -515,8 +514,8 @@ class MGMapper(DetectorMapper):
             ]
             local_index[is_wire] = np.select(wire_conditions, wire_choices, default=-1)
 
-            ch_s   = channel[is_strip]
-            asic_s = asic[is_strip]
+            ch_s   = channel[is_grid]
+            asic_s = asic[is_grid]
 
             strip_conditions = [
                 (ch_s >= 0)  & (ch_s <= 43) & (asic_s == 0),
@@ -528,7 +527,7 @@ class MGMapper(DetectorMapper):
                 67 - ch_s,
                 131 - ch_s,
             ]
-            local_index[is_strip] = np.select(strip_conditions, strip_choices, default=-1)
+            local_index[is_grid] = np.select(strip_conditions, strip_choices, default=-1)
 
         elif MG_SWAP_IT == 2:
             # -----------------------------------------------------------------
@@ -560,8 +559,8 @@ class MGMapper(DetectorMapper):
             ]
             local_index[is_wire] = np.select(wire_conditions, wire_choices, default=-1)
 
-            ch_s   = channel[is_strip]
-            asic_s = asic[is_strip]
+            ch_s   = channel[is_grid]
+            asic_s = asic[is_grid]
 
             strip_conditions = [
                 (ch_s >= 10) & (ch_s <= 53) & (asic_s == 0),
@@ -571,7 +570,7 @@ class MGMapper(DetectorMapper):
                 53 - ch_s,
                 97 - ch_s,
             ]
-            local_index[is_strip] = np.select(strip_conditions, strip_choices, default=-1)
+            local_index[is_grid] = np.select(strip_conditions, strip_choices, default=-1)
 
         else:
             raise ValueError(
@@ -585,8 +584,8 @@ class MGMapper(DetectorMapper):
     def _apply_global_offset(local_index, plane, topo_idx, valid_mask, num_wires):
         """Wire plane offset."""
         is_wire = valid_mask & (plane == 0)
-        cassette_rank = np.where(valid_mask, topo_idx, 0)
-        wire_offset = cassette_rank * num_wires
+        unit_rank = np.where(valid_mask, topo_idx, -1)
+        wire_offset  = unit_rank * num_wires
         global_index = local_index.copy()
         global_index[is_wire] = local_index[is_wire] + wire_offset[is_wire]
         return global_index
@@ -595,10 +594,12 @@ class MGMapper(DetectorMapper):
     def map(readouts, config: dict) -> hitsVMMnormal:
         topology = config['topology']
         num_wires = int(config['wires'])
-        num_grids = int(config['strips'])
+        num_grids = int(config['grids'])
+        
+        # COMMENT hybridG 
 
         topo = DetectorMapper._build_topology_arrays(
-            topology, ['ID', 'ring', 'fen', 'hybridW', 'hybridS']
+            topology, ['ID', 'ring', 'fen', 'hybridW', 'hybridG']
         )
         n = readouts.fill_count
         src = readouts.matrix[:n]
@@ -664,15 +665,15 @@ class He3Mapper(DetectorMapper):
             src, topo, src_third_field='tube'
         )
 
-        # No Stage 2 or 3 for He3 — index IS the tube number
-        index = np.where(valid_mask, src['tube'].astype('int64'), np.int64(-1))
+        # # No Stage 2 or 3 for He3 — index IS the tube number
+        # index = np.where(valid_mask, src['tube'].astype('int64'), np.int64(-1))
 
         # Stage 4: Absorption
         h = hitsR5560(size=n)
         h.durations = readouts.durations.copy()
         h.absorb(
             computed_fields={
-                'ID': assigned_ids, 'index': index,
+                'ID': assigned_ids, 
                 'counter1': src['counter1'].astype('int64'),
                 'ampA': src['ampA'].astype('int64'),
                 'ampB': src['ampB'].astype('int64'),
@@ -821,6 +822,12 @@ def map_detector(readouts, config: dict):
         f'map_detector: unsupported detectorType "{det_type}". '
         f'Call the appropriate mapper class directly for non-standard types.'
     )
+
+
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
 
 
 if __name__ == '__main__':

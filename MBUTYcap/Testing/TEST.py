@@ -42,7 +42,9 @@ from newLib import reader
 
 from lib import libMapping as mapsnew
 
-from newLib.mapping_engine import MBMapper, MBClustMapper, MonitorMapper
+from newLib.config_validator import validate_config, load_config
+
+from newLib.mapping_engine import MBMapper, MBClustMapper, BMMapper
 
 ###############################################################################
 ###############################################################################
@@ -50,7 +52,7 @@ from newLib.mapping_engine import MBMapper, MBClustMapper, MonitorMapper
 if __name__ == '__main__':
     path = '/Users/francescopiscitelli/Documents/PYTHON/MBUTYcapWorkInProgress/'
     # Use a normal string with escaped backslashes to avoid a raw string ending with a single backslash
-    path = 'C:\\Projects\\dg_MultiBlade_MBUTY_original\\MBUTYcap\\'
+    # path = 'C:\\Projects\\dg_MultiBlade_MBUTY_original\\MBUTYcap\\'
     tProfilingStart = time.time()
 
     confPath      = path + 'config_old/'
@@ -89,33 +91,34 @@ if __name__ == '__main__':
 
     # file = 'CSPEC1.pcapng'
 
+   ########################
     
-    # parameters.VMMsettings.sortReadoutsByTimeStampsONOFF = False
+    parameters.VMMsettings.sortReadoutsByTimeStampsONOFF = False
     
-    # typeOfLoading = 'allocate'
+    typeOfLoading = 'allocate'
     # # typeOfLoading = 'quick'
     
     timeResolutionType='fine'
     
     
-    # operationMode = config.DETparameters.operationMode
+    operationMode = config.DETparameters.operationMode
 
-    # pcap = pcapr.pcapng_reader(filePath+file,NSperClockTick=11.356860963629653,
-    #                            MONhw=config.MONmap.hardwareType, MONconn=config.MONmap.connectionType, MONring=11, 
-    #                            timeResolutionType=timeResolutionType, 
-    #                            sortByTimeStampsONOFF=parameters.VMMsettings.sortReadoutsByTimeStampsONOFF, 
-    #                            operationMode=operationMode,pcapLoadingMethod=typeOfLoading)
+    pcap = pcapr.pcapng_reader(filePath+file,NSperClockTick=11.356860963629653,
+                               MONhw=config.MONmap.hardwareType, MONconn=config.MONmap.connectionType, MONring=11, 
+                               timeResolutionType=timeResolutionType, 
+                               sortByTimeStampsONOFF=parameters.VMMsettings.sortReadoutsByTimeStampsONOFF, 
+                               operationMode=operationMode,pcapLoadingMethod=typeOfLoading)
 
-    # readouts = pcap.readouts
+    readouts = pcap.readouts
 
-    # readoutsArray = readouts.concatenateReadoutsInArrayForDebug()
+    readoutsArray = readouts.concatenateReadoutsInArrayForDebug()
     
     # heartbeats1 = readouts.heartbeats
     # heartbeats2 = readouts.removeNonESSpacketsHeartbeats(readouts.heartbeats)
     
-    # readouts.checkChopperFreq()
+    readouts.checkChopperFreq()
     
-    # readouts.checkInvalidToFsInReadouts()
+    readouts.checkInvalidToFsInReadouts()
     
     # parameters.VMMsettings.sortReadoutsByTimeStampsONOFF = True
     
@@ -146,13 +149,13 @@ if __name__ == '__main__':
     #######################################
     # MAPPING 
     
-    # md  = maps.mapDetector(readouts, config)
-    # md.mappAllCassAndChannelsGlob()
-    # hits = md.hits
-    # hitsArray  = hits.concatenateHitsInArrayForDebug()
+    md  = maps.mapDetector(readouts, config)
+    md.mappAllCassAndChannelsGlob()
+    hits = md.hits
+    hitsArray  = hits.concatenateHitsInArrayForDebug()
     
-    # MON = maps.mapMonitor(readouts, config)
-    # hitsMON = MON.hits
+    MON = maps.mapMonitor(readouts, config)
+    hitsMON = MON.hits
   
     #######################################
     #######################################
@@ -174,10 +177,15 @@ if __name__ == '__main__':
     
     confFileName  = 'AMOR.json'
     
-    confFileName  = 'test1hybrid.json'
+    # confFileName  = 'test1hybrid.json'
     
-    ff   = open(confPath+confFileName,'r') 
-    confignew = json.load(ff)
+    # ff   = open(confPath+confFileName,'r') 
+    # confignew = json.load(ff)
+    
+    confignew = load_config(confPath+confFileName)
+    validate_config(confignew)
+    
+    
     
     parameters.VMMsettings.timeResolutionType = timeResolutionType
 
@@ -201,14 +209,14 @@ if __name__ == '__main__':
     #######################################
     # CALIBRATION 
     
-    parameters.fileManagement.calibFilePath = calibPath
-    parameters.fileManagement.calibFileName = calibFile
-    parameters.dataReduction.calibrateVMM_ADC_ONOFF = True
+    # parameters.fileManagement.calibFilePath = calibPath
+    # parameters.fileManagement.calibFileName = calibFile
+    # parameters.dataReduction.calibrateVMM_ADC_ONOFF = True
     
-    parameters.dataReduction.calibrateVMM_TDC_ONOFF = True
+    # parameters.dataReduction.calibrateVMM_TDC_ONOFF = True
 
-    newreader.readouts_vmm_normal.calibrate(parameters, confignew)
-    readoutsArrayNEW_OUT  = newreader.readouts_vmm_normal.get_data_frame()
+    # newreader.readouts_vmm_normal.calibrate(parameters, confignew)
+    # readoutsArrayNEW_OUT  = newreader.readouts_vmm_normal.get_data_frame()
     
     #######################################
     #######################################
@@ -217,17 +225,19 @@ if __name__ == '__main__':
     #######################################
     # MAPPING 
     
-    # hitsNEW = MBMapper.map(newreader.readouts_vmm_normal, confignew)
+    hitsNEW = MBMapper.map(newreader.readouts_vmm_normal, confignew)
     
-    # hitsArrayNEW = hitsNEW.get_data_frame()
+    hitsArrayNEW = hitsNEW.get_data_frame()
     
     
-    # tt = hitsNEW.matrix['timeStamp'] - hits.timeStamp
+    tt = hitsNEW.matrix['timeStamp'] - hits.timeStamp
     
     
     # tt = hitsArrayNEW['timeStamp'] - hits.timeStamp
     
-    # aa = hitsArrayNEW['adc'] - hits.ADC
+    aa = hitsArrayNEW['adc'] - hits.ADC
+    
+    pp = hitsArrayNEW['plane'] - hits.WorS
     
     #######################################
     #######################################
