@@ -52,7 +52,7 @@ from newLib.mapping_engine import MBMapper, MBClustMapper, BMMapper
 if __name__ == '__main__':
     path = '/Users/francescopiscitelli/Documents/PYTHON/MBUTYcapWorkInProgress/'
     # Use a normal string with escaped backslashes to avoid a raw string ending with a single backslash
-    # path = 'C:\\Projects\\dg_MultiBlade_MBUTY_original\\MBUTYcap\\'
+    path = 'C:\\Projects\\dg_MultiBlade_MBUTY_original\\MBUTYcap\\'
     tProfilingStart = time.time()
 
     confPath      = path + 'config_old/'

@@ -1,7 +1,7 @@
 {
     "detectorName": "AMOR",
     "detectorType": "MB",
-    "instrumentName": "AMO R",
+    "instrumentName": "AMOR",
     "units": 14,
     "orientation": "horizontal",
     "operationMode": "normal",

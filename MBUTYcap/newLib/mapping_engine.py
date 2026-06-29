@@ -264,6 +264,7 @@ class MBMapper(DetectorMapper):
         # Stage 4: Absorption
         h = hitsVMMnormal(size=n)
         h.durations = readouts.durations.copy()
+        h.instrumentIDs = readouts.instrumentIDs.copy()
         h.absorb(
             computed_fields={'ID': assigned_ids, 'plane': plane, 'index': global_index, 'adc': src['adc'].astype('int64')},
             timing_src=src,
@@ -331,6 +332,7 @@ class MBClustMapper(DetectorMapper):
         # Stage 4: Absorption
         h = hitsVMMclustered(size=n)
         h.durations = readouts.durations.copy()
+        h.instrumentIDs = readouts.instrumentIDs.copy()
         h.absorb(
             computed_fields={
                 'ID': assigned_ids, 'index0': global_w, 'index1': local_s,
@@ -616,6 +618,7 @@ class MGMapper(DetectorMapper):
         # Stage 4: Absorption
         h = hitsVMMnormal(size=n)
         h.durations = readouts.durations.copy()
+        h.instrumentIDs = readouts.instrumentIDs.copy()
         h.absorb(
             computed_fields={
                 'ID': assigned_ids, 'plane': plane, 'index': global_index,
@@ -671,6 +674,7 @@ class He3Mapper(DetectorMapper):
         # Stage 4: Absorption
         h = hitsR5560(size=n)
         h.durations = readouts.durations.copy()
+        h.instrumentIDs = readouts.instrumentIDs.copy()
         h.absorb(
             computed_fields={
                 'ID': assigned_ids, 
@@ -755,6 +759,7 @@ class BMMapper(BaseMonitorMapper):
         h = hitsBM(size=n)
         h.absorb(computed, src)
         h.durations = readouts.durations.copy()
+        h.instrumentIDs = readouts.instrumentIDs.copy()
         return h
 
 
@@ -770,6 +775,7 @@ class IBMMonitorMapper(BaseMonitorMapper):
         h = hitsIBM(size=n)
         h.absorb(computed, src)
         h.durations = readouts.durations.copy()
+        h.instrumentIDs = readouts.instrumentIDs.copy()
         return h
 
 
@@ -840,9 +846,8 @@ if __name__ == '__main__':
         def __init__(self):
             dtype = [
                 ('timeStamp', 'int64'), ('pulseT', 'int64'), ('prevPT', 'int64'),
-                ('instrID', 'int64'), ('ring', 'int64'), ('fen', 'int64'),
-                ('hybrid', 'int64'), ('asic', 'int64'), ('channel', 'int64'),
-                ('adc', 'int64'),
+                ('ring', 'int64'), ('fen', 'int64'), ('hybrid', 'int64'), 
+                ('asic', 'int64'), ('channel', 'int64'), ('adc', 'int64'),
             ]
             # 4 events:
             #   0: cassette 100, wire asic (1), ch 20  → local wire index 4
@@ -850,13 +855,14 @@ if __name__ == '__main__':
             #   2: cassette 102, wire asic (1), ch 16  → local wire index 0
             #   3: ring 5 — no match in topology → unmapped, will be removed
             self.matrix = np.array([
-                (1000, 100, 50, 1, 0, 0, 0, 1, 20, 250),
-                (2000, 100, 50, 1, 0, 0, 1, 0, 10, 300),
-                (3000, 100, 50, 1, 1, 0, 0, 1, 16, 180),
-                (4000, 100, 50, 1, 5, 9, 9, 1, 30, 999),
+                (1000, 100, 50, 0, 0, 0, 1, 20, 250),
+                (2000, 100, 50, 0, 0, 1, 0, 10, 300),
+                (3000, 100, 50, 1, 0, 0, 1, 16, 180),
+                (4000, 100, 50, 5, 9, 9, 1, 30, 999),
             ], dtype=dtype)
             self.fill_count = 4
             self.durations  = np.array([100], dtype='int64')
+            self.instrumentIDs = {1}
 
     # Minimal colors shim so the harness runs without the full newLib install
     try:

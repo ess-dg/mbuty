@@ -438,7 +438,8 @@ class BaseReader:
             # ------------------------------------------------------------------
             dest_block['pulseT']  = pulse_t
             dest_block['prevPT']  = prev_pt
-            dest_block['instrID'] = instr_id
+            
+            dest_container.instrumentIDs.add(int(instr_id))
 
             # ------------------------------------------------------------------
             # 12b. Decode readout-level fields into the write window.

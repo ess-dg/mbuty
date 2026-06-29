@@ -32,8 +32,8 @@ class hits():
             ('timeStamp', 'int64'),
             ('pulseT',    'int64'),
             ('prevPT',    'int64'),
-            ('instrID',   'int64'),
         ]
+        self.instrumentIDs = set()
 
         # 2. Combine base fields with subclass-specific mapped coordinates.
         full_schema = np.dtype(base_fields + subclass_fields)
@@ -43,7 +43,7 @@ class hits():
         self.matrix = np.full(size, -1, dtype=full_schema)
 
         # Zero-initialise timing fields, which are never sentinel-valued.
-        for field in ('timeStamp', 'pulseT', 'prevPT', 'instrID'):
+        for field in ('timeStamp', 'pulseT', 'prevPT'):
             if field in full_schema.names:
                 self.matrix[field] = 0
 
@@ -77,11 +77,11 @@ class hits():
         computed_fields : dict
             Mapping of field_name -> np.ndarray for every subclass field
             the mapper has computed. Must include 'ID'.
-            Timing fields (timeStamp, pulseT, prevPT, instrID) are written
+            Timing fields (timeStamp, pulseT, prevPT) are written
             from timing_src and must NOT appear here.
         timing_src : np.ndarray
             The active slice of the readout matrix (readouts.matrix[:n]).
-            Must contain timeStamp, pulseT, prevPT, instrID fields.
+            Must contain timeStamp, pulseT, prevPT fields.
 
         Raises
         ------
@@ -98,7 +98,7 @@ class hits():
             raise KeyError("absorb(): 'ID' must be present in computed_fields.")
 
         # --- Guard: timing fields belong to timing_src, not computed_fields ---
-        timing_fields = {'timeStamp', 'pulseT', 'prevPT', 'instrID'}
+        timing_fields = {'timeStamp', 'pulseT', 'prevPT'}
         overlap = timing_fields & computed_fields.keys()
         if overlap:
             raise ValueError(
@@ -127,7 +127,6 @@ class hits():
         self.matrix['timeStamp'] = timing_src['timeStamp']
         self.matrix['pulseT']    = timing_src['pulseT']
         self.matrix['prevPT']    = timing_src['prevPT']
-        self.matrix['instrID']   = timing_src['instrID']
 
         # --- Write all computed coordinate fields ----------------------------
         for field_name, array in computed_fields.items():

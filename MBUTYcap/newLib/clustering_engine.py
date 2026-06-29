@@ -8,37 +8,14 @@ _workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
     
-from newLib.events_containers import eventsVMM, events as eventsBase
+from newLib.events_containers import eventsVMMnormal, eventsVMMclustered, eventsR5560
 
 # =============================================================================
-# Shared Vectorized Clustering Kernel
+# Wires and Strips Normal Clusterer (Multi-Blade & Multi-Grid)
 # =============================================================================
 
-def _partition_hits(ids: np.ndarray, timestamps: np.ndarray, tw_recursive: int) -> tuple:
-    """Assign a monotonically increasing cluster index to hit rows matching legacy sequence order."""
-    # Group by ID while strictly preserving original file order within each ID block
-    sort_order = np.argsort(ids, kind='stable')
-    ids_s      = ids[sort_order]
-    ts_s       = timestamps[sort_order]
-
-    break_mask      = np.empty(len(ids_s), dtype=bool)
-    break_mask[0]   = True
-    break_mask[1:]  = (
-        (np.abs(np.diff(ts_s)) > tw_recursive) | 
-        (ids_s[1:] != ids_s[:-1])
-    )
-
-    cluster_ids = np.cumsum(break_mask) - 1
-    n_clusters  = int(cluster_ids[-1]) + 1 if len(cluster_ids) > 0 else 0
-    return cluster_ids, sort_order, n_clusters
-
-
-# =============================================================================
-# Base Clusterer
-# =============================================================================
-
-class BaseClusterer:
-    """Abstract base handling time conversion boundaries."""
+class VMMNormalClusterer:
+    """Stateless vectorized clustering logic for VMM Normal multi-plane readouts."""
     @staticmethod
     def _derive_time_windows(time_window_s: float) -> tuple:
         """Convert float window seconds into standard recursive and max integer ns gates."""
@@ -47,35 +24,58 @@ class BaseClusterer:
         tw_max       = int(round(tw_recursive * 1.5))
         return tw_recursive, tw_max
 
-
-# =============================================================================
-# Wires and Strips Normal Clusterer (Multi-Blade & Multi-Grid)
-# =============================================================================
-
-class VMMNormalClusterer(BaseClusterer):
-    """Stateless vectorized clustering logic for VMM Normal multi-plane readouts."""
-
     @staticmethod
-    def cluster(hits, config: dict, time_window_s: float) -> eventsVMM:
+    def _partition_hits(ids: np.ndarray, timestamps: np.ndarray, tw_recursive: int) -> tuple:
+        """Assign a monotonically increasing cluster index to hit rows matching legacy sequence order."""
+        sort_order = np.argsort(ids, kind='stable')
+        ids_s      = ids[sort_order]
+        ts_s       = timestamps[sort_order]
+
+        break_mask      = np.empty(len(ids_s), dtype=bool)
+        break_mask[0]   = True
+        break_mask[1:]  = (
+            (np.abs(np.diff(ts_s)) > tw_recursive) |
+            (ids_s[1:] != ids_s[:-1])
+        )
+
+        cluster_ids = np.cumsum(break_mask) - 1
+        n_clusters  = int(cluster_ids[-1]) + 1 if len(cluster_ids) > 0 else 0
+        return cluster_ids, sort_order, n_clusters
+    
+    @staticmethod
+    def cluster(hits, config: dict, time_window_s: float) -> eventsVMMnormal:
         m = hits.matrix[:hits.fill_count]
         n = len(m)
 
         if n == 0:
-            return eventsVMM(size=0)
+            return eventsVMMnormal(size=0)
 
-        tw_recursive, tw_max = BaseClusterer._derive_time_windows(time_window_s)
-        max_wires  = int(config.get('wires', 32))
-        max_strips = int(config.get('strips', 64))
+        tw_recursive, tw_max = VMMNormalClusterer._derive_time_windows(time_window_s)
+        # Get the wire and strip/grid configuration from config for clustering (error and exit if not found)
+        if 'wires' not in config:
+            print('\t [ERROR] Config is missing "wires" — cannot cluster. Check your config file.')
+            sys.exit(1)
 
-        cluster_ids, sort_order, n_clusters = _partition_hits(m['ID'], m['timeStamp'], tw_recursive)
+        if 'strips' in config:
+            max_strips = int(config['strips'])
+        elif 'grids' in config:
+            max_strips = int(config['grids'])
+        else:
+            print('\t [ERROR] Config is missing both "strips" and "grids" — cannot cluster. Check your config file.')
+            sys.exit(1)
+
+        max_wires = int(config['wires']) 
+
+        cluster_ids, sort_order, n_clusters = VMMNormalClusterer._partition_hits(m['ID'], m['timeStamp'], tw_recursive)
         
-        out = eventsVMM(size=n_clusters)
-        out.durations = hits.durations.copy()
+        out = eventsVMMnormal(size=n_clusters)
+        out.durations     = hits.durations.copy()
+        out.instrumentIDs = hits.instrumentIDs.copy()
 
         ms       = m[sort_order]
         ts       = ms['timeStamp']
         is_wire  = ms['plane'] == 0
-        is_strip = ms['plane'] == 1 # or grid 
+        is_strip = ms['plane'] == 1
         ch_idx   = ms['index']
         adc      = ms['adc']
 
@@ -94,7 +94,7 @@ class VMMNormalClusterer(BaseClusterer):
 
         wire_min = np.full(n_clusters, 999999, dtype='int64')
         wire_max = np.full(n_clusters, -1,     dtype='int64')
-        np.minimum.at(wire_min, cluster_ids[is_wire], ch_idx[is_wire]) 
+        np.minimum.at(wire_min, cluster_ids[is_wire], ch_idx[is_wire])
         np.maximum.at(wire_max, cluster_ids[is_wire], ch_idx[is_wire])
 
         strip_min = np.full(n_clusters, 999999, dtype='int64')
@@ -103,7 +103,7 @@ class VMMNormalClusterer(BaseClusterer):
         np.maximum.at(strip_max, cluster_ids[is_strip], ch_idx[is_strip])
 
         accept_window    = span <= tw_max
-        wire_contiguous  = np.where(wire_count > 0,  (wire_max - wire_min) == (wire_count - 1),   False)
+        wire_contiguous  = np.where(wire_count > 0,  (wire_max - wire_min) == (wire_count - 1),  False)
         strip_contiguous = np.where(strip_count > 0, (strip_max - strip_min) == (strip_count - 1), False)
         wire_in_limits   = wire_count  < max_wires
         strip_in_limits  = strip_count < max_strips
@@ -112,27 +112,22 @@ class VMMNormalClusterer(BaseClusterer):
 
         accept_2d = (accept_window & has_wire_hit & has_strip_hit & wire_contiguous & strip_contiguous & wire_in_limits & strip_in_limits)
         accept_1d = ((accept_window & has_wire_hit & ~has_strip_hit & wire_contiguous & wire_in_limits)
-                     | (accept_window & has_strip_hit & ~has_wire_hit & strip_contiguous & strip_in_limits) )
+                    | (accept_window & has_strip_hit & ~has_wire_hit & strip_contiguous & strip_in_limits))
 
         with np.errstate(divide='ignore', invalid='ignore'):
-            coord0 = np.where(wire_adc  >= 0, np.round(wire_pos_num  / wire_adc,  2), np.nan)
-            coord1 = np.where(strip_adc >= 0, np.round(strip_pos_num / strip_adc, 2), np.nan)
+            coord0 = np.where(wire_adc  > 0, np.round(wire_pos_num  / wire_adc,  2), np.nan)
+            coord1 = np.where(strip_adc > 0, np.round(strip_pos_num / strip_adc, 2), np.nan)
 
         accept_2d &= ~(np.isnan(coord0) | np.isnan(coord1))
         accept_1d &= ~np.isnan(coord0)  | ~np.isnan(coord1)
 
         assigned_ids = np.where(accept_2d | accept_1d, ms['ID'][first_hit], np.int64(-1))
-        
-        # c1_final   = np.where(accept_2d, coord1, np.float64(-1.0))
-        # CHANGED: Changed the fallback from -1 to 0 to accurately match the legacy unassigned TPHM matrix initialization
-        # ph1_final  = np.where(accept_2d, strip_adc.astype('int64'), np.int64(0))
-        # m1_final   = np.where(accept_2d, strip_count, np.int64(0))
+        n_accepted   = int(np.sum(accept_2d | accept_1d))
 
         timing_src = {
             'timeStamp': ts[first_hit],
             'pulseT':    ms['pulseT'][first_hit],
             'prevPT':    ms['prevPT'][first_hit],
-            'instrID':   ms['instrID'][first_hit],
         }
 
         computed = {
@@ -143,18 +138,21 @@ class VMMNormalClusterer(BaseClusterer):
             'pulseHeight1': strip_adc.astype('int64'),
             'mult0':        wire_count,
             'mult1':        strip_count,
+            'clusterSpan':  span.astype('int64'),
         }
 
-        out.absorb(computed, timing_src)
-
+        # Populate stats BEFORE absorb() so print_stats() sees the correct values
         out.stats.update({
             'n_candidates':         n_clusters,
+            'n_accepted':           n_accepted,
+            'n_rejected':           n_clusters - n_accepted,
             'n_accepted_2d':        int(np.sum(accept_2d)),
             'n_accepted_1d':        int(np.sum(accept_1d)),
             'n_rejected_overflow':  int(np.sum(~accept_window)),
-            'n_rejected_neighbour': int(np.sum(accept_window & has_wire_hit & has_strip_hit & ~(wire_contiguous & strip_contiguous))),
-            'n_rejected_other':     int(np.sum(~(accept_2d | accept_1d) & accept_window))
+            'n_rejected_neighbour': int(np.sum(accept_window & ~(accept_2d | accept_1d))),
         })
+
+        out.absorb(computed, timing_src)
         return out
 
 
@@ -162,25 +160,24 @@ class VMMNormalClusterer(BaseClusterer):
 # VMM Clustered Clusterer (Passthrough Engine)
 # =============================================================================
 
-class VMMClusteredClusterer(BaseClusterer):
+class VMMClusteredClusterer:
     """Passthrough engine for hardware-firmware pre-clustered readout matrices."""
     @staticmethod
-    def cluster(hits, config: dict, time_window_s: float = 0.0) -> eventsVMM:
+    def cluster(hits, config: dict, time_window_s: float = 0.0) -> eventsVMMclustered:
         m = hits.matrix[:hits.fill_count]
         n = len(m)
 
-        out = eventsVMM(size=n)
-        out.durations = hits.durations.copy()
+        out = eventsVMMclustered(size=n)
+        out.durations     = hits.durations.copy()
+        out.instrumentIDs = hits.instrumentIDs.copy()
 
         if n == 0:
             return out
 
-        # Since mapper already guaranteed valid IDs and coordinates, pass arrays cleanly
         timing_src = {
             'timeStamp': m['timeStamp'],
             'pulseT':    m['pulseT'],
             'prevPT':    m['prevPT'],
-            'instrID':   m['instrID'],
         }
 
         computed = {
@@ -193,8 +190,13 @@ class VMMClusteredClusterer(BaseClusterer):
             'mult1':        m['mult1'].astype('int64'),
         }
 
+        # Populate stats BEFORE absorb()
+        out.stats.update({
+            'n_candidates': n,
+            'n_accepted':   n,   # passthrough — firmware already accepted everything
+        })
+
         out.absorb(computed, timing_src)
-        out.stats['n_accepted_2d'] = out.fill_count
         return out
 
 
@@ -202,16 +204,16 @@ class VMMClusteredClusterer(BaseClusterer):
 # R5560 Clusterer (Helium-3 Continuous Gas Tubes)
 # =============================================================================
 
-class R5560Clusterer(BaseClusterer):
+class R5560Clusterer:
     """Vectorized position calculator and pile-up filter for Helium-3 gas tubes."""
     @staticmethod
-    def cluster(hits, config: dict, time_window_s: float) -> eventsBase:
+    def cluster(hits, config: dict, time_window_s: float) -> eventsR5560:
         m = hits.matrix[:hits.fill_count]
         n = len(m)
 
         if n == 0:
-            return eventsBase(size=0, subclass_fields=[])
-# QUESTION - time window same for all detectors or different? if same call derive time windows
+            return eventsR5560(size=0)
+
         tw_ns = int(round(time_window_s * 1e9))
         tw_recursive = int(round(tw_ns * 1.01))
 
@@ -235,7 +237,7 @@ class R5560Clusterer(BaseClusterer):
         # If every single row in this batch was pile-up noise, exit early
         n_clean = len(ms_clean)
         if n_clean == 0:
-            return eventsBase(size=0, subclass_fields=[])
+            return eventsR5560(size=0)
 
         # Step 4: Run math ONLY on the clean data
         amp_a = ms_clean['ampA'].astype('float64')
@@ -253,15 +255,15 @@ class R5560Clusterer(BaseClusterer):
         c1_final     = np.where(final_accept, ms_clean['ID'].astype('float64'), -1.0)
 
         # Step 5: Allocate container scaled exactly to our clean subset size
-        out = eventsBase(size=n_clean, subclass_fields=[])
+        out = eventsR5560(size=n_clean)
         out.durations = hits.durations.copy()
+        out.instrumentIDs = hits.instrumentIDs.copy()
 
         # Step 6: Map straight to the final output layout
         timing_src = {
             'timeStamp': ms_clean['timeStamp'],
             'pulseT':    ms_clean['pulseT'],
             'prevPT':    ms_clean['prevPT'],
-            'instrID':   ms_clean['instrID'],
         }
 
         computed = {
@@ -270,6 +272,17 @@ class R5560Clusterer(BaseClusterer):
             'coordinate1':  c1_final,
             'pulseHeight0': total.astype('int64'),
         }
+
+        n_pileup = int(np.sum(pile_up))
+        n_other  = n_clean - int(np.sum(final_accept))  # zero-charge or NaN rows
+
+        # Populate stats BEFORE absorb()
+        out.stats.update({
+            'n_candidates':     n,
+            'n_accepted':       int(np.sum(final_accept)),
+            'n_rejected':       n_pileup + n_other,
+            'n_pileup_flagged': n_pileup,
+        })
 
         out.absorb(computed, timing_src)
         return out

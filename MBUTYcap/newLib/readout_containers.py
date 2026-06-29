@@ -20,8 +20,11 @@ class readouts():
             # Ess header
             ('pulseT',    'int64'),
             ('prevPT',    'int64'),
-            ('instrID',   'int64')
+            # 'instrID' column is completely removed from the matrix schema
         ]
+        # Instrument ID's are a set of unique ids - 
+        # should be length 1, otherwise we have mixed readouts (corrupted stream)
+        self.instrumentIDs = set() 
 
         # 2. Combine base fields with subclass unique hardware parameters
         full_schema = np.dtype(base_fields + subclass_fields)
@@ -69,6 +72,9 @@ class readouts():
         """
         if self.fill_count == 0:
             return
+        # Check for multiple instrument ids and give warning 
+        if len(self.instrumentIDs) > 1:
+            print(f"\n{WARN}WARNING: Multiple instrument IDs detected within {self.__class__.__name__}: {list(self.instrumentIDs)} — data stream may be corrupted!{RESET}\n")
 
         sort_enabled = getattr(getattr(parameters, 'VMMsettings', None), 'sortReadoutsByTimeStampsONOFF', False)
         if sort_enabled:
