@@ -231,10 +231,14 @@ class MBMapper(DetectorMapper):
         return plane, local_index
 
     @staticmethod
-    def _apply_global_offset(local_index, plane, topo_idx, valid_mask, num_wires):
+    def _apply_global_offset(local_index, plane, mapping_idx, valid_mask, num_wires):
         """Wire plane global offset."""
+        
+        # Pass mapping_idx as topo_idx if you want to map as the units appear in the config file, 
+        # or pass as assigned_IDs if you want to map as ID number 
+        
         # the cassette ID drives the position in the space, 0 is the bottom cassette or the most left 
-        cassette_rank = np.where(valid_mask, topo_idx, -1)
+        cassette_rank = np.where(valid_mask, mapping_idx, -1)
         wire_offset  = cassette_rank * num_wires
         global_index = local_index.copy()
         is_wire = valid_mask & (plane == 0)
@@ -259,12 +263,13 @@ class MBMapper(DetectorMapper):
         plane, local_index = MBMapper._map_channels(src, valid_mask)
 
         # Stage 3: Global offset
-        global_index = MBMapper._apply_global_offset(local_index, plane, topo_idx, valid_mask, num_wires)
+        # Pass mapping_idx as topo_idx if you want to map as the units appear in the config file, 
+        # or pass as assigned_IDs if you want to map as ID number 
+        global_index = MBMapper._apply_global_offset(local_index, plane, assigned_ids, valid_mask, num_wires)
 
         # Stage 4: Absorption
         h = hitsVMMnormal(size=n)
         h.durations = readouts.durations.copy()
-        h.instrumentIDs = readouts.instrumentIDs.copy()
         h.absorb(
             computed_fields={'ID': assigned_ids, 'plane': plane, 'index': global_index, 'adc': src['adc'].astype('int64')},
             timing_src=src,
@@ -278,7 +283,7 @@ class MBMapper(DetectorMapper):
 class MBClustMapper(DetectorMapper):
 
     @staticmethod
-    def _unpack_and_map_channels(src, valid_mask, adapter):
+    def _unpack_and_map_channels(src, valid_mask):
         """Unpack wire/strip from correct slots, apply coordinate formula."""
 
         wire_ch, wire_adc, wire_mult    = src['channel1'], src['adc1'], src['mult1']
@@ -299,18 +304,18 @@ class MBClustMapper(DetectorMapper):
         return local_wire, local_strip, wire_adc, strip_adc, wire_mult, strip_mult
 
     @staticmethod
-    def _apply_global_offset(local_wire, valid_mask, topo_idx, num_wires):
+    def _apply_global_offset(local_wire, valid_mask, mapping_idx, num_wires):
         """Wire plane only."""
-        cassette_rank = np.where(valid_mask, topo_idx, -1)
+        # Pass mapping_idx as topo_idx if you want to map as the units appear in the config file, 
+        # or pass as assigned_IDs if you want to map as ID number 
+        cassette_rank = np.where(valid_mask, mapping_idx, -1)
         wire_offset   = cassette_rank * num_wires
         return np.where(local_wire >= 0, local_wire + wire_offset, -1)
 
     @staticmethod
     def map(readouts, config: dict) -> hitsVMMclustered:
         topology = config['topology']
-        wire_asic = int(config['channelMapping'][0]['wireASIC'])
         num_wires = int(config['wires'])
-        adapter = _derive_adapter_type(wire_asic)
 
         topo = DetectorMapper._build_topology_arrays(topology, ['ID', 'ring', 'fen', 'hybrid'])
         n = readouts.fill_count
@@ -323,16 +328,17 @@ class MBClustMapper(DetectorMapper):
         
         # Stage 2: Channel mapping + unpacking
         local_w, local_s, adc0, adc1, mult0, mult1 = MBClustMapper._unpack_and_map_channels(
-            src, valid_mask, adapter
+            src, valid_mask
         )
 
         # Stage 3: Global offset (wire plane only)
-        global_w = MBClustMapper._apply_global_offset(local_w, valid_mask, topo_idx, num_wires)
+        # Pass mapping_idx as topo_idx if you want to map as the units appear in the config file, 
+        # or pass as assigned_IDs if you want to map as ID number 
+        global_w = MBClustMapper._apply_global_offset(local_w, valid_mask, assigned_ids, num_wires)
 
         # Stage 4: Absorption
         h = hitsVMMclustered(size=n)
         h.durations = readouts.durations.copy()
-        h.instrumentIDs = readouts.instrumentIDs.copy()
         h.absorb(
             computed_fields={
                 'ID': assigned_ids, 'index0': global_w, 'index1': local_s,
@@ -411,7 +417,7 @@ class MGMapper(DetectorMapper):
         rings    = topo_arrays['ring']
         fens     = topo_arrays['fen']
         hybridWs = topo_arrays['hybridW']
-        hybridSs = topo_arrays['hybridG']
+        hybridGs = topo_arrays['hybridG']
 
         r = src['ring']    # (n,)
         f = src['fen']     # (n,)
@@ -583,10 +589,12 @@ class MGMapper(DetectorMapper):
         return local_index
 
     @staticmethod
-    def _apply_global_offset(local_index, plane, topo_idx, valid_mask, num_wires):
+    def _apply_global_offset(local_index, plane, mapping_idx, valid_mask, num_wires):
         """Wire plane offset."""
+        # Pass mapping_idx as topo_idx if you want to map as the units appear in the config file, 
+        # or pass as assigned_IDs if you want to map as ID number 
         is_wire = valid_mask & (plane == 0)
-        unit_rank = np.where(valid_mask, topo_idx, -1)
+        unit_rank = np.where(valid_mask, mapping_idx, -1)
         wire_offset  = unit_rank * num_wires
         global_index = local_index.copy()
         global_index[is_wire] = local_index[is_wire] + wire_offset[is_wire]
@@ -598,7 +606,6 @@ class MGMapper(DetectorMapper):
         num_wires = int(config['wires'])
         num_grids = int(config['grids'])
         
-        # COMMENT hybridG 
 
         topo = DetectorMapper._build_topology_arrays(
             topology, ['ID', 'ring', 'fen', 'hybridW', 'hybridG']
@@ -613,12 +620,13 @@ class MGMapper(DetectorMapper):
         local_index = MGMapper._map_channels(src, valid_mask, plane, num_wires, num_grids)
 
         # Stage 3: Global offset
-        global_index = MGMapper._apply_global_offset(local_index, plane, topo_idx, valid_mask, num_wires)
+        # Pass mapping_idx as topo_idx if you want to map as the units appear in the config file, 
+        # or pass as assigned_IDs if you want to map as ID number 
+        global_index = MGMapper._apply_global_offset(local_index, plane, assigned_ids, valid_mask, num_wires)
 
         # Stage 4: Absorption
         h = hitsVMMnormal(size=n)
         h.durations = readouts.durations.copy()
-        h.instrumentIDs = readouts.instrumentIDs.copy()
         h.absorb(
             computed_fields={
                 'ID': assigned_ids, 'plane': plane, 'index': global_index,
@@ -674,7 +682,6 @@ class He3Mapper(DetectorMapper):
         # Stage 4: Absorption
         h = hitsR5560(size=n)
         h.durations = readouts.durations.copy()
-        h.instrumentIDs = readouts.instrumentIDs.copy()
         h.absorb(
             computed_fields={
                 'ID': assigned_ids, 
@@ -759,7 +766,6 @@ class BMMapper(BaseMonitorMapper):
         h = hitsBM(size=n)
         h.absorb(computed, src)
         h.durations = readouts.durations.copy()
-        h.instrumentIDs = readouts.instrumentIDs.copy()
         return h
 
 
@@ -775,7 +781,6 @@ class IBMMonitorMapper(BaseMonitorMapper):
         h = hitsIBM(size=n)
         h.absorb(computed, src)
         h.durations = readouts.durations.copy()
-        h.instrumentIDs = readouts.instrumentIDs.copy()
         return h
 
 
@@ -799,6 +804,8 @@ def map_detector(readouts, config: dict):
     """
     det_type = config.get('detectorType', '')
     op_mode  = config.get('operationMode', 'normal')
+    
+    print(f"{INFO}Mapping detector {det_type} (units mapped according to IDs){RESET}")
 
     if det_type == 'MB':
         if op_mode == 'clustered':
@@ -823,6 +830,8 @@ def map_detector(readouts, config: dict):
                 f'(got "{op_mode}").'
             ) 
         return He3Mapper.map(readouts, config)
+    
+    # ADD BM mapping and if it i found or mismatch 
 
     raise ValueError(
         f'map_detector: unsupported detectorType "{det_type}". '
@@ -846,8 +855,9 @@ if __name__ == '__main__':
         def __init__(self):
             dtype = [
                 ('timeStamp', 'int64'), ('pulseT', 'int64'), ('prevPT', 'int64'),
-                ('ring', 'int64'), ('fen', 'int64'), ('hybrid', 'int64'), 
-                ('asic', 'int64'), ('channel', 'int64'), ('adc', 'int64'),
+                ('instrID', 'int64'), ('ring', 'int64'), ('fen', 'int64'),
+                ('hybrid', 'int64'), ('asic', 'int64'), ('channel', 'int64'),
+                ('adc', 'int64'),
             ]
             # 4 events:
             #   0: cassette 100, wire asic (1), ch 20  → local wire index 4
@@ -855,14 +865,13 @@ if __name__ == '__main__':
             #   2: cassette 102, wire asic (1), ch 16  → local wire index 0
             #   3: ring 5 — no match in topology → unmapped, will be removed
             self.matrix = np.array([
-                (1000, 100, 50, 0, 0, 0, 1, 20, 250),
-                (2000, 100, 50, 0, 0, 1, 0, 10, 300),
-                (3000, 100, 50, 1, 0, 0, 1, 16, 180),
-                (4000, 100, 50, 5, 9, 9, 1, 30, 999),
+                (1000, 100, 50, 1, 0, 0, 0, 1, 20, 250),
+                (2000, 100, 50, 1, 0, 0, 1, 0, 10, 300),
+                (3000, 100, 50, 1, 1, 0, 0, 1, 16, 180),
+                (4000, 100, 50, 1, 5, 9, 9, 1, 30, 999),
             ], dtype=dtype)
             self.fill_count = 4
             self.durations  = np.array([100], dtype='int64')
-            self.instrumentIDs = {1}
 
     # Minimal colors shim so the harness runs without the full newLib install
     try:

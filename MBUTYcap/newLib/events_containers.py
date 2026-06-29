@@ -1,5 +1,15 @@
 import numpy as np
 import pandas as pd
+import sys
+import os
+# =============================================================================
+# RUNTIME PATH BOOTSTRAP
+# =============================================================================
+_workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _workspace not in sys.path:
+    sys.path.insert(0, _workspace)
+
+from newLib.colors import INFO, RESET, WARN, ERR, OK
 
 class events():
     """Base class for all events.
@@ -126,6 +136,80 @@ class events():
     def get_data_frame(self) -> pd.DataFrame:
         """Convert active matrix block to labeled DataFrame for easy inspection."""
         return pd.DataFrame(self.matrix)
+    
+    def compute_and_filter_tof(self, remove_invalid: bool = False) -> None:
+        """
+        Calculates Time-of-Flight (timeStamp - pulseT) in-place for active rows.
+        Attempts recovery via prevPT for negative values.
+        """
+        if self.fill_count == 0:
+            return
+
+        # Isolate the active preallocated memory chunk
+        m = self.matrix[:self.fill_count]
+        
+        # Primary flight calculation
+        tof = m['timeStamp'] - m['pulseT']
+        
+        # Detect invalid negative values and attempt recovery pass
+        invalid1 = tof < 0
+        n_invalid1 = int(np.sum(invalid1))
+        
+        if n_invalid1 > 0:
+            print(f"\n {WARN}\t WARNING ---> {n_invalid1} ToFs (out of {self.fill_count}) are invalid, but corrected with Prev. Pulse Time {RESET}")
+            tof[invalid1] = m['timeStamp'][invalid1] - m['prevPT'][invalid1]
+            
+            # Catch remaining uncorrected hard failures
+            invalid2 = tof < 0
+            n_invalid2 = int(np.sum(invalid2))
+            if n_invalid2 > 0:
+                print(f"\n {WARN}\t WARNING ---> {n_invalid1 - n_invalid2} corrected -> {n_invalid2} ToFs (out of {self.fill_count}) are still invalid after correction (with both PulseT and PrevPT), set to -1! {RESET}")
+                tof[invalid2] = -1
+
+        # Save calculations directly to the structural fields
+        self.matrix['ToF'][:self.fill_count] = tof
+
+        # If requested, slice out rows violating reality and perform memory compaction
+        if remove_invalid:
+            keep = self.matrix[:self.fill_count]['ToF'] > 0
+            n_removed = int(np.sum(~keep))
+            if n_removed > 0:
+                self.matrix = self.matrix[:self.fill_count][keep].copy()
+                self.fill_count = len(self.matrix)
+                print(f"\t {WARN}\t {n_removed} events removed because of Invalid ToFs {RESET}")
+
+    def trim_tof_range(self, tof_gate_range_s: list) -> None:
+        """
+        Gates and filters the active events matrix block based on a Time-of-Flight range.
+        
+        Parameters
+        ----------
+        tof_gate_range_s : list or tuple
+            The [min_time, max_time] bounds given in seconds.
+        """
+        if self.fill_count == 0:
+            return
+
+        print(f"\t {INFO}Gating ToF between {tof_gate_range_s[0]*1e3:.2f}ms and {tof_gate_range_s[1]*1e3:.2f}ms ... {RESET}")
+
+        # Guard: Ensure ToF array has been populated before attempting to filter
+        m = self.matrix[:self.fill_count]
+        if np.any(m['ToF'] != 0):
+            # Convert input range from seconds to nanoseconds (int64 matching schema)
+            min_ns = int(tof_gate_range_s[0] * 1e9)
+            max_ns = int(tof_gate_range_s[1] * 1e9)
+
+            keep = (m['ToF'] >= min_ns) & (m['ToF'] <= max_ns)
+            removed = int(np.sum(~keep))
+
+            if removed > 0:
+                self.matrix = m[keep].copy()
+                self.fill_count = len(self.matrix)
+                print(f"\t {WARN}\t --> removing {removed} rows outside of ToF gate window ... {RESET}")
+            else:
+                print(f"\t {INFO}\t --> all events fall inside the defined gate window {RESET}")
+        else:
+            print(f"\n {WARN}\t WARNING ---> ToF gating not possible, calculate ToFs first. ToF array empty! {RESET}")
 
 
 # =============================================================================
@@ -194,6 +278,9 @@ class eventsVMMnormal(events):
         if na > 0:
             print(f'\t N of candidates: {nc} -> not rejected events {na} ({pct(na):.1f}%) '
                 f'(2D: {n2d} ({100.0 * n2d / na:.1f}%), 1D: {n1d} ({100.0 * n1d / na:.1f}%))')
+            if n1d > 0:
+                print(f'\n\t     1D breakdown: wires-only {n_1d_p0} ({100.0 * n_1d_p0 / n1d:.1f}%), '
+                    f'strips/grids-only {n_1d_p1} ({100.0 * n_1d_p1 / n1d:.1f}%)')
         else:
             print(f'\t N of candidates: {nc} -> not rejected events {na}')
 
@@ -205,9 +292,7 @@ class eventsVMMnormal(events):
 
         n_1d_p0, n_1d_p1 = self._print_multiplicity_stats()
 
-        if n1d > 0:
-            print(f'\n\t     1D breakdown: plane0-only {n_1d_p0} ({100.0 * n_1d_p0 / n1d:.1f}%), '
-                f'plane1-only {n_1d_p1} ({100.0 * n_1d_p1 / n1d:.1f}%)')
+        
 
     def _print_multiplicity_stats(self) -> tuple:
         """Derive and print multiplicity distributions from the surviving event matrix."""
