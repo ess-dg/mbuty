@@ -56,7 +56,7 @@ def load_config(config_file_path: str) -> dict:
 
     # --- Double extension guard (e.g. 'AMOR26.json.json') -------------------
     if len(path.suffixes) > 1 and path.suffixes[-1] == path.suffixes[-2]:
-        print(f"\n {ERR}---> Double extension detected in '{filename}'! Please check your file naming convention.{RESET}")
+        print(f"\n {ERR}Config File Error ---> Double extension detected in '{filename}'! Please check your file naming convention.{RESET}")
         time.sleep(2)
         sys.exit()
 
@@ -64,7 +64,7 @@ def load_config(config_file_path: str) -> dict:
     try:
         fh = open(config_file_path, 'r')
     except (FileNotFoundError, OSError):
-        print(f"\n {ERR}---> Config File: {filename} not found{RESET}")
+        print(f"\n {ERR}Config File Error ---> {filename} not found{RESET}")
         print(f"\n ---> in folder: {folder} \n -> exiting.")
         time.sleep(2)
         sys.exit()
@@ -73,7 +73,7 @@ def load_config(config_file_path: str) -> dict:
     try:
         config = json.load(fh)
     except json.JSONDecodeError:
-        print(f"\n {ERR}---> Error in config File: {filename}{RESET}", end='')
+        print(f"\n {ERR}Config File Error --->: {filename}{RESET}", end='')
         print(' ---> common mistake: last entry in topology must not have a trailing comma! \n -> exiting.')
         time.sleep(2)
         sys.exit()
@@ -108,7 +108,7 @@ VALID_INSTRUMENT_NAMES = (
 # validate_instrument_and_detector
 # =============================================================================
 
-def validate_instrument_and_detector(config: dict, printFlag: bool = True) -> None:
+def validate_instrument_and_detector(config: dict) -> None:
     """Validate 'detectorType', 'instrumentName', and their cross-mapping.
 
     Equivalent to legacy: get_DETtype() + get_instrumName() + verifyTypeWithInstrument().
@@ -121,14 +121,14 @@ def validate_instrument_and_detector(config: dict, printFlag: bool = True) -> No
 
     # --- detectorType check (legacy get_DETtype) ------------------------------
     if det_type not in VALID_DETECTOR_TYPES:
-        print(f"\n\t{ERR}ERROR: Detector type (found {det_type}) can only be either MB, MG or He3 -> check config file! ---> Exiting ... \n{RESET}", end='')
+        print(f"\n\t{ERR}Config File Error ---> Detector type (found {det_type}) can only be either MB, MG or He3 -> check config file! ---> Exiting ... \n{RESET}", end='')
         time.sleep(2)
         sys.exit()
 
     # --- instrumentName check (legacy get_instrumName) -------------------------
     if instrument not in VALID_INSTRUMENT_NAMES:
         allowed = ", ".join(VALID_INSTRUMENT_NAMES)
-        print(f"\n\t{ERR}ERROR: Instrument name {instrument} is invalid. Must be one of: {allowed} \n{RESET}")
+        print(f"\n\t{ERR}Config File Error ---> Instrument name {instrument} is invalid. Must be one of: {allowed} \n{RESET}")
         time.sleep(2)
         sys.exit()
 
@@ -137,15 +137,14 @@ def validate_instrument_and_detector(config: dict, printFlag: bool = True) -> No
 
     if det_type not in allowed_types:
         expected = " or ".join(allowed_types)
-        print(f"\n\t{WARN}WARNING: Potential configuration mismatch!")
+        print(f"\n\t{WARN}Config File WARNING: Potential configuration mismatch!")
         print(f"\tInstrument '{instrument}' usually uses type: {expected}.")
         print(f"\tCurrent config has: '{det_type}'.")
         print(f"\tAnalysis will proceed, but please verify your JSON settings.{RESET}\n")
         time.sleep(1)
 
-    if printFlag:
-        det_name = config.get('detectorName', None)
-        print(f"{INFO}Configuration for Detector {det_name}, type {det_type}, instrument {instrument}{RESET}")
+    det_name = config.get('detectorName', None)
+    print(f"{INFO}Configuration for Detector {det_name}, type {det_type}, instrument {instrument}{RESET}")
 
 
 # =============================================================================
@@ -167,53 +166,16 @@ def validate_operation_mode(config: dict) -> None:
         if operation_mode == "normal" or operation_mode == "clustered":
             print(f"{INFO}Operation Mode: {operation_mode}{RESET}")
         else:
-            print(f"\n\t{ERR}ERROR: Operation mode (found {operation_mode}) can only be either normal or clustered for VMM-based detectors -> check config file! ---> Exiting ... \n{RESET}", end='')
+            print(f"\n\t{ERR}Config File Error ---> Operation mode (found {operation_mode}) can only be either normal or clustered for VMM-based detectors -> check config file! ---> Exiting ... \n{RESET}", end='')
             time.sleep(2)
             sys.exit()
     else:
         if operation_mode == "normal":
             print(f"{INFO}Operation Mode: {operation_mode}{RESET}")
         else:
-            print(f"\n\t{ERR}ERROR: Operation mode (found {operation_mode}) can only be normal for {det_type} detectors -> check config file! ---> Exiting ... \n{RESET}", end='')
+            print(f"\n\t{ERR}Config File Error ---> Operation mode (found {operation_mode}) can only be normal for {det_type} detectors -> check config file! ---> Exiting ... \n{RESET}", end='')
             time.sleep(2)
             sys.exit()
-# =============================================================================
-# validate_channel_mapping
-# =============================================================================
-
-# def validate_channel_mapping(config: dict) -> None:
-#     """Validate 'channelMapping' block for MB detectors only.
-
-#     Checks that wireASIC and stripASIC are each 0 or 1, and that
-#     they are not equal. The only valid pairs are (0, 1) and (1, 0).
-#     Exits immediately on any violation.
-#     """
-#     if config.get('detectorType') != 'MB':
-#         return
-
-#     channel_mapping = config.get('channelMapping')
-#     if not channel_mapping:
-#         print(f"\n\t{ERR}ERROR: 'channelMapping' block missing for MB detector -> check config file! ---> Exiting ...{RESET}")
-#         time.sleep(2)
-#         sys.exit()
-
-#     entry = channel_mapping[0]
-#     wire_asic  = entry.get('wireASIC')
-#     strip_asic = entry.get('stripASIC')
-
-#     for name, val in [('wireASIC', wire_asic), ('stripASIC', strip_asic)]:
-#         if val not in (0, 1):
-#             print(f"\n\t{ERR}ERROR: '{name}' (found {val!r}) must be 0 or 1 -> check config file! ---> Exiting ...{RESET}")
-#             time.sleep(2)
-#             sys.exit()
-
-#     if wire_asic == strip_asic:
-#         print(f"\n\t{ERR}ERROR: wireASIC and stripASIC are both {wire_asic}. "
-#               f"They must be different (valid pairs: (0,1) or (1,0)) -> check config file! ---> Exiting ...{RESET}")
-#         time.sleep(2)
-#         sys.exit()
-
-    # print(f"{INFO}Channel mapping: wireASIC={wire_asic}, stripASIC={strip_asic}{RESET}")
 
 # =============================================================================
 # validate_unit_configuration
@@ -234,7 +196,7 @@ def validate_unit_configuration(config: dict) -> None:
     # --- ring 11 guard (legacy checkRing11) -----------------------------------
     for cc in topology:
         if cc.get("ring") == 11:
-            print(f"\t {ERR}ERROR: Ring 11 found in config for detector and not associated to MONITOR! -> exiting! {RESET}", end=' ')
+            print(f"\t {ERR}Config File Error ---> Ring 11 found in config for detector and not associated to MONITOR! -> exiting! {RESET}", end=' ')
             time.sleep(2)
             sys.exit()
 
@@ -243,7 +205,7 @@ def validate_unit_configuration(config: dict) -> None:
     num_units_found  = np.shape(units_in_config)[0]
 
     if num_units_found != num_units_decl:
-        print(f"{ERR} CONFIG FILE JSON ERROR: Num of units ({num_units_found}) not matching num of units in list ({num_units_decl}) in Config file{RESET}")
+        print(f"{ERR}Config File Error ---> Num of units ({num_units_found}) not matching num of units in list ({num_units_decl}) in Config file{RESET}")
         print(' \n -> exiting.')
         time.sleep(2)
         sys.exit()
@@ -253,7 +215,7 @@ def validate_unit_configuration(config: dict) -> None:
 # validate_monitor_configuration
 # =============================================================================
 
-def validate_monitor_configuration(config: dict, printFlag: bool = True) -> None:
+def validate_monitor_configuration(config: dict) -> None:
     """Validate the 'monitor' block (hardwareType, connectionType, ring rules).
 
     Equivalent to legacy: get_MONmap() + checkBMsettings().
@@ -266,10 +228,7 @@ def validate_monitor_configuration(config: dict, printFlag: bool = True) -> None
     monitor_block = config.get('monitor')
 
     if monitor_block is None:
-        print(f"\t {WARN}WARNING: No monitor config found in json file {RESET}")
-        return
-
-    if not printFlag:
+        print(f"\t {WARN}Config File WARNING ---> No monitor config found in json file {RESET}")
         return
 
     # legacy only ever reads the first monitor entry
@@ -283,7 +242,7 @@ def validate_monitor_configuration(config: dict, printFlag: bool = True) -> None
     if hardware_type == "generic" or hardware_type == "ibm":
         pass
     else:
-        print(f"\n\t{ERR}ERROR: MON hardware (found {hardware_type}) can only be either generic or ibm  -> check config file! ---> Exiting ... \n{RESET}", end='')
+        print(f"\n\t{ERR}Config File Error ---> MON hardware (found {hardware_type}) can only be either generic or ibm  -> check config file! ---> Exiting ... \n{RESET}", end='')
         time.sleep(2)
         sys.exit()
 
@@ -291,7 +250,7 @@ def validate_monitor_configuration(config: dict, printFlag: bool = True) -> None
     if connection_type == "lemo" or connection_type == "ring":
         pass
     else:
-        print(f"\n\t{ERR}ERROR: MON connection type (found {connection_type}) can only be either lemo or ring  -> check config file! ---> Exiting ... \n{RESET}", end='')
+        print(f"\n\t{ERR}Config File Error ---> MON connection type (found {connection_type}) can only be either lemo or ring  -> check config file! ---> Exiting ... \n{RESET}", end='')
         time.sleep(2)
         sys.exit()
 
@@ -300,33 +259,68 @@ def validate_monitor_configuration(config: dict, printFlag: bool = True) -> None
     # the message text says "WARNING" but the code still calls sys.exit().
     if connection_type == "lemo":
         if ring_id < 11:
-            print(f"\n\t{WARN}WARNING: MON mode {connection_type} selected with RING < 11 (ring {ring_id}) (can be any ring 11 - inf, but not < 11)-> check config file! ---> Exiting ... \n{RESET}", end='')
+            print(f"\n\t{WARN}Config File WARNING ---> MON mode {connection_type} selected with RING < 11 (ring {ring_id}) (can be any ring 11 - inf, but not < 11)-> check config file! ---> Exiting ... \n{RESET}", end='')
             time.sleep(1)
             sys.exit()
 
     # --- ring != 11 triggers a non-fatal warning only ---------------------------
     if connection_type == "ring":
         if ring_id != 11:
-            print(f"\n\t{WARN}WARNING: MON mode {connection_type} selected with RING != 11 (ring {ring_id} found in config file)\n{RESET}", end='')
+            print(f"\n\t{WARN}onfig File WARNING ---> MON mode {connection_type} selected with RING != 11 (ring {ring_id} found in config file)\n{RESET}", end='')
             time.sleep(1)
 
+# =============================================================================
+# validate duplicate IDs and must be integers 
+# =============================================================================
+
+def validate_IDs(config: dict) -> None:
+    
+    # 1. Pull all IDs
+    all_ids = [item["ID"] for item in config['topology'] if "ID" in item]
+ 
+    # 2. Strict type check: Ensure every single ID is explicitly an int
+    all_are_integers = all(type(i) is int for i in all_ids)
+    
+    # 3. Check for uniqueness
+    all_are_unique = len(all_ids) == len(set(all_ids))
+    
+    # --- Validation Logic ---
+    if not all_are_integers:
+        print(f"\n\t{ERR}Config File Error ---> Config Validation Failed: One or more IDs are not strictly integers.\n{RESET}", end='')
+        time.sleep(2)
+        sys.exit()
+        
+    if not all_are_unique:
+        print(f"\n\t{ERR}Config File Error ---> Config Validation Failed: One or more IDs are duplicated. IDs must be unique.\n{RESET}", end='')
+        time.sleep(2)
+        sys.exit()
+        
+ 
 
 # =============================================================================
 # Convenience: run all upfront checks in legacy order
 # =============================================================================
 
-def validate_config(config: dict, printFlag: bool = True) -> None:
+def validate_config(config: dict) -> None:
     """Run all upfront validations in the same order the legacy constructor did:
     instrument/detector -> monitor -> unit configuration -> operation mode.
     """
-    validate_instrument_and_detector(config, printFlag)
-    validate_monitor_configuration(config, printFlag)
+    validate_instrument_and_detector(config)
+    validate_monitor_configuration(config)
     validate_unit_configuration(config)
-    # validate_channel_mapping(config)
-    if printFlag:
-        validate_operation_mode(config)
+    validate_IDs(config)
+    validate_operation_mode(config)    
+
     
-    
+###############################################################################
+############################################################################### 
+###############################################################################
+###############################################################################   
+###############################################################################
+###############################################################################   
+###############################################################################
+###############################################################################   
+  
     
 if __name__ == '__main__':
     # =============================================================================
@@ -341,7 +335,7 @@ if __name__ == '__main__':
     project_root = os.path.abspath(os.path.join(current_dir, ".."))
 
     # Target your specific lower-camelCase configuration profile
-    test_config_path = os.path.join(project_root, "config", "AMOR26.json")
+    test_config_path = os.path.join(project_root, "config", "AMOR.json")
   
     print(f"{INFO}Loading target test configuration: {test_config_path}{RESET}")
 

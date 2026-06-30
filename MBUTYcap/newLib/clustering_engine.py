@@ -10,6 +10,8 @@ if _workspace not in sys.path:
     
 from newLib.events_containers import eventsVMMnormal, eventsVMMclustered, eventsR5560
 
+from newLib.colors import WARN, ERR, INFO, OK, RESET
+
 # =============================================================================
 # Wires and Strips Normal Clusterer (Multi-Blade & Multi-Grid)
 # =============================================================================
@@ -44,6 +46,9 @@ class VMMNormalClusterer:
     
     @staticmethod
     def cluster(hits, config: dict, time_window_s: float) -> eventsVMMnormal:
+        
+        print(f'{INFO}\nClustering VMM normal events ... {RESET}',end='')
+        
         m = hits.matrix[:hits.fill_count]
         n = len(m)
 
@@ -111,18 +116,20 @@ class VMMNormalClusterer:
         has_strip_hit    = strip_count >= 1
 
         accept_2d = (accept_window & has_wire_hit & has_strip_hit & wire_contiguous & strip_contiguous & wire_in_limits & strip_in_limits)
-        accept_1d = ((accept_window & has_wire_hit & ~has_strip_hit & wire_contiguous & wire_in_limits)
-                    | (accept_window & has_strip_hit & ~has_wire_hit & strip_contiguous & strip_in_limits))
+        accept_1dw = (accept_window & has_wire_hit  & ~has_strip_hit & wire_contiguous & wire_in_limits)
+        accept_1ds = (accept_window & has_strip_hit & ~has_wire_hit & strip_contiguous & strip_in_limits)
 
         with np.errstate(divide='ignore', invalid='ignore'):
             coord0 = np.where(wire_adc  > 0, np.round(wire_pos_num  / wire_adc,  2), np.nan)
             coord1 = np.where(strip_adc > 0, np.round(strip_pos_num / strip_adc, 2), np.nan)
 
-        accept_2d &= ~(np.isnan(coord0) | np.isnan(coord1))
-        accept_1d &= ~np.isnan(coord0)  | ~np.isnan(coord1)
+        accept_2d  &= ~(np.isnan(coord0) | np.isnan(coord1))
+        accept_1dw &= ~np.isnan(coord0)  & np.isnan(coord1)
+        accept_1ds &= np.isnan(coord0)   & ~np.isnan(coord1)
+   
 
-        assigned_ids = np.where(accept_2d | accept_1d, ms['ID'][first_hit], np.int64(-1))
-        n_accepted   = int(np.sum(accept_2d | accept_1d))
+        assigned_ids = np.where(accept_2d | accept_1dw | accept_1ds , ms['ID'][first_hit], np.int64(-1))
+        n_accepted   = int(np.sum(accept_2d | accept_1dw | accept_1ds))
 
         timing_src = {
             'timeStamp': ts[first_hit],
@@ -138,7 +145,7 @@ class VMMNormalClusterer:
             'pulseHeight1': strip_adc.astype('int64'),
             'mult0':        wire_count,
             'mult1':        strip_count,
-            'clusterSpan':  span.astype('int64'),
+            'clusterTimeSpan':  span.astype('int64'),
         }
 
         # Populate stats BEFORE absorb() so print_stats() sees the correct values
@@ -147,9 +154,10 @@ class VMMNormalClusterer:
             'n_accepted':           n_accepted,
             'n_rejected':           n_clusters - n_accepted,
             'n_accepted_2d':        int(np.sum(accept_2d)),
-            'n_accepted_1d':        int(np.sum(accept_1d)),
+            'n_accepted_1dw':        int(np.sum(accept_1dw)),
+            'n_accepted_1ds':        int(np.sum(accept_1ds)),
             'n_rejected_overflow':  int(np.sum(~accept_window)),
-            'n_rejected_neighbour': int(np.sum(accept_window & ~(accept_2d | accept_1d))),
+            'n_rejected_neighbour': int(np.sum(accept_window & ~(accept_2d | accept_1dw | accept_1ds))),
         })
 
         out.absorb(computed, timing_src)
@@ -164,6 +172,9 @@ class VMMClusteredClusterer:
     """Passthrough engine for hardware-firmware pre-clustered readout matrices."""
     @staticmethod
     def cluster(hits, config: dict, time_window_s: float = 0.0) -> eventsVMMclustered:
+        
+        print(f'{INFO}\nAbsorbing Clustered events ... {RESET}',end='')
+        
         m = hits.matrix[:hits.fill_count]
         n = len(m)
 
@@ -208,6 +219,9 @@ class R5560Clusterer:
     """Vectorized position calculator and pile-up filter for Helium-3 gas tubes."""
     @staticmethod
     def cluster(hits, config: dict, time_window_s: float) -> eventsR5560:
+        
+        print(f'{INFO}\nClustering R5560 events ... {RESET}',end='')
+        
         m = hits.matrix[:hits.fill_count]
         n = len(m)
 

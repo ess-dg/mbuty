@@ -91,10 +91,12 @@ def _report_unmapped_units(
     found_ids = np.unique(assigned_ids[assigned_ids != -1])
     missing   = np.setdiff1d(config_ids, found_ids)
     if len(missing) > 0:
-        id_list = ' '.join(str(x) for x in missing)
+        id_list_missing = ' '.join(str(x) for x in missing)
+        id_list_found   = ' '.join(str(x) for x in found_ids)
         print(
-            f'\t {WARN}WARNING: {unit_label} IDs: {id_list} '
-            f'not found in data file. Mapping skipped for those.{RESET}'
+            f'\t {WARN}WARNING: {unit_label} IDs: {id_list_missing} '
+            f'not found in data file. Mapping skipped for those.'
+            f'\n\t These readouts only contains IDs: {id_list_found}{RESET}'
         )
 
 

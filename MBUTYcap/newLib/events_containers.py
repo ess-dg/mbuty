@@ -34,7 +34,10 @@ class events():
             ('absCoordinate0', 'float64'),   
             ('absCoordinate1', 'float64'),  
             ('ToF',            'int64'),   # Time-of-Flight (nanoseconds, populated by abs units)
-            ('wavelength',     'float64'), # Neutron wavelength (Angstrom, populated by abs units)  
+            ('wavelength',     'float64'), # Neutron wavelength (Angstrom, populated by abs units) 
+            
+            ('timeBetweenEvents', 'int64'),
+            
         ]
         
         self.instrumentIDs = set() 
@@ -48,7 +51,7 @@ class events():
         _zero_fields = (
             'timeStamp', 'pulseT', 'prevPT',
             'absCoordinate0', 'absCoordinate1',
-            'ToF', 'wavelength',
+            'ToF', 'wavelength', 
         )
         for field in _zero_fields:
             if field in full_schema.names:
@@ -106,6 +109,8 @@ class events():
         self.matrix['timeStamp'] = timing_src['timeStamp']
         self.matrix['pulseT']    = timing_src['pulseT']
         self.matrix['prevPT']    = timing_src['prevPT']
+        
+        self.matrix['timeBetweenEvents'] = np.insert(np.diff(self.matrix['timeStamp']), 0, 0)
 
         # Map computed coordinates, charges, and multiplicities
         for field_name, array in computed_fields.items():
@@ -136,6 +141,7 @@ class events():
     def get_data_frame(self) -> pd.DataFrame:
         """Convert active matrix block to labeled DataFrame for easy inspection."""
         return pd.DataFrame(self.matrix)
+
     
     def compute_and_filter_tof(self, remove_invalid: bool = False) -> None:
         """
@@ -212,10 +218,14 @@ class events():
             print(f"\n {WARN}\t WARNING ---> ToF gating not possible, calculate ToFs first. ToF array empty! {RESET}")
 
 
+
+
+
 # =============================================================================
 # Concrete Event Subclasses
 # =============================================================================
-            
+
+###############################################################################            
 class eventsVMMclustered(events):
     """Events for VMM hardware-pre-clustered readout (passthrough)."""
     def __init__(self, size: int = 0):
@@ -237,8 +247,36 @@ class eventsVMMclustered(events):
     def print_stats(self) -> None:
         print(f'\t --- VMM Clustered passthrough stats ---')
         print(f'\t     accepted : {self.stats["n_accepted"]}')
+        
+        
+    def get_data_frame(self) -> pd.DataFrame:
+         """Convert active matrix block to labeled DataFrame for easy inspection."""
+         
+         columns_to_extract = [
+            'pulseT',
+            'prevPT',
+            'timeStamp',
+            'ID',
+            'coordinate0',
+            'coordinate1',
+            'pulseHeight0',
+            'pulseHeight1',
+            'mult0',
+            'mult1',
+            'timeBetweenEvents',
+            'absCoordinate0',
+            'absCoordinate1',
+            'absCoordinate2',
+            'ToF',
+            'wavelength'   
+         ]
+
+         df = pd.DataFrame(self.matrix[columns_to_extract])
+
+         return df
 
 
+###############################################################################
 class eventsVMMnormal(events):
     """Events for VMM normal readout detectors (Multi-Blade, Multi-Grid)."""
     def __init__(self, size: int = 0):
@@ -246,8 +284,8 @@ class eventsVMMnormal(events):
             ('pulseHeight1',   'int64'),
             ('mult0',          'int64'),
             ('mult1',          'int64'),
-            ('clusterSpan',    'int64'),
             ('absCoordinate2', 'float64'),
+            ('clusterTimeSpan',    'int64'),
         ]
         super().__init__(size, subclass_fields)
         self.matrix['absCoordinate2'] = 0.0
@@ -257,17 +295,19 @@ class eventsVMMnormal(events):
             'n_accepted':           0,
             'n_rejected':           0,
             'n_accepted_2d':        0,
-            'n_accepted_1d':        0,
+            'n_accepted_1dw':       0,
+            'n_accepted_1ds':       0,
             'n_rejected_overflow':  0,
             'n_rejected_neighbour': 0,
         }
 
     def print_stats(self) -> None:
-        s   = self.stats
-        nc  = s['n_candidates']
-        na  = s['n_accepted']
-        n2d = s['n_accepted_2d']
-        n1d = s['n_accepted_1d']
+        s    = self.stats
+        nc   = s['n_candidates']
+        na   = s['n_accepted']
+        n2d  = s['n_accepted_2d']
+        n1dw = s['n_accepted_1dw']
+        n1ds = s['n_accepted_1ds']
 
         if nc == 0:
             print('\t --- VMM Normal clustering stats --- (no candidates)')
@@ -277,21 +317,19 @@ class eventsVMMnormal(events):
 
         if na > 0:
             print(f'\t N of candidates: {nc} -> not rejected events {na} ({pct(na):.1f}%) '
-                f'(2D: {n2d} ({100.0 * n2d / na:.1f}%), 1D: {n1d} ({100.0 * n1d / na:.1f}%))')
-            if n1d > 0:
-                print(f'\n\t     1D breakdown: wires-only {n_1d_p0} ({100.0 * n_1d_p0 / n1d:.1f}%), '
-                    f'strips/grids-only {n_1d_p1} ({100.0 * n_1d_p1 / n1d:.1f}%)')
+                f'(2D: {n2d} ({100.0 * n2d / na:.1f}%), 1D(w): {n1dw} ({100.0 * n1dw / na:.1f}%), 1D(s/g): {n1ds} ({100.0 * n1ds / na:.1f}%))')
         else:
             print(f'\t N of candidates: {nc} -> not rejected events {na}')
 
-        print(f'\t     not rej (2D) {pct(n2d):.1f}%, '
-            f'not rej (1D) {pct(n1d):.1f}%, '
+        print(f'\t not rej (2D) {pct(n2d):.1f}%, '
+            f'not rej (1D w) {pct(n1dw):.1f}%, '
+            f'not rej (1D s/g) {pct(n1ds):.1f}%, '
             f'rejected {pct(s["n_rejected"]):.1f}%, '
             f'rejected overflow (>32) {pct(s["n_rejected_overflow"]):.1f}%, '
-            f'rejected neighbour {pct(s["n_rejected_neighbour"]):.1f}%')
+            f'rejected no neighbour {pct(s["n_rejected_neighbour"]):.1f}%')
 
+        
         n_1d_p0, n_1d_p1 = self._print_multiplicity_stats()
-
         
 
     def _print_multiplicity_stats(self) -> tuple:
@@ -326,8 +364,36 @@ class eventsVMMnormal(events):
         print(f'\t     1D: % strips/grids fired per event (strips/grids-only): {_fmt(plane1_mult_1d)}')
 
         return int(np.sum(mask_1d_p0)), int(np.sum(mask_1d_p1))
+    
+    
+    def get_data_frame(self) -> pd.DataFrame:
+         """Convert active matrix block to labeled DataFrame for easy inspection."""
+         
+         columns_to_extract = [
+            'pulseT',
+            'prevPT',
+            'timeStamp',
+            'ID',
+            'coordinate0',
+            'coordinate1',
+            'pulseHeight0',
+            'pulseHeight1',
+            'mult0',
+            'mult1',
+            'clusterTimeSpan',
+            'timeBetweenEvents',
+            'absCoordinate0',
+            'absCoordinate1',
+            'absCoordinate2',
+            'ToF',
+            'wavelength'   
+         ]
 
+         df = pd.DataFrame(self.matrix[columns_to_extract])
 
+         return df
+
+###############################################################################
 class eventsR5560(events):
     """Events for He-3 continuous gas tube detectors (CAEN R5560)."""
     def __init__(self, size: int = 0):
@@ -355,6 +421,30 @@ class eventsR5560(events):
             f'rejected pile-up {s["n_pileup_flagged"]} ({pct(s["n_pileup_flagged"]):.1f}%), '
             f'rejected 0 ADC or NaN {n_other} ({pct(n_other):.1f}%)')
 
+    def get_data_frame(self) -> pd.DataFrame:
+         """Convert active matrix block to labeled DataFrame for easy inspection."""
+         
+         columns_to_extract = [
+            'pulseT',
+            'prevPT',
+            'timeStamp',
+            'ID',
+            'coordinate0',
+            'coordinate1',
+            'pulseHeight0',
+            'timeBetweenEvents',
+            'absCoordinate0',
+            'absCoordinate1',
+            'ToF',
+            'wavelength'   
+         ]
+
+         df = pd.DataFrame(self.matrix[columns_to_extract])
+
+         return df
+    
+###############################################################################
+
 class eventsBM(events):
     """Generic Beam Monitor passthrough event container."""
     def __init__(self, size: int = 0):
@@ -367,7 +457,7 @@ class eventsBM(events):
         ]
         super().__init__(size, subclass_fields)
 
-
+###############################################################################
 class eventsIBM(events):
     """IBM-variant Beam Monitor passthrough event container."""
     def __init__(self, size: int = 0):
@@ -380,7 +470,7 @@ class eventsIBM(events):
         ]
         super().__init__(size, subclass_fields)
 
-
+###############################################################################
 class eventsSKADI(events):
     """SKADI detector event container placeholder stub."""
     def __init__(self, size: int = 0):
