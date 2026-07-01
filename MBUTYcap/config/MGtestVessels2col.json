@@ -1,0 +1,41 @@
+{
+    "detectorName": "MGtv",
+    "detectorType": "MG",
+    "instrumentName": "TREX",
+    "units": 2,
+    "orientation": "vertical",
+    "operationMode": "normal",
+    "topology": [
+        {
+            "ID": 0,
+            "ring": 0,
+            "fen": 0,
+            "hybridW": 5,
+            "hybridG": 4
+        },
+        {
+            "ID": 1,
+            "ring": 0,
+            "fen": 0,
+            "hybridW": 3,
+            "hybridG": 2
+        }
+    ],
+    "wires": 120,
+    "grids": 12,
+    "wirePitchX_mm": 22,
+    "wirePitchZ_mm": 10,
+    "gridPitchY_mm": 25,
+    "wiresPerRow": 20,
+    "angularOffset_deg": 10,
+    "linearOffset1stWires_mm": 80,
+    "monitor": [
+        {
+            "ID": 99,
+            "hardwareType": "generic",
+            "connectionType": "ring",
+            "ring": 11,
+            "channel": 0
+        }
+    ]
+}

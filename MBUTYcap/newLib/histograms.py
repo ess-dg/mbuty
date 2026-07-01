@@ -260,3 +260,65 @@ class VMMAxisSet(BaseAxisSet):
             (det.numOfStrips - 1) * det.stripPitch,
             self.ax_strips.steps,
         )
+        
+class R5560AxisSet(BaseAxisSet):
+    """Position axes for R5560 tube detector (1D position geometry)."""
+
+    def build_specific_axes(self, cass_offset: float = 0) -> None:
+        p   = self.parameters
+        det = p.config.DETparameters
+
+        self.ax_mult = Axis(0, 9, 10)  # Multiplicity 0-9
+
+        # Normalized position (0-1 mapped to tube)
+        self.ax_wires = Axis(0, 1, p.config.DETparameters.positionBins)
+
+        # Cassette ID axis (discrete; min-max of configured cassettes)
+        cf = np.array(det.cassInConfig)
+        mincf, maxcf = np.min(cf), np.max(cf)
+        self.ax_strips = Axis(mincf, maxcf, maxcf - mincf + 1)
+
+        # Physical position in mm
+        self.ax_wires_mm = Axis(0, det.tubeLength, p.config.DETparameters.positionBins)
+
+        # Cassette physical spacing
+        self.ax_strips_mm = Axis(0, 0, 1)  # Placeholder; overridden below
+        self.ax_strips_mm.centers = np.array(det.cassInConfig) * det.tubeSpacing
+
+
+class MGAxisSet(BaseAxisSet):
+    """Position axes for Multi-Grid detector (VMM-like wire/strip geometry)."""
+
+    def build_specific_axes(self, cass_offset: float = 0) -> None:
+        p   = self.parameters
+        det = p.config.DETparameters
+
+        self.ax_mult = Axis(0, det.numOfStrips - 1, det.numOfStrips)
+
+        n_cass = len(det.cassInConfig)
+        offset = cass_offset * det.numOfWires
+
+        self.ax_wires = Axis(
+            offset,
+            n_cass * det.numOfWires - 1 + offset,
+            n_cass * p.plotting.posWbins - int(p.plotting.posWbins / det.numOfWires - 1),
+        )
+
+        self.ax_strips = Axis(
+            0,
+            det.numOfStrips - 1,
+            p.plotting.posSbins - int(p.plotting.posSbins / det.numOfStrips - 1),
+        )
+
+        # Physical coordinates (4 mm pitch for MG)
+        self.ax_wires_mm = Axis(
+            0,
+            (n_cass * det.numOfWires - 1) * 4,
+            self.ax_wires.steps,
+        )
+
+        self.ax_strips_mm = Axis(
+            0,
+            (det.numOfStrips - 1) * 4,
+            self.ax_strips.steps,
+        )

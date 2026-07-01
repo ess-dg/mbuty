@@ -15,7 +15,7 @@ import copy
 
 try:
 ####### if you run default
-    from lib import libMapping 
+    from lib import libMapping_old 
     from lib import libReadPcapng as pcapr
 
 except ImportError:
@@ -30,8 +30,8 @@ except ImportError:
 ###############################################################################
 ###############################################################################   
 """ Acts as a pointer/wrapper for the central library """
-mapMonitor           = libMapping.mapMonitor
-extractPartialConfig = libMapping.extractPartialConfig
+mapMonitor           = libMapping_old.mapMonitor
+extractPartialConfig = libMapping_old.extractPartialConfig
 # checkBMsettings      = libMapping.checkBMsettings
 
 # OR 
@@ -96,71 +96,71 @@ class read_json_config():
     
     def __init__(self, configFile_PathAndFileName, printFlag = True):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping.read_json_config.__init__(self, configFile_PathAndFileName, printFlag) 
+        return libMapping_old.read_json_config.__init__(self, configFile_PathAndFileName, printFlag) 
 
     def openFile(self,configFile_PathAndFileName):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping.read_json_config.openFile(self,configFile_PathAndFileName)    
+        return libMapping_old.read_json_config.openFile(self,configFile_PathAndFileName)    
 
     def __del__(self):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping.read_json_config.__del__(self)  
+        return libMapping_old.read_json_config.__del__(self)  
         
     def __deepcopy__(self, memo):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping.read_json_config.__deepcopy__(self, memo)  
+        return libMapping_old.read_json_config.__deepcopy__(self, memo)  
         
     def dprint(self, msg): 
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping.read_json_config.dprint(self, msg)
+        return libMapping_old.read_json_config.dprint(self, msg)
     
     def print_DETname(self): 
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping.read_json_config.print_DETname(self)
+        return libMapping_old.read_json_config.print_DETname(self)
  
     def print_check_operationMode(self):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping.read_json_config.print_check_operationMode(self)
+        return libMapping_old.read_json_config.print_check_operationMode(self)
 
     def get_DETname(self):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping.read_json_config.get_DETname(self)
+        return libMapping_old.read_json_config.get_DETname(self)
     
     def get_DETtype(self):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping.read_json_config.get_DETtype(self)
+        return libMapping_old.read_json_config.get_DETtype(self)
     
     def get_DETmap(self):  
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping.read_json_config.get_DETmap(self)
+        return libMapping_old.read_json_config.get_DETmap(self)
     
     def get_instrumName(self):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping.read_json_config.get_instrumName(self)
+        return libMapping_old.read_json_config.get_instrumName(self)
     
     def get_DETcassettesInConfig(self):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping.read_json_config.get_DETcassettesInConfig(self)
+        return libMapping_old.read_json_config.get_DETcassettesInConfig(self)
     
     def checkRing11(self):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping.read_json_config.checkRing11(self)
+        return libMapping_old.read_json_config.checkRing11(self)
     
     def check_cassetteLabelling(self):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping.read_json_config.check_cassetteLabelling(self)
+        return libMapping_old.read_json_config.check_cassetteLabelling(self)
     
     def get_MONmap(self):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping.read_json_config.get_MONmap(self)
+        return libMapping_old.read_json_config.get_MONmap(self)
     
     def checkBMsettings(self,hardwareType,connectionType,RingID):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping.read_json_config.checkBMsettings(self,hardwareType,connectionType,RingID)
+        return libMapping_old.read_json_config.checkBMsettings(self,hardwareType,connectionType,RingID)
     
     def verifyTypeWithInstrument(self,instr,detType):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping.read_json_config.verifyTypeWithInstrument(self,instr,detType)
+        return libMapping_old.read_json_config.verifyTypeWithInstrument(self,instr,detType)
 
         
     def checkOpModeMG(self):
@@ -225,23 +225,23 @@ class read_json_config():
 class mapDetector():
     def __init__(self, readouts, config):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping.mapDetector.__init__(self, readouts, config)
+        return libMapping_old.mapDetector.__init__(self, readouts, config)
 
            
     def initCatData(self):    # debug
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping.mapDetector.initCatData(self)
+        return libMapping_old.mapDetector.initCatData(self)
     
             
     def dprint(self, msg):
        """ Acts as a pointer/wrapper for the central library """
-       return libMapping.mapDetector.dprint(self,msg)
+       return libMapping_old.mapDetector.dprint(self,msg)
         
     def mapp1cass(self, cassette1ID):
         
         #########################################
         #  activate to use interface PCB otherwise standard mapping 
-        swapIT = 0 
+        swapIT = 3 
         #########################################
         
         if self.debug:
@@ -275,6 +275,8 @@ class mapDetector():
 
         if swapIT == 0:
             
+            print('dsfsdfsdfdsfsdfsdfsdfsdfsd')
+            
             # this is with old penthouse PCB and new ebox PCB - CORRECT how it should be 
             
             ########################################## 
@@ -283,6 +285,8 @@ class mapDetector():
             selectionWires  =  np.logical_and(selectionCol, HyWLoc)
             
             tempW = 119 - (self.readouts.Channel[selectionWires] + 64*self.readouts.ASIC[selectionWires])
+            
+            # tempW = 3+0*self.readouts.Channel[selectionWires]
     
             # after mapping wires are 0 and strips 1 
             self.hits.WorS[selectionWires] = 0 
@@ -293,6 +297,7 @@ class mapDetector():
             if np.any(~acceptW):
                  print('Warning: found Wires above {} in MG column {}'.format(self.config.DETparameters.numOfWires-1,cassette1ID))
            
+            
                  
             tempW[~acceptW] = -1
             temp1[~acceptW] = -1
@@ -311,6 +316,8 @@ class mapDetector():
             
             # new penthouse PCB 
             tempS = self.readouts.Channel[selectionStrips] -10 + 44*self.readouts.ASIC[selectionStrips]
+            
+            print(tempS)
 
             # after mapping wires are 0 and strips 1 
             self.hits.WorS[selectionStrips] = 1 
@@ -323,6 +330,9 @@ class mapDetector():
             
             tempS[~acceptS] = -1
             temp2[~acceptS] = -1
+            
+            print(tempS)
+
     
             self.hits.WiresStrips[selectionStrips] = tempS
             self.hits.WorS[selectionStrips]        = temp2
@@ -481,6 +491,79 @@ class mapDetector():
                
                 ########################################## 
                 ########### 
+                
+        elif swapIT == 3:
+        
+        # this is with new penthouse PCB and new interface PCB only for test vessel (second iteration)
+            print('\033[1;33m----> WARNING: USING TEMPORARY INTERFACE PCB MAPPING!!!\033[1;37m')
+            
+            ########################################## 
+            # WIRES
+            ###########
+            selectionWires  =  np.logical_and(selectionCol, HyWLoc)
+    
+             # 1. Get the base data for the selected wires
+            ch = self.readouts.Channel[selectionWires]
+            asic = self.readouts.ASIC[selectionWires]
+            
+            # 2. Define your 4 selection conditions
+            conditions = [
+                (ch >= 16) & (ch <= 55) & (asic == 1),  # selection1
+                (ch >= 40) & (ch <= 63) & (asic == 0),  # selection2
+                (ch >= 0)  & (ch <= 16) & (asic == 1),  # selection3
+                (ch >= 0)  & (ch <= 39) & (asic == 0)   # selection4
+            ]
+            
+            # 3. Define the operations for each condition
+            choices = [
+                ch - 16,  # Map for selection1
+                ch,       # Map for selection2
+                ch + 64,  # Map for selection3
+                ch + 80   # Map for selection4
+            ]
+            
+            # 4. Apply the mapping and update the main array
+            # Note: We use np.select to generate the values, then assign them back
+            # to the specific indices defined by selectionWires.
+            self.hits.WiresStrips[selectionWires] = np.select(conditions, choices, default=-1)
+            
+            # Set the flag identifying these as 'wires' (0)
+            self.hits.WorS[selectionWires] = 0
+    
+            
+            ############################################################### 
+            # GRIDS
+            ###########
+            
+            selectionStrips = np.logical_and(selectionCol , HySLoc)
+            
+            # 1. Get the data for the selected strips
+            ch   = self.readouts.Channel[selectionStrips]
+            asic = self.readouts.ASIC[selectionStrips]
+            
+            # 2. Define the selection conditions
+            conditions = [
+                (ch >= 10)  & (ch <= 53) & (asic == 0),  # selection1
+                (ch >= 10)  & (ch <= 53) & (asic == 1)  # selection2
+            ]
+            
+            # 3. Define the mathematical mapping for each condition
+            choices = [
+                53 - ch,   # Map for selection1
+                97 - ch    # Map for selection2
+            ]
+            
+            # 4. Apply the mapping to the main WiresStrips array
+            # np.select handles the logic; we assign it back using the selectionStrips mask.
+            self.hits.WiresStrips[selectionStrips] = np.select(conditions, choices, default=-1)
+            
+            # Identify these hits as strips (1)
+            self.hits.WorS[selectionStrips] = 1
+            
+           
+        ########################################## 
+        ###########
+        
                 
                 
         ####################################################################################

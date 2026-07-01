@@ -391,15 +391,20 @@ class VMMEventsPlotter(BaseEventsPlotter):
         ax.set_xlabel('wavelength (A)')
         fig.suptitle('DET wavelength')
 
-    def plot_phs(self, unit_ids=None, logScale: bool = False, fig_num=601):
+    def plot_phs(self, unit_ids=None, logScale: bool = False, fig_num=603):
         """Channel-resolved pulse height spectra: wire, strip, wire-coincident, + global sum, per unit."""
         if self.is_empty:
             return
         if not self._has_field('pulseHeight1'):
             return
 
+        # --- CHANGE 2: Explicitly close/clear the figure number to ensure a clean slate ---
+        plt.close(fig_num)
+
         unit_ids = self.unit_ids() if unit_ids is None else unit_ids
-        grid = PlotGrid(fig_num, 4, len(unit_ids))
+        
+        # --- CHANGE 3: Expand the figure size footprint so 13 columns aren't squished ---
+        grid = PlotGrid(fig_num, 4, len(unit_ids), fig_size=(max(14, len(unit_ids) * 1.5), 12))
         grid.fig.suptitle('Pulse Height Spectra (channel-resolved)')
         normColors = log_scale_norm(logScale)
         ax_e = self.axis_set.ax_energy
@@ -438,6 +443,9 @@ class VMMEventsPlotter(BaseEventsPlotter):
             grid.ax[3][k].legend(loc='upper right', fontsize='large')
             if k == 0:
                 grid.ax[3][k].set_ylabel('counts')
+                
+            grid.fig.tight_layout()
+            grid.fig.subplots_adjust(top=0.92, hspace=0.3)
 
     def plot_phs_correlation(self, unit_ids=None, logScale: bool = False, fig_num=602):
         """Wire-pulse-height vs strip-pulse-height 2D correlation, per unit."""
@@ -464,7 +472,216 @@ class VMMEventsPlotter(BaseEventsPlotter):
             if k == 0:
                 grid.ax[0][k].set_ylabel('pulse height strips (a.u.)')
 
+class R5560EventsPlotter(BaseEventsPlotter):
+    """
+    R5560 tube detector specific event plots: 1D position spectrum,
+    position vs wavelength, and channel-resolved pulse height spectra.
+    """
 
+    def plot_detector_image(self, logScale: bool = False, absUnits: bool = False, fig_num=101):
+        """1D position spectrum + position-vs-ToF image."""
+        if self.is_empty:
+            return
+        normColors = log_scale_norm(logScale)
+        m = self.matrix
+
+        if absUnits:
+            ax_pos = self.axis_set.ax_wires_mm
+            coord = m['absCoordinate0']
+            xlabel = 'Position (mm)'
+        else:
+            ax_pos = self.axis_set.ax_wires
+            coord = m['coordinate0']
+            xlabel = 'Position (normalized)'
+
+        ax_tof = self.axis_set.ax_tof
+
+        # 1D position spectrum
+        h1d = self.hist.hist1d(ax_pos.centers, coord)
+        # Position vs ToF
+        h2d, proj, _ = self.hist.hist_xyz(
+            ax_pos.centers, coord, ax_tof.centers, m['ToF'] / 1e9,
+            np.array([0]), np.array([0])  # Dummy z for hist_xyz
+        )
+
+        fig, (ax1, ax2) = plt.subplots(num=fig_num, figsize=(14, 5), nrows=1, ncols=2)
+        ax1.step(ax_pos.centers, h1d, 'b', where='mid')
+        ax1.set_xlabel(xlabel)
+        ax1.set_ylabel('counts')
+        ax1.set_title('Position Spectrum')
+
+        ax2.imshow(h2d, aspect='auto', norm=normColors, interpolation='none',
+                   extent=[ax_pos.start, ax_pos.stop, ax_tof.start, ax_tof.stop],
+                   origin='lower', cmap='jet')
+        ax2.set_xlabel(xlabel)
+        ax2.set_ylabel('ToF (μs)')
+        ax2.set_title('Position vs ToF')
+
+    def plot_phs(self, unit_ids=None, logScale: bool = False, fig_num=601):
+        """Pulse height spectrum per cassette."""
+        if self.is_empty:
+            return
+        if not self._has_field('pulseHeight0'):
+            return
+
+        unit_ids = self.unit_ids() if unit_ids is None else unit_ids
+        grid = PlotGrid(fig_num, 2, len(unit_ids), gridspec_kw={'height_ratios': [1, 1.5]})
+        grid.fig.suptitle('Pulse Height Spectra (R5560)')
+        normColors = log_scale_norm(logScale)
+        ax_e = self.axis_set.ax_energy
+        ax_cass = self.axis_set.ax_strips
+
+        m = self.matrix
+        cass_id = np.round(m['coordinate1']).astype(int)
+
+        for k, uid in enumerate(unit_ids):
+            sel = m['ID'] == uid
+
+            phs_cass, _ = self.hist.hist2d(ax_e.centers, m['pulseHeight0'][sel],
+                                            ax_cass.centers, cass_id[sel])
+            grid.ax[0][k].imshow(phs_cass, aspect='auto', norm=normColors, interpolation='none',
+                                  extent=[ax_e.start, ax_e.stop, ax_cass.start, ax_cass.stop],
+                                  origin='lower', cmap='jet')
+            grid.ax[0][k].set_title(f'ID {uid}')
+            if k == 0:
+                grid.ax[0][k].set_ylabel('cassette ID')
+
+            phs_global = np.sum(phs_cass, axis=0)
+            grid.ax[1][k].step(ax_e.centers, phs_global, 'b', where='mid')
+            grid.ax[1][k].set_xlabel('pulse height (a.u.)')
+            grid.ax[1][k].legend(['Global'], loc='upper right', fontsize='large')
+            if k == 0:
+                grid.ax[1][k].set_ylabel('counts')
+        grid.unshare_row(1)
+
+
+class MGEventsPlotter(BaseEventsPlotter):
+    """
+    Multi-Grid detector specific event plots: 2D wire/strip detector image,
+    wire-vs-wavelength image, and channel-resolved pulse height spectra.
+    Geometry similar to VMM but with different axis conventions.
+    """
+
+    def plot_detector_image(self, logScale: bool = False, absUnits: bool = False, orientation: str = 'vertical', fig_num=101):
+        """2D wire/strip detector image + 1D wire projection + wire-vs-ToF image."""
+        if self.is_empty:
+            return
+        normColors = log_scale_norm(logScale)
+        m = self.matrix
+        sel_2d = self._coincidence_mask(m)
+
+        if absUnits:
+            ax_w, ax_s = self.axis_set.ax_wires_mm, self.axis_set.ax_strips_mm
+            coord0, coord1 = m['absCoordinate0'], m['absCoordinate1']
+            xlabel, ylabel = 'Wire coord. (mm)', 'Strip (mm)'
+        else:
+            ax_w, ax_s = self.axis_set.ax_wires, self.axis_set.ax_strips
+            coord0, coord1 = m['coordinate0'], m['coordinate1']
+            xlabel, ylabel = 'Wire ch.', 'Strip ch.'
+
+        ax_tof = self.axis_set.ax_tof
+
+        h2d, proj1d, h_tof = self.hist.hist_xyz(
+            ax_w.centers, coord0[sel_2d], ax_s.centers, coord1[sel_2d], ax_tof.centers, m['ToF'][sel_2d] / 1e9,
+        )
+
+        if orientation == 'vertical':
+            fig, axes = plt.subplots(num=fig_num, figsize=(14, 10), nrows=2, ncols=2,
+                                     gridspec_kw={'height_ratios': [3, 1], 'width_ratios': [3, 1]})
+            # Main 2D image (top-left)
+            axes[0, 0].imshow(h2d, aspect='auto', norm=normColors, interpolation='none',
+                              extent=[ax_w.start, ax_w.stop, ax_s.start, ax_s.stop],
+                              origin='lower', cmap='jet')
+            axes[0, 0].set_ylabel(ylabel)
+            axes[0, 0].set_title('Detector Image')
+
+            # Wire projection (bottom-left)
+            axes[1, 0].step(ax_w.centers, proj1d, 'b', where='mid')
+            axes[1, 0].set_xlabel(xlabel)
+            axes[1, 0].set_ylabel('counts')
+
+            # Wire-vs-ToF (top-right)
+            axes[0, 1].imshow(h_tof, aspect='auto', norm=normColors, interpolation='none',
+                              extent=[ax_w.start, ax_w.stop, ax_tof.start, ax_tof.stop],
+                              origin='lower', cmap='jet')
+            axes[0, 1].set_ylabel('ToF (μs)')
+
+            axes[1, 1].axis('off')
+        else:  # horizontal
+            fig, axes = plt.subplots(num=fig_num, figsize=(16, 6), nrows=1, ncols=3,
+                                     gridspec_kw={'width_ratios': [3, 1, 1]})
+            axes[0].imshow(h2d, aspect='auto', norm=normColors, interpolation='none',
+                           extent=[ax_w.start, ax_w.stop, ax_s.start, ax_s.stop],
+                           origin='lower', cmap='jet')
+            axes[0].set_xlabel(xlabel)
+            axes[0].set_ylabel(ylabel)
+            axes[0].set_title('Detector Image')
+
+            axes[1].step(ax_w.centers, proj1d, 'b', where='mid')
+            axes[1].set_xlabel(xlabel)
+            axes[1].set_ylabel('counts')
+            axes[1].set_title('Wire Projection')
+
+            axes[2].imshow(h_tof, aspect='auto', norm=normColors, interpolation='none',
+                           extent=[ax_w.start, ax_w.stop, ax_tof.start, ax_tof.stop],
+                           origin='lower', cmap='jet')
+            axes[2].set_xlabel(xlabel)
+            axes[2].set_ylabel('ToF (μs)')
+            axes[2].set_title('Wire vs ToF')
+
+    def plot_phs(self, unit_ids=None, logScale: bool = False, fig_num=601):
+        """Channel-resolved pulse height spectra: wire, strip, wire-coincident, + global sum, per unit."""
+        if self.is_empty:
+            return
+        if not self._has_field('pulseHeight1'):
+            return
+
+        unit_ids = self.unit_ids() if unit_ids is None else unit_ids
+        grid = PlotGrid(fig_num, 4, len(unit_ids), gridspec_kw={'height_ratios': [1, 1, 1, 2.5]})
+        grid.unshare_row(3)
+        grid.fig.suptitle('Pulse Height Spectra (channel-resolved, Multi-Grid)')
+        normColors = log_scale_norm(logScale)
+        ax_e = self.axis_set.ax_energy
+        wire_axis = self.axis_set.ax_wires.centers
+        strip_axis = self.axis_set.ax_strips.centers
+
+        m = self.matrix
+        wire_ch = np.round(m['coordinate0']).astype(int)
+        strip_ch = np.round(m['coordinate1']).astype(int)
+
+        for k, uid in enumerate(unit_ids):
+            sel = m['ID'] == uid
+            sel_2d = sel & self._coincidence_mask(m)
+
+            phs_w, _ = self.hist.hist2d(ax_e.centers, m['pulseHeight0'][sel], wire_axis, wire_ch[sel])
+            phs_s, _ = self.hist.hist2d(ax_e.centers, m['pulseHeight1'][sel_2d], strip_axis, strip_ch[sel_2d])
+            phs_wc, _ = self.hist.hist2d(ax_e.centers, m['pulseHeight0'][sel_2d], wire_axis, wire_ch[sel_2d])
+
+            grid.ax[0][k].imshow(phs_w, aspect='auto', norm=normColors, interpolation='none',
+                                  extent=[ax_e.start, ax_e.stop, wire_axis[0], wire_axis[-1]],
+                                  origin='lower', cmap='jet')
+            grid.ax[1][k].imshow(phs_s, aspect='auto', norm=normColors, interpolation='none',
+                                  extent=[ax_e.start, ax_e.stop, strip_axis[0], strip_axis[-1]],
+                                  origin='lower', cmap='jet')
+            grid.ax[2][k].imshow(phs_wc, aspect='auto', norm=normColors, interpolation='none',
+                                  extent=[ax_e.start, ax_e.stop, wire_axis[0], wire_axis[-1]],
+                                  origin='lower', cmap='jet')
+            grid.ax[0][k].set_title(f'ID {uid}')
+            if k == 0:
+                grid.ax[0][k].set_ylabel('wire ch. no.')
+                grid.ax[1][k].set_ylabel('strip ch. no.')
+                grid.ax[2][k].set_ylabel('wire coinc. ch. no.')
+
+            phs_w_g = np.sum(phs_w, axis=0)
+            phs_s_g = np.sum(phs_s, axis=0)
+            phs_wc_g = np.sum(phs_wc, axis=0)
+            grid.ax[3][k].step(ax_e.centers, phs_w_g, 'r', where='mid', label='w')
+            grid.ax[3][k].step(ax_e.centers, phs_s_g, 'b', where='mid', label='s')
+            grid.ax[3][k].step(ax_e.centers, phs_wc_g, 'k', where='mid', label='w/s')
+            grid.ax[3][k].set_xlabel('pulse height (a.u.)')
+            grid.ax[3][k].legend(loc='upper right', fontsize='large')
+            if k == 0:
+                grid.ax[3][k].set_ylabel('counts')
 # ============================================================================
 # Hits plotters
 # ============================================================================

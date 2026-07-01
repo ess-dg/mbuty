@@ -68,7 +68,7 @@ filePathAndFileName = filePath + file
 timeResolutionType  = 'coarse'
 time_window_seconds = 2e-6  # 2000 ns
 
-SAVE_FIGURES = True
+SAVE_FIGURES = False
 SHOW_FIGURES = True
 OUTPUT_DIR   = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'plot_test_output')
 

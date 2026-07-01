@@ -1,0 +1,37 @@
+{
+    "DetectorName": "AMOR2026",
+    "DetectorType": "MB",
+    "InstrumentName" : "AMOR",
+    "operationMode": "clustered",
+    "cassettes": 1,
+    "orientation": "horizontal",
+    "Cassette2ElectronicsConfig": [
+        {
+            "ID": 0,
+            "Ring": 0,
+            "Fen": 2,
+            "Hybrid": 0
+        }
+    ],
+    "ChannelMapping": [
+        {
+            "WireASIC": 1,
+            "StripASIC": 0
+        }
+    ],
+    "wires": 32,
+    "strips": 64,
+    "wirePitch_mm": 4,
+    "stripPitch_mm": 4,
+    "bladesInclination_deg": 5.1,
+    "offset1stWires_mm": 10.5,
+    "Monitor": [
+        {
+            "ID": 99,
+            "hardwareType": "GENERIC",
+            "connectionType": "RING",
+            "Ring": 11,
+            "Channel": 1
+        }
+    ]
+}

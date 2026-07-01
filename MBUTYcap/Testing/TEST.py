@@ -78,22 +78,34 @@ if __name__ == '__main__':
     file = 'ESSmask2023_1000pkts.pcapng'
     
     
-    
-    
-    from lib import libMappingR5560 as maps
-    from lib import libClusterR5560 as clu 
-    confFileName  = "CSPEC.json"
-    file          = 'CSPEC1.pcapng'
-    
-    confFileName  = "MIRACLES24.json"
-    file          = 'miracles_source_mask.pcapng'
+    confFileName  = "testClustered.json"
+    file = "sampleData_ClusteredMode.pcapng"
     
     
     
-    from lib import libMapping_old as maps
-    from lib import libCluster as clu 
-    confFileName  = "AMOR.json"
-    file = 'ESSmask2023_1000pkts.pcapng'
+    
+    # from lib import libMappingR5560 as maps
+    # from lib import libClusterR5560 as clu 
+    # confFileName  = "CSPEC.json"
+    # file          = 'CSPEC1.pcapng'
+    
+    # confFileName  = "MIRACLES24.json"
+    # file          = 'miracles_source_mask.pcapng'
+    
+    
+    
+    # from lib import libMappingMG as maps
+    # from lib import libClusterMG as clu 
+    # confFileName  = "MG_EMMA.json"
+    # file = 'MG_2EMMAprototypes.pcapng'
+    
+    
+    # confFileName  = "MGtestVessels2col.json"
+    # file = 'MGtestVess.pcapng'
+    
+    
+    
+    
     
 
    ###############################
@@ -134,7 +146,7 @@ if __name__ == '__main__':
     parameters.VMMsettings.timeResolutionType = 'fine'
     
     parameters.fileManagement.pcapLoadingMethod = 'allocate'
-    # parameters.fileManagement.pcapLoadingMethod = 'quick'
+    parameters.fileManagement.pcapLoadingMethod = 'quick'
     
     parameters.dataReduction.timeWindow = 0.127e-6
     
@@ -254,9 +266,9 @@ if __name__ == '__main__':
     
     # readoutsNEW  = newreader.readouts_vmm_normal
     
-    readoutsNEW  = newreader.readouts_r5560
+    # readoutsNEW  = newreader.readouts_r5560
     
-    # readoutsNEW = newreader.readouts_vmm_clustered
+    readoutsNEW = newreader.readouts_vmm_clustered
 
     readoutsArrayNEW  = readoutsNEW.get_data_frame()
     
@@ -286,9 +298,11 @@ if __name__ == '__main__':
     
     # hitsNEW = map_detector(newreader.readouts_vmm_normal, confignew)
     
-    hitsNEW = map_detector(newreader.readouts_r5560, confignew)
+    # hitsNEW = map_detector(newreader.readouts_r5560, confignew)
     
     # hitsNEW = He3Mapper.map(newreader.readouts_r5560, confignew)
+    
+    hitsNEW = map_detector(newreader.readouts_vmm_clustered, confignew)
     
     hitsArrayNEW = hitsNEW.get_data_frame()
     
@@ -312,7 +326,9 @@ if __name__ == '__main__':
     
     # eventsNEW = VMMNormalClusterer.cluster(hitsNEW, config=confignew, time_window_s=parameters.dataReduction.timeWindow)
     
-    eventsNEW = R5560Clusterer.cluster(hitsNEW, config=confignew, time_window_s=parameters.dataReduction.timeWindow)
+    eventsNEW = VMMClusteredClusterer.cluster(hitsNEW, config=confignew, time_window_s=parameters.dataReduction.timeWindow)
+    
+    # eventsNEW = R5560Clusterer.cluster(hitsNEW, config=confignew, time_window_s=parameters.dataReduction.timeWindow)
     
     
     eventsArrayNEW = eventsNEW.get_data_frame()

@@ -66,7 +66,7 @@ from newLib.hits_containers import (
 # 1 = old penthouse PCB + new interface PCB  (test vessel only, transitional)
 # 2 = new penthouse PCB + new interface PCB  (test vessel only, transitional)
 # Modes 1 and 2 will be removed once all hardware is on the production config.
-MG_SWAP_IT = 0
+MG_SWAP_IT = 3
 
 
 # =============================================================================
@@ -263,6 +263,8 @@ class MBMapper(DetectorMapper):
 
         # Stage 2: Channel mapping (coordinate transform)
         plane, local_index = MBMapper._map_channels(src, valid_mask)
+
+        # assigned_ids = np.where(local_index==-1,-1,assigned_ids)
 
         # Stage 3: Global offset
         # Pass mapping_idx as topo_idx if you want to map as the units appear in the config file, 
@@ -476,7 +478,7 @@ class MGMapper(DetectorMapper):
 
         local_index = np.full(n, -1, dtype='int64')
 
-        is_wire  = valid_mask & (plane == 0)
+        is_wire  = valid_mask & (plane == 0) 
         is_grid  = valid_mask & (plane == 1)
 
         if MG_SWAP_IT == 0:
@@ -486,20 +488,25 @@ class MGMapper(DetectorMapper):
 
             # WIRES: index = 119 - (channel + 64 * asic)
             tempW = np.int64(119) - (channel[is_wire] + np.int64(64) * asic[is_wire])
-            bad_w = tempW >= np.int64(num_wires)
+
+            
+            bad_w = ( (tempW >= np.int64(num_wires)) | (tempW < np.int64(0) ))
             if np.any(bad_w):
                 print(f'Warning: found Wires above {num_wires - 1} in MG column — setting to -1')
             tempW[bad_w] = np.int64(-1)
+            
             local_index[is_wire] = tempW
-
+            
             # GRIDS: index = channel - 10 + 44 * asic
             tempS = channel[is_grid] - np.int64(10) + np.int64(44) * asic[is_grid]
-            bad_s = tempS >= np.int64(num_grids)
+
+            bad_s = ((tempS >= np.int64(num_grids)) | (tempS < np.int64(0)))
             if np.any(bad_s):
                 print(f'Warning: found Grids above {num_grids - 1} in MG column — setting to -1')
             tempS[bad_s] = np.int64(-1)
             local_index[is_grid] = tempS
 
+            
         elif MG_SWAP_IT == 1:
             # -----------------------------------------------------------------
             # Transitional: old penthouse PCB + new interface PCB (test vessel)
@@ -581,6 +588,54 @@ class MGMapper(DetectorMapper):
                 97 - ch_s,
             ]
             local_index[is_grid] = np.select(strip_conditions, strip_choices, default=-1)
+            
+        elif MG_SWAP_IT == 3:
+            # -----------------------------------------------------------------
+            # Transitional: new penthouse PCB + new interface PCB (test vessel)
+            # Preserved verbatim from libMappingMG.mapDetector.mapp1cass
+            # -----------------------------------------------------------------
+            print(f'{WARN}----> WARNING: USING TEMPORARY INTERFACE PCB MAPPING (swapIT=3)!!!{RESET}')
+
+            # ########################################## 
+            # WIRES
+            # ##########
+            ch_w   = channel[is_wire]
+            asic_w = asic[is_wire]
+
+            wire_conditions = [
+                (ch_w >= 16) & (ch_w <= 55) & (asic_w == 1),  # selection1
+                (ch_w >= 40) & (ch_w <= 63) & (asic_w == 0),  # selection2
+                (ch_w >= 0)  & (ch_w <= 16) & (asic_w == 1),  # selection3
+                (ch_w >= 0)  & (ch_w <= 39) & (asic_w == 0)   # selection4
+            ]
+            
+            wire_choices = [
+                ch_w - 16,  # Map for selection1
+                ch_w,       # Map for selection2
+                ch_w + 64,  # Map for selection3
+                ch_w + 80   # Map for selection4
+            ]
+            
+            local_index[is_wire] = np.select(wire_conditions, wire_choices, default=-1)
+
+            # ########################################## 
+            # GRIDS / STRIPS
+            # ##########
+            ch_s   = channel[is_grid]
+            asic_s = asic[is_grid]
+
+            strip_conditions = [
+                (ch_s >= 10) & (ch_s <= 53) & (asic_s == 0),  # selection1
+                (ch_s >= 10) & (ch_s <= 53) & (asic_s == 1)   # selection2
+            ]
+            
+            strip_choices = [
+                53 - ch_s,   # Map for selection1
+                97 - ch_s    # Map for selection2
+            ]
+            
+            local_index[is_grid] = np.select(strip_conditions, strip_choices, default=-1)
+
 
         else:
             raise ValueError(
@@ -600,6 +655,7 @@ class MGMapper(DetectorMapper):
         wire_offset  = unit_rank * num_wires
         global_index = local_index.copy()
         global_index[is_wire] = local_index[is_wire] + wire_offset[is_wire]
+        
         return global_index
 
     @staticmethod
@@ -621,6 +677,8 @@ class MGMapper(DetectorMapper):
         # Stage 2: Channel mapping
         local_index = MGMapper._map_channels(src, valid_mask, plane, num_wires, num_grids)
 
+        assigned_ids = np.where(local_index==-1,-1,assigned_ids)
+        
         # Stage 3: Global offset
         # Pass mapping_idx as topo_idx if you want to map as the units appear in the config file, 
         # or pass as assigned_IDs if you want to map as ID number 
@@ -677,7 +735,7 @@ class He3Mapper(DetectorMapper):
         assigned_ids, _, valid_mask = DetectorMapper._assign_ids_vectorized(
             src, topo, src_third_field='tube'
         )
-
+   
         # # No Stage 2 or 3 for He3 — index IS the tube number
         # index = np.where(valid_mask, src['tube'].astype('int64'), np.int64(-1))
 

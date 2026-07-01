@@ -148,8 +148,9 @@ class hits():
 
         After this call: len(self.matrix) == self.fill_count.
         """
-        valid_mask = self.matrix[:self.fill_count]['ID'] != -1
+        valid_mask = self.matrix[:self.fill_count]['ID'] != -1  
         removed    = int(np.sum(~valid_mask))
+        
 
         if removed > 0:
             self.matrix    = self.matrix[:self.fill_count][valid_mask].copy()
@@ -159,6 +160,9 @@ class hits():
             self.matrix    = self.matrix[:self.fill_count].copy()
             self.fill_count = len(self.matrix)
             print('\t --> no unmapped data in hits ...')
+            
+   
+          
 
     # ------------------------------------------------------------------
     # Debug / inspection
@@ -202,6 +206,22 @@ class hitsVMMnormal(hits):
         ]
         super().__init__(size, subclass_fields)
 
+    def get_data_frame(self) -> pd.DataFrame:
+         """Convert active matrix block to labeled DataFrame for easy inspection."""
+         
+         columns_to_extract = [
+            'pulseT',
+            'prevPT',
+            'timeStamp',
+            'ID',
+            'plane',
+            'index',
+            'adc',
+         ]
+
+         df = pd.DataFrame(self.matrix[columns_to_extract])
+
+         return df
 
 class hitsVMMclustered(hits):
     """
@@ -228,7 +248,26 @@ class hitsVMMclustered(hits):
             ('mult1',  'int64'),
         ]
         super().__init__(size, subclass_fields)
+        
+    def get_data_frame(self) -> pd.DataFrame:
+         """Convert active matrix block to labeled DataFrame for easy inspection."""
+         
+         columns_to_extract = [
+            'pulseT',
+            'prevPT',
+            'timeStamp',
+            'ID',
+            'index0',
+            'index1',
+            'adc0',
+            'adc1',
+            'mult0',
+            'mult1',
+         ]
 
+         df = pd.DataFrame(self.matrix[columns_to_extract])
+
+         return df
 
 class hitsR5560(hits):
     """
@@ -247,7 +286,24 @@ class hitsR5560(hits):
             ('counter2', 'int64'),
         ]
         super().__init__(size, subclass_fields)
+        
+    def get_data_frame(self) -> pd.DataFrame:
+         """Convert active matrix block to labeled DataFrame for easy inspection."""
+         
+         columns_to_extract = [
+            'pulseT',
+            'prevPT',
+            'timeStamp',
+            'ID',
+            'ampA',
+            'ampB',
+            'counter1',
+            'counter2',
+         ]
 
+         df = pd.DataFrame(self.matrix[columns_to_extract])
+
+         return df
 
 class hitsBM(hits):
     """
@@ -263,7 +319,25 @@ class hitsBM(hits):
             ('posY',    'int64'),
         ]
         super().__init__(size, subclass_fields)
+        
+    def get_data_frame(self) -> pd.DataFrame:
+         """Convert active matrix block to labeled DataFrame for easy inspection."""
+         
+         columns_to_extract = [
+            'pulseT',
+            'prevPT',
+            'timeStamp',
+            'ID',
+            'channel',
+            'adc',
+            'type',
+            'posX',
+            'posY',
+         ]
 
+         df = pd.DataFrame(self.matrix[columns_to_extract])
+
+         return df
 
 class hitsIBM(hits):
     """
@@ -281,6 +355,26 @@ class hitsIBM(hits):
         super().__init__(size, subclass_fields)
 
 
+    def get_data_frame(self) -> pd.DataFrame:
+         """Convert active matrix block to labeled DataFrame for easy inspection."""
+         
+         columns_to_extract = [
+            'pulseT',
+            'prevPT',
+            'timeStamp',
+            'ID',
+            'channel',
+            'adc',
+            'type',
+            'debug',
+            'mcaSum',
+         ]
+
+         df = pd.DataFrame(self.matrix[columns_to_extract])
+
+         return df
+     
+        
 # Note: wait to implement fully — structure TBD
 class hitsSKADI(hits):
     """
@@ -299,3 +393,25 @@ class hitsSKADI(hits):
             ('opMode',  'int64'),
         ]
         super().__init__(size, subclass_fields)
+        
+    def get_data_frame(self) -> pd.DataFrame:
+      """Convert active matrix block to labeled DataFrame for easy inspection."""
+      
+      
+      # NOTE TO BE IMPLEMENTED
+      
+      # columns_to_extract = [
+      #    'pulseT',
+      #    'prevPT',
+      #    'timeStamp',
+      #    'ID',
+      #    'channel',
+      #    'adc',
+      #    'type',
+      #    'debug',
+      #    'mcaSum',
+      # ]
+
+      df = pd.DataFrame(self.matrix[columns_to_extract])
+
+      return df        

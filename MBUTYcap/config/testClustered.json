@@ -1,0 +1,31 @@
+{
+    "detectorName": "test1hybrid",
+    "detectorType": "MB",
+    "instrumentName": "ESTIA",
+    "units": 1,
+    "orientation": "vertical",
+    "operationMode": "clustered",
+    "topology": [
+        {
+            "ID": 0,
+            "ring": 0,
+            "fen": 2,
+            "hybrid": 0
+        }
+    ],
+    "wires": 32,
+    "strips": 64,
+    "wirePitch_mm": 4,
+    "stripPitch_mm": 4,
+    "bladesInclination_deg": 5.1,
+    "offset1stWires_mm": 10.5,
+    "monitor": [
+        {
+            "ID": 99,
+            "hardwareType": "generic",
+            "connectionType": "ring",
+            "ring": 11,
+            "channel": 0
+        }
+    ]
+}

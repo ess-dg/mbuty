@@ -1,0 +1,41 @@
+{
+    "DetectorName": "MGtestVessels",
+    "DetectorType": "MG",
+    "InstrumentName": "TREX",
+    "operationMode": "normal",
+    "cassettes": 2,
+    "orientation": "vertical",
+    "Cassette2ElectronicsConfig": [
+        {
+            "ID": 0,
+            "Ring": 0,
+            "Fen": 0,
+            "HybridW": 5,
+            "HybridS": 4
+        },
+        {
+            "ID": 1,
+            "Ring": 0,
+            "Fen": 0,
+            "HybridW": 3,
+            "HybridS": 2
+        }
+    ],
+    "wires": 120,
+    "strips": 88,
+    "wirePitchX_mm": 22,
+    "wirePitchZ_mm": 10,
+    "stripPitchY_mm": 25,
+    "wiresPerRow": 20,
+    "angularOffset_deg": 10,
+    "linearOffset1stWires_mm": 80,
+    "Monitor": [
+        {
+            "ID": 99,
+            "hardwareType": "GENERIC",
+            "connectionType": "RING",
+            "Ring": 11,
+            "Channel": 0
+        }
+    ]
+}

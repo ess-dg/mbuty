@@ -226,7 +226,8 @@ class readoutsVMM(readouts):
             return []
         unique = np.unique(self.matrix[['ring', 'fen', 'hybrid']])
         return [(int(r['ring']), int(r['fen']), int(r['hybrid'])) for r in unique]
-
+    
+ 
 
 class readoutsVMMnormal(readoutsVMM):
     """Multi-Blade / Multi-Grid normal readouts parameterized data profile."""
@@ -385,6 +386,42 @@ class readoutsVMMnormal(readoutsVMM):
         tdc_ns = np.round((ns_per_clock_tick * 3.0) - (tdc_clip * 60.0 / 255.0) ).astype(np.int64)
         
         self.matrix['timeStamp'][m] = self.matrix['timeCoarse'][m] + tdc_ns
+        
+        
+    def get_data_frame(self) -> pd.DataFrame:
+        """
+        Slices out the actively populated data rows and converts the structured 
+        NumPy matrix into a cleanly labeled Pandas DataFrame.
+        
+        Designed for instant, interactive spreadsheet visualization inside 
+        Spyder's Variable Explorer or terminal debugging sessions.
+        """
+        # Explicit Change: Slice exactly up to fill_count to avoid viewing trailing unpopulated rows
+        active_data = self.matrix[:self.fill_count]
+        
+        columns_to_extract = [
+            'pulseT',
+            'prevPT',
+            'timeStamp',
+            'ring',
+            'fen',
+            'vmm',
+            'hybrid',
+            'asic',
+            'channel',
+            'adc',
+            'tdc',
+            'timeCoarse',
+            'g0',
+            'geo',
+            'bc',
+            'oth',
+            'length',
+        ]
+
+        df = pd.DataFrame(active_data[columns_to_extract])
+
+        return df        
 
 
 class readoutsVMMclustered(readoutsVMM):
@@ -418,6 +455,39 @@ class readoutsVMMclustered(readoutsVMM):
         self.remove_g0_rows(0, 'normal hit mode')
 
         super().clean_and_sort(parameters)
+        
+    def get_data_frame(self) -> pd.DataFrame:
+        """
+        Slices out the actively populated data rows and converts the structured 
+        NumPy matrix into a cleanly labeled Pandas DataFrame.
+        
+        Designed for instant, interactive spreadsheet visualization inside 
+        Spyder's Variable Explorer or terminal debugging sessions.
+        """
+        # Explicit Change: Slice exactly up to fill_count to avoid viewing trailing unpopulated rows
+        active_data = self.matrix[:self.fill_count]
+        
+        columns_to_extract = [
+            'pulseT',
+            'prevPT',
+            'timeStamp',
+            'ring',
+            'fen',
+            'hybrid',
+            'channel0',
+            'channel1',
+            'adc0',
+            'adc1',
+            'mult0',
+            'mult1',
+            'g0',
+            'geo',    
+            'length',
+        ]
+
+        df = pd.DataFrame(active_data[columns_to_extract])
+
+        return df           
 
 
 class readoutsR5560(readouts):
@@ -433,6 +503,35 @@ class readoutsR5560(readouts):
         ]
 
         super().__init__(size, hardware_fields)
+        
+    def get_data_frame(self) -> pd.DataFrame:
+        """
+        Slices out the actively populated data rows and converts the structured 
+        NumPy matrix into a cleanly labeled Pandas DataFrame.
+        
+        Designed for instant, interactive spreadsheet visualization inside 
+        Spyder's Variable Explorer or terminal debugging sessions.
+        """
+        # Explicit Change: Slice exactly up to fill_count to avoid viewing trailing unpopulated rows
+        active_data = self.matrix[:self.fill_count]
+        
+        columns_to_extract = [
+            'pulseT',
+            'prevPT',
+            'timeStamp',
+            'ring',
+            'fen',
+            'tube',
+            'ampA',
+            'ampB',
+            'counter1',
+            'counter2',
+            'length',
+        ]
+
+        df = pd.DataFrame(active_data[columns_to_extract])
+
+        return df           
 
 class readoutsBM(readouts):
     """Generic Beam Monitor diagnostic parameterized data profile."""
@@ -445,6 +544,36 @@ class readoutsBM(readouts):
             ('posY',    'int64')
         ]
         super().__init__(size, hardware_fields)
+        
+    def get_data_frame(self) -> pd.DataFrame:
+        """
+        Slices out the actively populated data rows and converts the structured 
+        NumPy matrix into a cleanly labeled Pandas DataFrame.
+        
+        Designed for instant, interactive spreadsheet visualization inside 
+        Spyder's Variable Explorer or terminal debugging sessions.
+        """
+        # Explicit Change: Slice exactly up to fill_count to avoid viewing trailing unpopulated rows
+        active_data = self.matrix[:self.fill_count]
+        
+        columns_to_extract = [
+            'pulseT',
+            'prevPT',
+            'timeStamp',
+            'ring',
+            'fen', 
+            'channel',
+            'adc',
+            'posX',
+            'posY',
+            'type',
+            'length',
+        ]
+
+        df = pd.DataFrame(active_data[columns_to_extract])
+
+        return df          
+        
 
 
 class readoutsIBM(readouts):
@@ -458,6 +587,36 @@ class readoutsIBM(readouts):
             ('mcaSum',   'int64')
         ]
         super().__init__(size, hardware_fields)
+
+    def get_data_frame(self) -> pd.DataFrame:
+        """
+        Slices out the actively populated data rows and converts the structured 
+        NumPy matrix into a cleanly labeled Pandas DataFrame.
+        
+        Designed for instant, interactive spreadsheet visualization inside 
+        Spyder's Variable Explorer or terminal debugging sessions.
+        """
+        # Explicit Change: Slice exactly up to fill_count to avoid viewing trailing unpopulated rows
+        active_data = self.matrix[:self.fill_count]
+        
+        columns_to_extract = [
+            'pulseT',
+            'prevPT',
+            'timeStamp',
+            'ring',
+            'fen', 
+            'channel',
+            'adc',
+            'debug',
+            'mcaSum',
+            'type',
+            'length',
+        ]
+
+        df = pd.DataFrame(active_data[columns_to_extract])
+
+        return df          
+        
 
 
 class readoutsSKADI(readouts):
@@ -474,3 +633,36 @@ class readoutsSKADI(readouts):
             ('opMode',   'int64')
         ]
         super().__init__(size, hardware_fields)
+        
+    def get_data_frame(self) -> pd.DataFrame:
+        """
+        Slices out the actively populated data rows and converts the structured 
+        NumPy matrix into a cleanly labeled Pandas DataFrame.
+        
+        Designed for instant, interactive spreadsheet visualization inside 
+        Spyder's Variable Explorer or terminal debugging sessions.
+        """
+        # Explicit Change: Slice exactly up to fill_count to avoid viewing trailing unpopulated rows
+        active_data = self.matrix[:self.fill_count]
+        
+        columns_to_extract = [
+            'pulseT',
+            'prevPT',
+            'timeStamp',
+            'ring',
+            'fen', 
+            'IP',
+            'sysID',
+            'channel',
+            'column',
+            'row',
+            'adc',
+            'flag',
+            'opMode',
+            'length',
+        ]
+
+        df = pd.DataFrame(active_data[columns_to_extract])
+
+        return df             
+        
