@@ -1,0 +1,98 @@
+"""
+plotting_base.py
+
+Shared plotting utilities and the common BasePlotter scaffolding used by
+every concrete plotter module (plotting_readouts.py, plotting_hits.py,
+plotting_events.py). Split out of plotting.py so those modules don't have
+to import from each other.
+"""
+
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
+import sys, os
+# =============================================================================
+# RUNTIME PATH BOOTSTRAP
+# =============================================================================
+_workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _workspace not in sys.path:
+    sys.path.insert(0, _workspace)
+from newLib.histograms import Histogrammer
+from newLib.colors import WARN, RESET
+
+
+# ============================================================================
+# Shared utilities
+# ============================================================================
+
+class PlotGrid:
+    """Thin wrapper around plt.subplots producing a guaranteed-2D axis grid."""
+
+    def __init__(self, fig_num, n_rows, n_cols=1, fig_size=(12, 12), sharex='col', sharey='row', **kwargs):
+        self.fig, axes = plt.subplots(
+            num=fig_num, figsize=fig_size, nrows=n_rows, ncols=n_cols,
+            sharex=sharex, sharey=sharey, **kwargs,
+        )
+        self.ax = np.atleast_2d(axes).reshape(n_rows, n_cols)
+
+    def unshare_row(self, row_idx):
+        """
+        Detach every axis in `row_idx` from the shared y-axis group so it can
+        carry its own independent y-scale (e.g. a taller PHS-sum panel below
+        rows of channel-resolved 2D images that must stay locked together).
+        """
+        for ax in self.ax[row_idx]:
+            try:
+                ax.get_shared_y_axes().disconnect(ax)
+            except AttributeError:
+                # Fallback for older versions if needed
+                if hasattr(ax, '_shared_axes') and 'y' in ax._shared_axes:
+                    ax._shared_axes['y'].remove(ax)
+            ax.yaxis.set_tick_params(labelleft=True)
+            ax.autoscale(enable=True, axis='y')
+
+
+def log_scale_norm(log_scale: bool):
+    return LogNorm() if log_scale else None
+
+
+def _safe_colorbar(fig, mappable, ax, warning_label: str, **kwargs):
+    """imshow + LogNorm occasionally crashes when a panel is all-zero; degrade gracefully."""
+    try:
+        fig.colorbar(mappable, ax=ax, **kwargs)
+    except Exception:
+        print(f"\n --> {WARN}WARNING: Cannot plot {warning_label} in Log scale, changed to linear{RESET}", end='')
+
+
+# ============================================================================
+# Base plotter
+# ============================================================================
+
+class BasePlotter:
+    """
+    Common scaffolding for every plotter in this module.
+
+    Wraps a single container (readouts / hits / events instance) and exposes
+    `self.matrix` as the active (already-trimmed) data block, plus an
+    `is_empty` flag so every plot method can guard with a one-liner instead
+    of the legacy checkXxxClass() pattern.
+    """
+
+    def __init__(self, container, hist_out_of_bounds: bool = True):
+        self.container = container
+        self.hist = Histogrammer(hist_out_of_bounds)
+        self.is_empty = container.fill_count == 0
+
+        if self.is_empty:
+            print(f'\t{WARN}WARNING: {type(container).__name__} is empty -> skipping plots{RESET}')
+
+    @property
+    def matrix(self):
+        return self.container.matrix[:self.container.fill_count]
+
+    def _has_field(self, name: str) -> bool:
+        return name in self.container.matrix.dtype.names
+
+    def unit_ids(self) -> np.ndarray:
+        """Sorted unique physical unit IDs present in this container (hits/events only)."""
+        return np.unique(self.matrix['ID'])

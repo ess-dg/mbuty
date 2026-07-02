@@ -5,19 +5,8 @@ TEST_plotting_pipeline.py
 
 Runs the modernized vectorized pipeline end-to-end (reader -> mapping ->
 hits -> clustering -> events) on a real pcapng file, then exercises every
-plot method in newLib.plotting / newLib.histograms to visually confirm the
-new plotting layer renders correctly against real data.
-
-This does NOT compare against the legacy engine -- that was already
-validated field-by-field in TEST_clustering_engine.py. This script is purely
-a "does it run and does it look right" pass over the plotting stage.
-
-Scope note: only readouts -> hits -> events (clustering output) is run here.
-The abs-units stage (wavelength, absCoordinate0/1, positionWmm/Smm) has not
-been rewritten yet, so wavelength- and mm-axis-dependent plots are skipped
-rather than plotted against all-zero data. ToF IS populated here via
-events.compute_and_filter_tof(), since that method already exists on the
-base events class.
+plot method across the three new distinct hierarchy files:
+plotting_readouts.py, plotting_hits.py, and plotting_events.py.
 """
 
 import os
@@ -34,19 +23,18 @@ _workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
 
-from lib import libMapping_old as maps
+from lib import libMapping as maps
 from lib import libParameters as para
 
 from newLib import reader
 from newLib.mapping_engine import MBMapper
 from newLib.clustering_engine import VMMNormalClusterer
-from newLib.histograms import VMMAxisSet
-from newLib.plotting import (
-    VMMReadoutsPlotter,
-    BaseReadoutsPlotter,
-    VMMHitsPlotter,
-    VMMEventsPlotter,
-)
+from newLib.histograms import MBAxisSet
+
+# CHANGED: Import from your new targeted plotting hierarchy files instead of the single unified layout
+from newLib.plotting_readouts import BaseReadoutsPlotter, MBReadoutsPlotter
+from newLib.plotting_hits import MBHitsPlotter
+from newLib.plotting_events import MBEventsPlotter
 
 # =============================================================================
 # CONFIGURATION — same environment as TEST_clustering_engine.py
@@ -143,30 +131,36 @@ if __name__ == '__main__':
     # Build the shared axis set for histogramming / plotting
     # -------------------------------------------------------------------------
     section('BUILDING AXIS SET')
-    axis_set = VMMAxisSet(parameters)
+    axis_set = MBAxisSet(parameters)
     print(f'  ax_wires steps={axis_set.ax_wires.steps}, ax_strips steps={axis_set.ax_strips.steps}, '
           f'ax_tof steps={axis_set.ax_tof.steps}')
+
+    # Extract geometry topology list straight out of our loaded config file
+    topology_list = config_new.get('topology', [])
 
     # -------------------------------------------------------------------------
     # READOUTS plots
     # -------------------------------------------------------------------------
     section('READOUTS DIAGNOSTICS')
-    readouts_plotter = VMMReadoutsPlotter(new_reader.readouts_vmm_normal, axis_set=axis_set)
-    hybrids = readouts_plotter.hybrid_table()
-    print(f'  Found {len(hybrids)} (ring, fen, hybrid) triplets in readouts: {hybrids}')
+    # CHANGED: Instantiate the specific Multi-Blade readout child class and pass the required configuration topology list
+    readouts_plotter = MBReadoutsPlotter(new_reader.readouts_vmm_normal, topology=topology_list, axis_set=axis_set)
+    unit_ids = readouts_plotter.topology_unit_ids()
+    print(f'  Configured Unit IDs in topology mapping layout: {unit_ids}')
 
-    readouts_plotter.plot_channels_raw(hybrids)
-    readouts_plotter.plot_timestamps(hybrids)
-    readouts_plotter.plot_adc_vs_channel(hybrids, logScale=True)
+    readouts_plotter.plot_channels_raw(unit_ids)
+    readouts_plotter.plot_timestamps(unit_ids)
+    readouts_plotter.plot_adc_vs_channel(unit_ids, logScale=True)
 
-    BaseReadoutsPlotter(new_reader.readouts_vmm_normal).plot_chopper_resets()
+    BaseReadoutsPlotter(new_reader.readouts_vmm_normal, topology=topology_list).plot_chopper_resets()
     print('  Readouts plots done.')
 
     # -------------------------------------------------------------------------
     # HITS plots
     # -------------------------------------------------------------------------
     section('HITS DIAGNOSTICS')
-    hits_plotter = VMMHitsPlotter(new_hits)
+    # CHANGED: Use the concrete MBHitsPlotter and read physical wire bounds directly from the configuration parameters
+    num_wires_mb = config_new['wires']
+    hits_plotter = MBHitsPlotter(new_hits, num_wires=num_wires_mb)
     hit_unit_ids = hits_plotter.unit_ids()
     print(f'  Found {len(hit_unit_ids)} physical unit IDs in hits: {hit_unit_ids}')
 
@@ -179,23 +173,23 @@ if __name__ == '__main__':
     # EVENTS plots (raw-channel domain only -- abs-units stage not built yet)
     # -------------------------------------------------------------------------
     section('EVENTS DIAGNOSTICS (raw channel domain)')
-    events_plotter = VMMEventsPlotter(new_ev, axis_set)
+    # CHANGED: Instantiate the dedicated MBEventsPlotter concrete layout class
+    events_plotter = MBEventsPlotter(new_ev, axis_set, config_new)
     ev_unit_ids = events_plotter.unit_ids()
     print(f'  Found {len(ev_unit_ids)} physical unit IDs in events: {ev_unit_ids}')
 
     events_plotter.plot_tof(ev_unit_ids)
+    events_plotter.plot_lambda(ev_unit_ids)
     events_plotter.plot_instantaneous_rate(ev_unit_ids)
     events_plotter.plot_multiplicity(ev_unit_ids)
-    events_plotter.plot_phs_global(ev_unit_ids)
-    events_plotter.plot_detector_image(absUnits=False, orientation='vertical')
+    events_plotter.plot_xy_tof(abs_units=False, orientation='vertical')
     events_plotter.plot_phs(ev_unit_ids)
     events_plotter.plot_phs_correlation(ev_unit_ids)
     print('  Events plots done.')
 
     section('SKIPPED (abs-units stage not yet implemented)')
-    print('  plot_wavelength()              -- needs events.wavelength')
     print('  plot_wire_vs_lambda()          -- needs events.wavelength')
-    print('  plot_detector_image(absUnits=True) -- needs absCoordinate0/1')
+    print('  plot_xy_tof(abs_units=True)    -- needs absCoordinate0/1')
     print('  Re-enable these once the abs-units engine is wired in.')
 
     # -------------------------------------------------------------------------

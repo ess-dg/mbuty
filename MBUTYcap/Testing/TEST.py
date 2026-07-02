@@ -37,7 +37,7 @@ from newLib import reader
 
 from newLib.config_validator import validate_config, load_config
 
-from newLib.mapping_engine import MBMapper, MBClustMapper, BMMapper, map_detector, He3Mapper
+from newLib.mapping_engine import MBMapper, MBClustMapper, BMMapper, map_detector, He3Mapper, IBMMonitorMapper, MGMapper
 
 from newLib.clustering_engine import VMMNormalClusterer, VMMClusteredClusterer, R5560Clusterer
 
@@ -78,6 +78,8 @@ if __name__ == '__main__':
     from lib import libAbsUnitsAndLambda as absu
     confFileName  = "AMOR.json"
     file = 'ESSmask2023_1000pkts.pcapng'
+    
+    # file = 'testIBM.pcapng'
     
     
     # confFileName  = "testClustered.json"
@@ -140,8 +142,8 @@ if __name__ == '__main__':
     parameters  = para.parameters(confPathOld+confFileName)
     parameters.loadConfigAndUpdate(config)
 
-   #######################################
-   #######################################   
+   # #######################################
+   # #######################################   
     
     parameters.VMMsettings.sortReadoutsByTimeStampsONOFF = True
 
@@ -155,22 +157,22 @@ if __name__ == '__main__':
     parameters.wavelength.calculateLambda = True
     
 
-    pcap = pcapr.pcapng_reader(filePath+file,NSperClockTick=parameters.clockTicks.NSperClockTick,
-                               MONhw=config.MONmap.hardwareType, MONconn=config.MONmap.connectionType, MONring=parameters.config.MONmap.RingID, 
-                               timeResolutionType=parameters.VMMsettings.timeResolutionType , 
-                               sortByTimeStampsONOFF=parameters.VMMsettings.sortReadoutsByTimeStampsONOFF, 
-                               operationMode=parameters.config.DETparameters.operationMode,pcapLoadingMethod=parameters.fileManagement.pcapLoadingMethod)
+   #  pcap = pcapr.pcapng_reader(filePath+file,NSperClockTick=parameters.clockTicks.NSperClockTick,
+   #                             MONhw=config.MONmap.hardwareType, MONconn=config.MONmap.connectionType, MONring=parameters.config.MONmap.RingID, 
+   #                             timeResolutionType=parameters.VMMsettings.timeResolutionType , 
+   #                             sortByTimeStampsONOFF=parameters.VMMsettings.sortReadoutsByTimeStampsONOFF, 
+   #                             operationMode=parameters.config.DETparameters.operationMode,pcapLoadingMethod=parameters.fileManagement.pcapLoadingMethod)
 
-    readouts = pcap.readouts
+   #  readouts = pcap.readouts
 
-    readoutsArray = readouts.concatenateReadoutsInArrayForDebug()
+   #  readoutsArray = readouts.concatenateReadoutsInArrayForDebug()
     
-    # heartbeats1 = readouts.heartbeats
-    # heartbeats2 = readouts.removeNonESSpacketsHeartbeats(readouts.heartbeats)
+   #  # heartbeats1 = readouts.heartbeats
+   #  # heartbeats2 = readouts.removeNonESSpacketsHeartbeats(readouts.heartbeats)
     
-    readouts.checkChopperFreq()
+   #  readouts.checkChopperFreq()
     
-    readouts.checkInvalidToFsInReadouts()
+   #  readouts.checkInvalidToFsInReadouts()
     
     # parameters.VMMsettings.sortReadoutsByTimeStampsONOFF = True
     
@@ -198,74 +200,74 @@ if __name__ == '__main__':
     #######################################
     # MAPPING 
     
-    md  = maps.mapDetector(readouts, config)
-    md.mappAllCassAndChannelsGlob()
-    hits = md.hits
-    hitsArray  = hits.concatenateHitsInArrayForDebug()
+    # md  = maps.mapDetector(readouts, config)
+    # md.mappAllCassAndChannelsGlob()
+    # hits = md.hits
+    # hitsArray  = hits.concatenateHitsInArrayForDebug()
     
-    parameters.MONitor.MONOnOff = True
+    # parameters.MONitor.MONOnOff = True
     
-    if parameters.MONitor.MONOnOff is True:
+    # if parameters.MONitor.MONOnOff is True:
         
-        MON = maps.mapMonitor(readouts, config)
+    #     MON = maps.mapMonitor(readouts, config)
         
-        if MON.flagMONfound is True:
-            hitsMON = MON.hits
+    #     if MON.flagMONfound is True:
+    #         hitsMON = MON.hits
             
-            MONe = clu.hitsMON2events(hitsMON)
-            eventsMON = MONe.events
+    #         MONe = clu.hitsMON2events(hitsMON)
+    #         eventsMON = MONe.events
             
-            abMON = absu.calculateAbsUnits(eventsMON, parameters, 'MON')
-            abMON.calculateToF(parameters.plotting.removeInvalidToFs)
+    #         abMON = absu.calculateAbsUnits(eventsMON, parameters, 'MON')
+    #         abMON.calculateToF(parameters.plotting.removeInvalidToFs)
             
-            print('\033[1;32m\t MON events: {}\033[1;37m'.format(eventsMON.Nevents[0]))
+    #         print('\033[1;32m\t MON events: {}\033[1;37m'.format(eventsMON.Nevents[0]))
 
-            if parameters.wavelength.calculateLambda is True:
-                abMON.calculateWavelengthMON()
+    #         if parameters.wavelength.calculateLambda is True:
+    #             abMON.calculateWavelengthMON()
 
-                eventsMON = abMON.events
+    #             eventsMON = abMON.events
 
   
 
-    #######################################
-    #######################################
-    # CLUSTERING 
+    # #######################################
+    # #######################################
+    # # CLUSTERING 
     
-    if parameters.config.DETparameters.operationMode == 'normal':
-        ###############################################################################
-        ### clusterize
-        cc = clu.clusterHits(hits,parameters.plotting.showStat)
-        cc.clusterizeManyCassettes(parameters.config.DETparameters.cassInConfig, parameters.dataReduction.timeWindow, parameters.config.DETparameters.type)
-        events = cc.events
-        deltaTimeWS = cc.deltaTimeClusterWSall
+    # if parameters.config.DETparameters.operationMode == 'normal':
+    #     ###############################################################################
+    #     ### clusterize
+    #     cc = clu.clusterHits(hits,parameters.plotting.showStat)
+    #     cc.clusterizeManyCassettes(parameters.config.DETparameters.cassInConfig, parameters.dataReduction.timeWindow, parameters.config.DETparameters.type)
+    #     events = cc.events
+    #     deltaTimeWS = cc.deltaTimeClusterWSall
         
 
-    elif  parameters.config.DETparameters.operationMode == 'clustered':  
-        ### do not clusterize
-        events = clu.events()
-        events.importClusteredHits(hits,parameters.config)
-        deltaTimeWS = None
+    # elif  parameters.config.DETparameters.operationMode == 'clustered':  
+    #     ### do not clusterize
+    #     events = clu.events()
+    #     events.importClusteredHits(hits,parameters.config)
+    #     deltaTimeWS = None
         
-    eventsArray =  events.concatenateEventsInArrayForDebug()
+    # eventsArray =  events.concatenateEventsInArrayForDebug()
     
     
-    #######################################
-    #######################################
+    # #######################################
+    # #######################################
     
-    #######################################
-    #######################################
-    #ABS units 
+    # #######################################
+    # #######################################
+    # #ABS units 
     
-    ab = absu.calculateAbsUnits(events, parameters)
-    ab.calculatePositionAbsUnit()
+    # ab = absu.calculateAbsUnits(events, parameters)
+    # ab.calculatePositionAbsUnit()
     
-    ab.calculateToF(parameters.plotting.removeInvalidToFs)
+    # ab.calculateToF(parameters.plotting.removeInvalidToFs)
     
-    ab.calculateWavelength()
+    # ab.calculateWavelength()
 
-    events = ab.events 
+    # events = ab.events 
     
-    eventsArray =  events.concatenateEventsInArrayForDebug()
+    # eventsArray =  events.concatenateEventsInArrayForDebug()
     
     
     #######################################
@@ -305,8 +307,13 @@ if __name__ == '__main__':
 
     readoutsArrayNEW  = readoutsNEW.get_data_frame()
     
-    MONreadoutsNEW  = newreader.readouts_bm
+    MONreadoutsNEW      = newreader.readouts_bm
+    
+    MONreadoutsNEWi       = newreader.readouts_ibm
+    
     MONreadoutsArrayNEW  = MONreadoutsNEW.get_data_frame()
+    
+    MONreadoutsArrayNEWi  = MONreadoutsNEWi.get_data_frame()
     
     # bb = readoutsNEWc.matrix['adc'] - readouts.ADC
     
@@ -330,15 +337,24 @@ if __name__ == '__main__':
     #######################################
     # MAPPING 
     
-    hitsNEW = map_detector(newreader.readouts_vmm_normal, confignew)
+    hitsNEW = MBMapper.map(newreader.readouts_vmm_normal, confignew)
     
-    # hitsNEW = map_detector(newreader.readouts_r5560, confignew)
-    
+    # hitsNEW = MGMapper.map(newreader.readouts_vmm_normal, confignew)
+ 
     # hitsNEW = He3Mapper.map(newreader.readouts_r5560, confignew)
     
-    # hitsNEW = map_detector(newreader.readouts_vmm_clustered, confignew)
+    # hitsNEW = MBClustMapper.map(newreader.readouts_vmm_clustered, confignew)
+
     
     hitsArrayNEW = hitsNEW.get_data_frame()
+    
+    MONeventsNEW = BMMapper.map(newreader.readouts_bm, confignew)
+    
+    # MONeventsNEW = IBMMonitorMapper.map(newreader.readouts_ibm, confignew)
+    
+    MONeventsArrayNEW = MONeventsNEW.get_data_frame()
+    
+    
     
     
     # MONhitsNEW = map_detector(newreader.readouts_bm, confignew)

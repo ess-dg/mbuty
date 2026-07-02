@@ -266,7 +266,7 @@ def validate_monitor_configuration(config: dict) -> None:
     # --- ring != 11 triggers a non-fatal warning only ---------------------------
     if connection_type == "ring":
         if ring_id != 11:
-            print(f"\n\t{WARN}onfig File WARNING ---> MON mode {connection_type} selected with RING != 11 (ring {ring_id} found in config file)\n{RESET}", end='')
+            print(f"\n\t{WARN}Config File WARNING ---> MON mode {connection_type} selected with RING != 11 (ring {ring_id} found in config file)\n{RESET}", end='')
             time.sleep(1)
 
 # =============================================================================

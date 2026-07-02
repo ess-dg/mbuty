@@ -81,11 +81,11 @@ class BaseReader:
         self.instrument_name      = config.get('instrumentName')
         self.detector_type        = config.get('detectorType')
 
-        # ---- beam-monitor routing — extracted from config -------------------
-        _mon          = config.get('Monitor', [{}])[0]
+        # # ---- beam-monitor routing — extracted from config -------------------
+        _mon          = config.get('monitor', [{}])[0]
         self.mon_hw   = _mon.get('hardwareType', 'generic')
-        self.mon_conn = _mon.get('connectionType', 'ring')
-        self.mon_ring = int(_mon.get('Ring', 11))
+        # self.mon_conn = _mon.get('connectionType', 'ring')
+        # self.mon_ring = int(_mon.get('Ring', 11))
 
         # ---- ESS header geometry (resolved during scan, not hardcoded) ------
         # Populated by extract_common_ess_header() on the first valid packet.
@@ -345,22 +345,23 @@ class BaseReader:
             # 8. Ring extraction for BM routing (first readout byte, all packets
             #    from one device share the same ring so first byte is sufficient)
             # ------------------------------------------------------------------
-            physical_ring = np.int64(
-                int.from_bytes(packet_data[data_start_idx:data_start_idx + 1], byteorder='little')
-            )
-            ring = np.int64(physical_ring // 2)
+            # physical_ring = np.int64(
+            #     int.from_bytes(packet_data[data_start_idx:data_start_idx + 1], byteorder='little')
+            # )
+            # ring = np.int64(physical_ring // 2)
 
-            # ------------------------------------------------------------------
-            # 9. BM routing conditions 
-            # ------------------------------------------------------------------
-            is_lemo_mode = (self.mon_conn == 'lemo' and ring >= 11)
-            is_ring_mode = (self.mon_conn == 'ring'  and ring == self.mon_ring)
-            is_bm_packet = is_lemo_mode or is_ring_mode
+            # # ------------------------------------------------------------------
+            # # 9. BM routing conditions 
+            # # ------------------------------------------------------------------
+            # is_lemo_mode = (self.mon_conn == 'lemo'  and ring >= 11)
+            # is_ring_mode = (self.mon_conn == 'ring'  and ring == self.mon_ring)
+            # is_bm_packet = is_lemo_mode or is_ring_mode 
 
             # ------------------------------------------------------------------
             # 10. Select destination container and decoder
             # ------------------------------------------------------------------
-            if is_bm_packet:
+            if hw == 'BM':
+                
                 if self.mon_hw == 'generic':
                     dest_container = self.readouts_bm
                     active_decoder = bm_decoder
@@ -389,13 +390,13 @@ class BaseReader:
                     sys.exit()
                 
 
-            elif hw == 'BM':
-                # instrID == BM but ring < 11 — treat as detector with one-shot warning.
-                if not self._warned_bm:
-                    print(f'\n {WARN}WARNING ---> BM data found in ring < 11, treated as a detector and HW generic (not IBM)! {RESET}')
-                    self._warned_bm = True
-                dest_container = self.readouts_bm
-                active_decoder = bm_decoder
+            # elif hw == 'BM':
+            #     # instrID == BM but ring < 11 — treat as detector with one-shot warning.
+            #     if not self._warned_bm:
+            #         print(f'\n {WARN}WARNING ---> BM data found in ring < 11, treated as a detector and HW generic (not IBM)! {RESET}')
+            #         self._warned_bm = True
+            #     dest_container = self.readouts_ibm
+            #     active_decoder = ibm_decoder
 
             elif hw == 'R5560':
                 dest_container = self.readouts_r5560

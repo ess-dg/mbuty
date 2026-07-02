@@ -53,8 +53,11 @@ from newLib.hits_containers import (
     hitsVMMnormal,
     hitsVMMclustered,
     hitsR5560,
-    hitsBM,
-    hitsIBM,
+)
+
+from newLib.events_containers import (
+    eventsBM,
+    eventsIBM,
 )
 
 
@@ -770,51 +773,71 @@ class BaseMonitorMapper:
     """
     Abstract mother class for Beam Monitor mappers.
     Validates channels and utilizes standard hits.absorb() contract.
+    This maps readoutsa directly into events 
     """
     @staticmethod
     def _prepare_base_fields(readouts, config: dict) -> tuple:
-        n = readouts.fill_count
+        n   = readouts.fill_count
         src = readouts.matrix[:n]
         
-        mon_cfg = config['monitor'][0]
-        mon_id = int(mon_cfg['ID'])
+        mon_cfg     = config['monitor'][0]
+        mon_id      = int(mon_cfg['ID'])
+        mon_ring    = int(mon_cfg['ring'])
         mon_channel = int(mon_cfg['channel'])
 
         # Create target channel mask extraction
-        target_mask = src['channel'] == np.int64(mon_channel)
+        target_mask = (src['channel'] == np.int64(mon_channel)) & (src['ring'] == np.int64(mon_ring))
         count = np.sum(target_mask)
+        
+        # print(target_mask)
 
         # Vectorized Warning Checks
         if n > 0:
-            unique_channels = np.unique(src['channel'])
+            unique_pairs = np.unique(np.stack((src['channel'], src['ring']), axis=1), axis=0)
+            num_unique = len(unique_pairs)
             
-            # CASE 1: Multiple monitor channels found
-            if len(unique_channels) > 1:
-                print(f"\t \033[1;33mWARNING: Found {len(unique_channels)} monitor channels in data. "
-                      f"MBUTY supports only one Monitor. Mapping channel {mon_channel} per config, "
-                      f"but data contains channels: {unique_channels.tolist()}\033[1;37m")
+            # CASE 1: Multiple monitor channels/rings found
+            if num_unique > 1:
+                # Format pairs nicely for the print statement, e.g., [(ch1, r1), (ch2, r2)]
+                pairs_list = [tuple(pair) for pair in unique_pairs]
+                
+                formatted_pairs = [(int(ch), int(rg)) for ch, rg in pairs_list]
+                
+                print(
+                    f"\t {WARN}WARNING: Found {num_unique} monitors in data. "
+                    f"MBUTY supports only one Monitor. Mapping channel {mon_channel} and ring {mon_ring} per config, "
+                    f"but data contains pairs (channel, ring): {formatted_pairs}{RESET}"
+)
             
-            # CASE 2: Mismatch -> Data exists, but nothing matches the configured channel
-            elif count == 0 and len(unique_channels) == 1:
-                wrong_ch = unique_channels[0]
-                # Note: Ring context can be dynamically read from src['ring'][0] if needed
-                wrong_ring = src['ring'][0]
-                print(f"\t \033[1;33mWARNING: mismatch → One monitor candidate found, but it is NOT the selected one in config file. "
-                      f"Data contains Ring {wrong_ring} and Channel {wrong_ch}.\033[1;37m")
-
+            # CASE 2: Mismatch -> Data exists, but nothing matches the configured channel/ring
+            if count == 0 and num_unique > 0:
+                # Grab the first actual pair present in the data to show the user
+                wrong_ch, wrong_ring = unique_pairs[0]
+                
+                print(f"\t {WARN}WARNING: mismatch → Candidates found, but it is NOT the selected one in config file ring {mon_ring} and channel {mon_channel}. "
+                      f"Data contains Channel {wrong_ch} and Ring {wrong_ring}.{RESET}")
+            
+        else:
+            print(f'\t {WARN}No MONITOR data found in data file{RESET}')
+            
+            
         # Assign real ID to configured rows; unconfigured rows stay at -1 to be cleanly dropped
         assigned_ids = np.where(target_mask, np.int64(mon_id), np.int64(-1))
 
         computed_base = {
             'ID':       assigned_ids,
-            'type':     src['type'],
-            'channel':  src['channel'],
-            'adc':      src['adc'],
+            'type':     src['type'],        
+            'pulseHeight0':      src['adc'],
         }
         
         return n, src, computed_base
-
-
+    
+    
+    def _copy_duration_and_IDs(readouts, ev) -> tuple:
+        
+        ev.durations     = readouts.durations.copy()
+        ev.instrumentIDs = readouts.instrumentIDs.copy()
+         
 # ---------------------------------------------------------------------------
 # Derived Concrete Monitor Mappers
 # ---------------------------------------------------------------------------
@@ -822,33 +845,40 @@ class BaseMonitorMapper:
 class BMMapper(BaseMonitorMapper):
     """Maps isolated readoutsBM into hitsBM using the standard absorb lifecycle."""
     @staticmethod
-    def map(readouts, config: dict) -> hitsBM:
-        n, src, computed = BaseMonitorMapper._prepare_base_fields(readouts, config)
+    def map(readouts, config: dict) -> eventsBM:
         
-        computed['posX'] = src['posX']
-        computed['posY'] = src['posY']
+        print(f'{INFO}Mapping Beam Monitor readouts into events ... {RESET}')
+        
+        n, src, computed = BaseMonitorMapper._prepare_base_fields(readouts, config)
 
-        h = hitsBM(size=n)
-        h.absorb(computed, src)
-        h.durations = readouts.durations.copy()
-        h.instrumentIDs = readouts.instrumentIDs.copy()
-        return h
+        computed['coordinate0'] = src['posX']
+        computed['coordinate1'] = src['posY']
+
+        ev = eventsBM(size=n)
+        ev.absorb(computed, src)
+        BaseMonitorMapper._copy_duration_and_IDs(readouts, ev)
+        
+        return ev
 
 
 class IBMMonitorMapper(BaseMonitorMapper):
     """Maps isolated readoutsIBM into hitsIBM using the standard absorb lifecycle."""
     @staticmethod
-    def map(readouts, config: dict) -> hitsIBM:
+    def map(readouts, config: dict) -> eventsIBM:
+        
+        print(f'{INFO}Mapping I-Beam Monitor readouts into events ... {RESET}')
+        
         n, src, computed = BaseMonitorMapper._prepare_base_fields(readouts, config)
         
-        computed['debug']  = src['debug']
-        computed['mcaSum'] = src['mcaSum']
+        # computed['debug']  = src['debug']
+        # computed['mcaSum'] = src['mcaSum']
 
-        h = hitsIBM(size=n)
-        h.absorb(computed, src)
-        h.durations = readouts.durations.copy()
-        h.instrumentIDs = readouts.instrumentIDs.copy()
-        return h
+        ev = eventsIBM(size=n)
+        ev.absorb(computed, src)
+        BaseMonitorMapper._copy_duration_and_IDs(readouts, ev)
+  
+        
+        return ev
 
 
 # =============================================================================

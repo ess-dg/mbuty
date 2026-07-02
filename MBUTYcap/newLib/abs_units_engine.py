@@ -76,7 +76,7 @@ class BaseAbsUnitsCalculator:
         otherwise uses distance alone.
         Writes result into matrix['wavelength'].
         """
-        print(f"\t {INFO}Calculating neutron wavelength ... {RESET}", end='')
+        print(f"{INFO}Calculating neutron wavelength ... {RESET}", end='')
 
         m     = self.events.matrix[:self.events.fill_count]
         tof_s = m['ToF'].astype('float64') / 1e9  # ns -> s
@@ -103,18 +103,21 @@ class BaseAbsUnitsCalculator:
 
         wavelength = _Tof2LambdaConverter.tof_to_lambda(distance_m, tof_s)
         self.events.matrix['wavelength'][:self.events.fill_count] = np.round(wavelength, 2)
-        print('done')
+        # print('done')
 
     def process_pipeline(self, remove_invalid_tofs: bool = False) -> None:
         """Convenience execution loop: triggers timing alignment, positions, then wavelength."""
         # 1. Delegate core timeline matching directly to the container method
+        
+        print(f"{INFO}Calculating neutron ToF/ToA ... {RESET}", end='')
         self.events.compute_and_filter_tof(remove_invalid=remove_invalid_tofs)
         
         # 2. Run geometric spatial conversions
         self.calculate_positions()
         
         # 3. Process spectroscopic mapping
-        self.calculate_wavelength()
+        if self.parameters.wavelength.calculateLambda is True:
+            self.calculate_wavelength()
 
 
 # =============================================================================
@@ -131,7 +134,7 @@ class MBAbsUnitsCalculator(BaseAbsUnitsCalculator):
     """
 
     def calculate_positions(self) -> None:
-        print(f"\t {INFO}Calculating MB positions ... {RESET}", end='')
+        print(f"{INFO}Calculating MB absolute coordinates ... {RESET}")
 
         m           = self.events.matrix[:self.events.fill_count]
         n_wires     = int(self.config['wires'])
@@ -149,9 +152,12 @@ class MBAbsUnitsCalculator(BaseAbsUnitsCalculator):
         has_strip  = m['coordinate1'] >= 0
 
         # Only perform modulo mapping on rows containing a valid wire coordinate
-        wire_local = np.zeros(len(m), dtype='int64')
-        if np.any(has_wire):
-            wire_local[has_wire] = np.mod(m['coordinate0'][has_wire].astype('int64'), n_wires)
+        
+        # wire_local = np.where(has_wire, np.mod(m['coordinate0'].astype('int64'), n_wires), 0)
+        
+        # Replace NaN with a dummy value (e.g., -1) so the int64 cast doesn't complain
+        safe_coord = np.nan_to_num(m['coordinate0'], nan=-1)
+        wire_local = np.where(has_wire, np.mod(safe_coord.astype('int64'), n_wires), 0)
 
         # absCoordinate0: X along blade (mm)
         x_mm = np.full(len(m), np.nan, dtype='float64')
@@ -176,7 +182,7 @@ class MBAbsUnitsCalculator(BaseAbsUnitsCalculator):
         self.events.matrix['absCoordinate0'][:self.events.fill_count] = x_mm
         self.events.matrix['absCoordinate1'][:self.events.fill_count] = strip_mm
         self.events.matrix['absCoordinate2'][:self.events.fill_count] = z_mm
-        print('done')
+        # print('done')
 
 
 # =============================================================================
@@ -193,7 +199,7 @@ class MGAbsUnitsCalculator(BaseAbsUnitsCalculator):
     """
 
     def calculate_positions(self) -> None:
-        print(f"\t {INFO}Calculating MG positions ... {RESET}", end='')
+        print(f"{INFO}Calculating MG absolute coordinates  ... {RESET}")
 
         m             = self.events.matrix[:self.events.fill_count]
         n_wires       = int(self.config['wires'])
@@ -240,7 +246,7 @@ class MGAbsUnitsCalculator(BaseAbsUnitsCalculator):
         self.events.matrix['absCoordinate0'][:self.events.fill_count] = x_mm
         self.events.matrix['absCoordinate1'][:self.events.fill_count] = y_mm
         self.events.matrix['absCoordinate2'][:self.events.fill_count] = z_mm
-        print('done')
+        # print('done')
 
 # =============================================================================
 # R5560 Abs Units Calculator
@@ -255,7 +261,7 @@ class R5560AbsUnitsCalculator(BaseAbsUnitsCalculator):
     """
 
     def calculate_positions(self) -> None:
-        print(f"\t {INFO}Calculating R5560 positions ... {RESET}", end='')
+        print(f"{INFO}Calculating absolute coordinates  ... {RESET}")
 
         m            = self.events.matrix[:self.events.fill_count]
         tube_length  = float(self.config['tubeLength'])   # mm
@@ -266,7 +272,7 @@ class R5560AbsUnitsCalculator(BaseAbsUnitsCalculator):
 
         self.events.matrix['absCoordinate0'][:self.events.fill_count] = pos_mm
         self.events.matrix['absCoordinate1'][:self.events.fill_count] = tube_mm
-        print('done')
+        # print('done')
         
 # =============================================================================
 # Standalone Monitor Function
@@ -274,7 +280,7 @@ class R5560AbsUnitsCalculator(BaseAbsUnitsCalculator):
 
 def calculate_monitor_wavelength(monitor_events, parameters) -> None:
     """Wavelength for monitor events — fixed distance, no depth correction."""
-    print(f"\t {INFO}Calculati ng monitor wavelength ... {RESET}", end='')
+    print(f"{INFO}Calculati ng monitor wavelength ... {RESET}", end='')
 
     m          = monitor_events.matrix[:monitor_events.fill_count]
     tof_s      = m['ToF'].astype('float64') / 1e9
@@ -282,4 +288,4 @@ def calculate_monitor_wavelength(monitor_events, parameters) -> None:
 
     wavelength = _Tof2LambdaConverter.tof_to_lambda(distance_m, tof_s)
     monitor_events.matrix['wavelength'][:monitor_events.fill_count] = np.round(wavelength, 2)
-    print('done')
+    # print('done')

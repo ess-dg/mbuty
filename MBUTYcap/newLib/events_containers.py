@@ -447,28 +447,66 @@ class eventsR5560(events):
 
 class eventsBM(events):
     """Generic Beam Monitor passthrough event container."""
-    def __init__(self, size: int = 0):
+    def __init__(self, size: int = 0): 
+ 
         subclass_fields = [
             ('type',    'int64'),
-            ('channel', 'int64'),
-            ('adc',     'int64'),
-            ('posX',    'int64'),
-            ('posY',    'int64'),
+            # ('adc',     'int64'),
+            # ('posX',    'int64'),
+            # ('posY',    'int64'),
         ]
         super().__init__(size, subclass_fields)
+        
+    def print_stats(self) -> None:
+        print(f'{OK}\t MON events: {self.fill_count}{RESET}')
+
+
 
 ###############################################################################
 class eventsIBM(events):
     """IBM-variant Beam Monitor passthrough event container."""
-    def __init__(self, size: int = 0):
-        subclass_fields = [
+    
+    def __init__(self, size: int):
+        
+        # Core base fields common to every physics event.
+        all_fields = [
+            ('ID',           'int64'),   # Physical unit ID (cassette, column, tube)
+            ('timeStamp',    'int64'),   # Reconstructed event timestamp
+            ('pulseT',       'int64'),   # Associated pulse heartbeat timeline
+            ('prevPT',       'int64'),   # Associated previous pulse heartbeat timeline
+              
+            ('pulseHeight0', 'int64'),   # Pulse height corresponding to coordinate0 (wires or tubes)
+             
+            ('ToF',            'int64'),   # Time-of-Flight (nanoseconds, populated by abs units)
+            ('wavelength',     'float64'), # Neutron wavelength (Angstrom, populated by abs units) 
+            
+            ('timeBetweenEvents', 'int64'),
             ('type',    'int64'),
-            ('channel', 'int64'),
-            ('debug',   'int64'),
-            ('adc',     'int64'),
-            ('mcaSum',  'int64'),
+            
         ]
-        super().__init__(size, subclass_fields)
+        
+        self.instrumentIDs = set() 
+        
+        full_schema = np.dtype(all_fields)
+
+        # Preallocate core memory matrix with a -1 sentinel for unset/rejected rows
+        self.matrix = np.full(size, -1, dtype=full_schema)
+
+        # Zero-initialize timing and downstream units fields
+        _zero_fields = (
+            'timeStamp', 'pulseT', 'prevPT',
+            'ToF', 'wavelength', 
+        )
+        for field in _zero_fields:
+            if field in full_schema.names:
+                self.matrix[field] = 0
+
+        self.fill_count: int = 0
+        self.durations = np.zeros(0, dtype='int64')
+ 
+        
+    def print_stats(self) -> None:
+        print(f'{OK}\t MON events: {self.fill_count}{RESET}')        
 
 ###############################################################################
 class eventsSKADI(events):

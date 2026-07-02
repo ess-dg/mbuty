@@ -61,7 +61,7 @@ class readouts():
         active_data = self.matrix[:self.fill_count]
         return pd.DataFrame(active_data)
 
-    def clean_and_sort(self, parameters=None) -> None:
+    def clean_and_sort(self, parameters=None, config=None) -> None:
         """
         Sort matrix by timeStamp if enabled by configuration, and calculate duration.
         Subclasses that need to filter rows (e.g. VMM) override this method,
@@ -75,6 +75,11 @@ class readouts():
         # Check for multiple instrument ids and give warning 
         if len(self.instrumentIDs) > 1:
             print(f"\n{WARN}WARNING: Multiple instrument IDs detected within {self.__class__.__name__}: {list(self.instrumentIDs)} — data stream may be corrupted!{RESET}\n")
+
+
+
+# add clean other IDs with ID as vector 
+
 
         sort_enabled = getattr(getattr(parameters, 'VMMsettings', None), 'sortReadoutsByTimeStampsONOFF', False)
         if sort_enabled:
@@ -544,6 +549,41 @@ class readoutsBM(readouts):
             ('posY',    'int64')
         ]
         super().__init__(size, hardware_fields)
+
+    def clean_and_sort(self, parameters=None, config=None) -> None:
+        
+        # _mon     = config.get('Monitor', [{}])[0]
+        # mon_hw   = _mon.get('hardwareType', 'generic')
+        # self.mon_conn = _mon.get('connectionType', 'ring')
+        # self.mon_ring = int(_mon.get('Ring', 11))
+      
+        unique_types = np.unique(self.matrix['type'])
+        
+        types_list_str = ", ".join([f"0x{t:02X}" if isinstance(t, (int, np.integer)) else str(t) for t in unique_types])
+        
+        valid_types = np.isin(self.matrix['type'], [0x01, 0x02])
+  
+        if np.any(~valid_types):
+            removed    = int(np.sum(~valid_types))
+            if removed > 0:
+                self.matrix     = self.matrix[:self.fill_count][valid_types].copy()
+                self.fill_count = len(self.matrix)
+                 
+                if self.fill_count == 0 :
+                    print(f'\t {WARN}WARNING ---> BM data found but is IBM or others ({{{types_list_str}}}) whereas you selected GENERIC in config file! {RESET}')
+                else:
+                    print(f'\t {WARN}WARNING ---> GENERIC BM data mixed with other types: {{{types_list_str}}} then removed {removed}.{RESET}')
+            
+            
+        # if len(unique_types) == 1:
+        #     if unique_types[0] == 0x03:
+        #         print(f'\t {WARN}WARNING ---> BM data found but is IBM whereas you selected GENERIC in config file! {RESET}')
+   
+        # elif len(unique_types) > 1: 
+        #     types_list_str = ", ".join([f"0x{t:02X}" if isinstance(t, (int, np.integer)) else str(t) for t in unique_types])
+        #     print(f'\t {WARN}WARNING ---> Multiple BM types found in data {{{types_list_str}}} {RESET}')
+            
+        super().clean_and_sort(parameters, config)
         
     def get_data_frame(self) -> pd.DataFrame:
         """
@@ -587,6 +627,35 @@ class readoutsIBM(readouts):
             ('mcaSum',   'int64')
         ]
         super().__init__(size, hardware_fields)
+        
+    def clean_and_sort(self, parameters=None, config=None) -> None:
+        
+        # _mon     = config.get('Monitor', [{}])[0]
+        # mon_hw   = _mon.get('hardwareType', 'generic')
+        # self.mon_conn = _mon.get('connectionType', 'ring')
+        # self.mon_ring = int(_mon.get('Ring', 11))
+        
+        unique_types = np.unique(self.matrix['type'])
+        
+        types_list_str = ", ".join([f"0x{t:02X}" if isinstance(t, (int, np.integer)) else str(t) for t in unique_types])
+        
+        valid_types = self.matrix['type'] == 0x03
+  
+        if np.any(~valid_types):
+            removed    = int(np.sum(~valid_types))
+            if removed > 0:
+                self.matrix     = self.matrix[:self.fill_count][valid_types].copy()
+                self.fill_count = len(self.matrix)
+                
+                
+                 
+                if self.fill_count == 0 :
+                    print(f'\t {WARN}WARNING ---> BM data found but is GENERIC or others ({{{types_list_str}}}) whereas you selected IBM in config file! {RESET}')
+                else:
+                    print(f'\t {WARN}WARNING ---> IBM data mixed with other types: {{{types_list_str}}} then removed {removed}.{RESET}')
+                   
+        super().clean_and_sort(parameters, config)
+
 
     def get_data_frame(self) -> pd.DataFrame:
         """

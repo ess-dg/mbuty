@@ -415,4 +415,6 @@ class IBMMonitorDecoder(BaseHardwareDecoder):
         # We divide the total charge ('temp') by the total trigger count ('mcaSum') 
         # to log this average pulse height and maintain historical pipeline compatibility.
         # ---------------------------------------------------------------------
-        dest_block['adc'] = np.where(mcaSum > 0, temp // mcaSum, np.int64(0))
+        # dest_block['adc'] = np.where(mcaSum > 0, temp // mcaSum, np.int64(0))
+        dest_block['adc'] = np.floor_divide(temp, mcaSum, where=(mcaSum > 0), out=np.zeros_like(temp, dtype=np.int64))
+        
