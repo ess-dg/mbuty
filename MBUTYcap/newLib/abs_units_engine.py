@@ -149,7 +149,9 @@ class MBAbsUnitsCalculator(BaseAbsUnitsCalculator):
         has_strip  = m['coordinate1'] >= 0
 
         # Only perform modulo mapping on rows containing a valid wire coordinate
-        wire_local = np.where(has_wire, np.mod(m['coordinate0'].astype('int64'), n_wires), 0)
+        wire_local = np.zeros(len(m), dtype='int64')
+        if np.any(has_wire):
+            wire_local[has_wire] = np.mod(m['coordinate0'][has_wire].astype('int64'), n_wires)
 
         # absCoordinate0: X along blade (mm)
         x_mm = np.full(len(m), np.nan, dtype='float64')

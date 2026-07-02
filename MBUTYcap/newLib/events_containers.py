@@ -169,8 +169,8 @@ class events():
             invalid2 = tof < 0
             n_invalid2 = int(np.sum(invalid2))
             if n_invalid2 > 0:
-                print(f"\n {WARN}\t WARNING ---> {n_invalid1 - n_invalid2} corrected -> {n_invalid2} ToFs (out of {self.fill_count}) are still invalid after correction (with both PulseT and PrevPT), set to -1! {RESET}")
-                tof[invalid2] = -1
+                print(f"\n {WARN}\t WARNING ---> {n_invalid1 - n_invalid2} corrected -> {n_invalid2} ToFs (out of {self.fill_count}) are still invalid after correction (with both PulseT and PrevPT), set to NaN! {RESET}")
+                tof[invalid2] = np.ma.masked # same as np.nan for int64 instead of floats
 
         # Save calculations directly to the structural fields
         self.matrix['ToF'][:self.fill_count] = tof

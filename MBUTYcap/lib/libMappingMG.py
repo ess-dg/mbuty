@@ -15,7 +15,7 @@ import copy
 
 try:
 ####### if you run default
-    from lib import libMapping_old 
+    from lib import libMapping
     from lib import libReadPcapng as pcapr
 
 except ImportError:
@@ -30,8 +30,8 @@ except ImportError:
 ###############################################################################
 ###############################################################################   
 """ Acts as a pointer/wrapper for the central library """
-mapMonitor           = libMapping_old.mapMonitor
-extractPartialConfig = libMapping_old.extractPartialConfig
+mapMonitor           = libMapping.mapMonitor
+extractPartialConfig = libMapping.extractPartialConfig
 # checkBMsettings      = libMapping.checkBMsettings
 
 # OR 
@@ -96,71 +96,71 @@ class read_json_config():
     
     def __init__(self, configFile_PathAndFileName, printFlag = True):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping_old.read_json_config.__init__(self, configFile_PathAndFileName, printFlag) 
+        return libMapping.read_json_config.__init__(self, configFile_PathAndFileName, printFlag) 
 
     def openFile(self,configFile_PathAndFileName):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping_old.read_json_config.openFile(self,configFile_PathAndFileName)    
+        return libMapping.read_json_config.openFile(self,configFile_PathAndFileName)    
 
     def __del__(self):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping_old.read_json_config.__del__(self)  
+        return libMapping.read_json_config.__del__(self)  
         
     def __deepcopy__(self, memo):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping_old.read_json_config.__deepcopy__(self, memo)  
+        return libMapping.read_json_config.__deepcopy__(self, memo)  
         
     def dprint(self, msg): 
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping_old.read_json_config.dprint(self, msg)
+        return libMapping.read_json_config.dprint(self, msg)
     
     def print_DETname(self): 
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping_old.read_json_config.print_DETname(self)
+        return libMapping.read_json_config.print_DETname(self)
  
     def print_check_operationMode(self):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping_old.read_json_config.print_check_operationMode(self)
+        return libMapping.read_json_config.print_check_operationMode(self)
 
     def get_DETname(self):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping_old.read_json_config.get_DETname(self)
+        return libMapping.read_json_config.get_DETname(self)
     
     def get_DETtype(self):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping_old.read_json_config.get_DETtype(self)
+        return libMapping.read_json_config.get_DETtype(self)
     
     def get_DETmap(self):  
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping_old.read_json_config.get_DETmap(self)
+        return libMapping.read_json_config.get_DETmap(self)
     
     def get_instrumName(self):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping_old.read_json_config.get_instrumName(self)
+        return libMapping.read_json_config.get_instrumName(self)
     
     def get_DETcassettesInConfig(self):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping_old.read_json_config.get_DETcassettesInConfig(self)
+        return libMapping.read_json_config.get_DETcassettesInConfig(self)
     
     def checkRing11(self):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping_old.read_json_config.checkRing11(self)
+        return libMapping.read_json_config.checkRing11(self)
     
     def check_cassetteLabelling(self):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping_old.read_json_config.check_cassetteLabelling(self)
+        return libMapping.read_json_config.check_cassetteLabelling(self)
     
     def get_MONmap(self):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping_old.read_json_config.get_MONmap(self)
+        return libMapping.read_json_config.get_MONmap(self)
     
     def checkBMsettings(self,hardwareType,connectionType,RingID):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping_old.read_json_config.checkBMsettings(self,hardwareType,connectionType,RingID)
+        return libMapping.read_json_config.checkBMsettings(self,hardwareType,connectionType,RingID)
     
     def verifyTypeWithInstrument(self,instr,detType):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping_old.read_json_config.verifyTypeWithInstrument(self,instr,detType)
+        return libMapping.read_json_config.verifyTypeWithInstrument(self,instr,detType)
 
         
     def checkOpModeMG(self):
@@ -225,17 +225,17 @@ class read_json_config():
 class mapDetector():
     def __init__(self, readouts, config):
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping_old.mapDetector.__init__(self, readouts, config)
+        return libMapping.mapDetector.__init__(self, readouts, config)
 
            
     def initCatData(self):    # debug
         """ Acts as a pointer/wrapper for the central library """
-        return libMapping_old.mapDetector.initCatData(self)
+        return libMapping.mapDetector.initCatData(self)
     
             
     def dprint(self, msg):
        """ Acts as a pointer/wrapper for the central library """
-       return libMapping_old.mapDetector.dprint(self,msg)
+       return libMapping.mapDetector.dprint(self,msg)
         
     def mapp1cass(self, cassette1ID):
         

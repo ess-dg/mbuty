@@ -223,8 +223,8 @@ class BaseAxisSet:
         self.build_specific_axes(offset)
 
 
-class VMMAxisSet(BaseAxisSet):
-    """Position axes for Multi-Blade / Multi-Grid (VMM) wire/strip detectors."""
+class MBAxisSet(BaseAxisSet):
+    """Position axes for Multi-Blade (VMM) wire/strip detectors."""
 
     def build_specific_axes(self, cass_offset: float = 0) -> None:
         p   = self.parameters
@@ -273,7 +273,12 @@ class R5560AxisSet(BaseAxisSet):
         # Normalized position (0-1 mapped to tube)
         self.ax_wires = Axis(0, 1, p.config.DETparameters.positionBins)
 
-        # Cassette ID axis (discrete; min-max of configured cassettes)
+        # Cassette ID axis (discrete; min-max of configured cassettes).
+        # NOTE: intentionally spans the full mincf..maxcf range (not just the
+        # values in cassInConfig), so gaps in the configured cassette list
+        # still get a slot -- matches legacy behaviour, where the axis is
+        # built as a linspace over the min/max range rather than the raw
+        # (possibly non-contiguous) cassInConfig list.
         cf = np.array(det.cassInConfig)
         mincf, maxcf = np.min(cf), np.max(cf)
         self.ax_strips = Axis(mincf, maxcf, maxcf - mincf + 1)
@@ -281,9 +286,11 @@ class R5560AxisSet(BaseAxisSet):
         # Physical position in mm
         self.ax_wires_mm = Axis(0, det.tubeLength, p.config.DETparameters.positionBins)
 
-        # Cassette physical spacing
+        # Cassette physical spacing. Derived from ax_strips.centers (the
+        # gap-filling mincf..maxcf run), not from raw cassInConfig, so that
+        # missing cassettes still get a blank physical slot -- matches legacy.
         self.ax_strips_mm = Axis(0, 0, 1)  # Placeholder; overridden below
-        self.ax_strips_mm.centers = np.array(det.cassInConfig) * det.tubeSpacing
+        self.ax_strips_mm.centers = self.ax_strips.centers * det.tubeSpacing
 
 
 class MGAxisSet(BaseAxisSet):

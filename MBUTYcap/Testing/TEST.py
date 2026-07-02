@@ -28,14 +28,10 @@ from lib import libReadPcapng as pcapr
 
 from lib import libVMMcalibration as cal 
 
-
 from lib import libParameters as para
-
-
 
 from lib import libAbsUnitsAndLambda
 
-# from lib import libMapping as mapsnew
 
 from newLib import reader
 
@@ -47,6 +43,8 @@ from newLib.clustering_engine import VMMNormalClusterer, VMMClusteredClusterer, 
 
 from newLib.abs_units_engine import MBAbsUnitsCalculator, MGAbsUnitsCalculator, R5560AbsUnitsCalculator
 
+
+
 ###############################################################################
 ###############################################################################
 
@@ -55,6 +53,9 @@ if __name__ == '__main__':
     tProfilingStart = time.time()
     
     path = '/Users/francescopiscitelli/Documents/PYTHON/MBUTYcapWorkInProgress/'
+    
+    path = '/Users/francescopiscitelli/git_repos/mbuty/MBUTYcap/'
+    
     # Use a normal string with escaped backslashes to avoid a raw string ending with a single backslash
     # path = 'C:\\Projects\\dg_MultiBlade_MBUTY_original\\MBUTYcap\\'
     
@@ -72,14 +73,15 @@ if __name__ == '__main__':
   ##############################################################################
   ##############################################################################
 
-    from lib import libMapping_old as maps
+    from lib import libMapping as maps
     from lib import libCluster as clu 
+    from lib import libAbsUnitsAndLambda as absu
     confFileName  = "AMOR.json"
     file = 'ESSmask2023_1000pkts.pcapng'
     
     
-    confFileName  = "testClustered.json"
-    file = "sampleData_ClusteredMode.pcapng"
+    # confFileName  = "testClustered.json"
+    # file = "sampleData_ClusteredMode.pcapng"
     
     
     
@@ -150,6 +152,8 @@ if __name__ == '__main__':
     
     parameters.dataReduction.timeWindow = 0.127e-6
     
+    parameters.wavelength.calculateLambda = True
+    
 
     pcap = pcapr.pcapng_reader(filePath+file,NSperClockTick=parameters.clockTicks.NSperClockTick,
                                MONhw=config.MONmap.hardwareType, MONconn=config.MONmap.connectionType, MONring=parameters.config.MONmap.RingID, 
@@ -199,8 +203,28 @@ if __name__ == '__main__':
     hits = md.hits
     hitsArray  = hits.concatenateHitsInArrayForDebug()
     
-    MON = maps.mapMonitor(readouts, config)
-    hitsMON = MON.hits
+    parameters.MONitor.MONOnOff = True
+    
+    if parameters.MONitor.MONOnOff is True:
+        
+        MON = maps.mapMonitor(readouts, config)
+        
+        if MON.flagMONfound is True:
+            hitsMON = MON.hits
+            
+            MONe = clu.hitsMON2events(hitsMON)
+            eventsMON = MONe.events
+            
+            abMON = absu.calculateAbsUnits(eventsMON, parameters, 'MON')
+            abMON.calculateToF(parameters.plotting.removeInvalidToFs)
+            
+            print('\033[1;32m\t MON events: {}\033[1;37m'.format(eventsMON.Nevents[0]))
+
+            if parameters.wavelength.calculateLambda is True:
+                abMON.calculateWavelengthMON()
+
+                eventsMON = abMON.events
+
   
 
     #######################################
@@ -232,7 +256,16 @@ if __name__ == '__main__':
     #######################################
     #ABS units 
     
-    # MBAbsUnitsCalculator
+    ab = absu.calculateAbsUnits(events, parameters)
+    ab.calculatePositionAbsUnit()
+    
+    ab.calculateToF(parameters.plotting.removeInvalidToFs)
+    
+    ab.calculateWavelength()
+
+    events = ab.events 
+    
+    eventsArray =  events.concatenateEventsInArrayForDebug()
     
     
     #######################################
@@ -264,15 +297,16 @@ if __name__ == '__main__':
         )
     newreader.run()
     
-    # readoutsNEW  = newreader.readouts_vmm_normal
+    readoutsNEW  = newreader.readouts_vmm_normal
     
     # readoutsNEW  = newreader.readouts_r5560
     
-    readoutsNEW = newreader.readouts_vmm_clustered
+    # readoutsNEW = newreader.readouts_vmm_clustered
 
     readoutsArrayNEW  = readoutsNEW.get_data_frame()
     
-
+    MONreadoutsNEW  = newreader.readouts_bm
+    MONreadoutsArrayNEW  = MONreadoutsNEW.get_data_frame()
     
     # bb = readoutsNEWc.matrix['adc'] - readouts.ADC
     
@@ -296,16 +330,19 @@ if __name__ == '__main__':
     #######################################
     # MAPPING 
     
-    # hitsNEW = map_detector(newreader.readouts_vmm_normal, confignew)
+    hitsNEW = map_detector(newreader.readouts_vmm_normal, confignew)
     
     # hitsNEW = map_detector(newreader.readouts_r5560, confignew)
     
     # hitsNEW = He3Mapper.map(newreader.readouts_r5560, confignew)
     
-    hitsNEW = map_detector(newreader.readouts_vmm_clustered, confignew)
+    # hitsNEW = map_detector(newreader.readouts_vmm_clustered, confignew)
     
     hitsArrayNEW = hitsNEW.get_data_frame()
     
+    
+    # MONhitsNEW = map_detector(newreader.readouts_bm, confignew)
+    # MONhitsArrayNEW = hitsNEW.get_data_frame()
     
     # tt = hitsNEW.matrix['timeStamp'] - hits.timeStamp
     
@@ -324,9 +361,9 @@ if __name__ == '__main__':
     #######################################
     # CLUSTERING 
     
-    # eventsNEW = VMMNormalClusterer.cluster(hitsNEW, config=confignew, time_window_s=parameters.dataReduction.timeWindow)
+    eventsNEW = VMMNormalClusterer.cluster(hitsNEW, config=confignew, time_window_s=parameters.dataReduction.timeWindow)
     
-    eventsNEW = VMMClusteredClusterer.cluster(hitsNEW, config=confignew, time_window_s=parameters.dataReduction.timeWindow)
+    # eventsNEW = VMMClusteredClusterer.cluster(hitsNEW, config=confignew, time_window_s=parameters.dataReduction.timeWindow)
     
     # eventsNEW = R5560Clusterer.cluster(hitsNEW, config=confignew, time_window_s=parameters.dataReduction.timeWindow)
     
@@ -337,7 +374,11 @@ if __name__ == '__main__':
     #######################################
     #ABS units 
     
-    # MBAbsUnitsCalculator
+    aa = MBAbsUnitsCalculator(eventsNEW, confignew, parameters)  
+    
+    aa.process_pipeline(False)
+    
+    eventsArrayNEW = eventsNEW.get_data_frame()
     
     
     #######################################

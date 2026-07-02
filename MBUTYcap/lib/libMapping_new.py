@@ -14,6 +14,8 @@ import sys
 import copy
 from pathlib import Path 
 
+# import libReadPcapng as pcapr
+
 
 # NOTE: THIS SUPPORTS ONLY 1 MONITOR
 ###############################################################################
@@ -369,11 +371,11 @@ class read_json_config():
 
         
     def get_DETname(self):
-        self.DETparameters.name = self.conf.get('DetectorName')
+        self.DETparameters.name = self.conf.get('detectorName')
         return self.DETparameters.name
     
     def get_DETtype(self):
-        self.DETparameters.type = self.conf.get('DetectorType')
+        self.DETparameters.type = self.conf.get('detectorType')
         
         if self.DETparameters.type != 'MB' and self.DETparameters.type != 'MG' and self.DETparameters.type != 'He3':
             print('\n\t\033[1;31mERROR: Detector type (found {}) can only be either MB, MG or He3 -> check config file! ---> Exiting ... \n\033[1;37m'.format(self.DETparameters.type),end='') 
@@ -383,7 +385,7 @@ class read_json_config():
         return self.DETparameters.type
     
     def get_instrumName(self):
-        self.DETparameters.instrument = self.conf.get('InstrumentName')
+        self.DETparameters.instrument = self.conf.get('instrumentName')
         
         instruments = ["TBL", "AMOR", "ESTIA", "FREIA", "TREX", "MIRACLES", "CSPEC", "BIFROST", "VESPA"]
         
@@ -433,12 +435,12 @@ class read_json_config():
         self.DETparameters.stripPitch = float(self.conf.get('stripPitch_mm'))
         self.DETparameters.bladesInclination  = float(self.conf.get('bladesInclination_deg'))
         self.DETparameters.offset1stWires  = float(self.conf.get('offset1stWires_mm'))
-        self.DETparameters.numOfCassettes  = self.conf.get('cassettes')
+        self.DETparameters.numOfCassettes  = self.conf.get('units')
         self.DETparameters.orientation     = self.conf.get('orientation')
         self.DETparameters.operationMode   = self.conf.get('operationMode')
         
     def get_DETmap(self):  
-        self.DETmap.cassettesMap = self.conf.get('Cassette2ElectronicsConfig')
+        self.DETmap.cassettesMap = self.conf.get('topology')
 
     def get_DETcassettesInConfig(self):
                 
@@ -463,10 +465,10 @@ class read_json_config():
         else:
               for cc in self.DETmap.cassettesMap:
                   if cc.get("ID") == cassetteID:
-                      self.cassMap.RingID       = cc.get("Ring")
-                      self.cassMap.FenID        = cc.get("Fen")
-                      self.cassMap.hybridID     = cc.get("Hybrid")
-                      self.cassMap.hybridSerial = cc.get("HybridSerial")
+                      self.cassMap.RingID       = cc.get("ring")
+                      self.cassMap.FenID        = cc.get("fen")
+                      self.cassMap.hybridID     = cc.get("hybrid")
+                      self.cassMap.hybridSerial = cc.get("hybridSerial")
                       
                    
     def checkRing11(self):
@@ -508,7 +510,7 @@ class read_json_config():
     def get_channelMap(self):  
         
         try:
-            temp = self.conf.get('ChannelMapping')[0]
+            temp = self.conf.get('channelMapping')[0]
         except:
             temp = None
         
@@ -516,12 +518,12 @@ class read_json_config():
         
         if temp is not None:
             # self.channelMap.AdapterType = temp.get("AdapterType")
-            self.channelMap.WireASIC    = temp.get("WireASIC")
-            self.channelMap.StripASIC   = temp.get("StripASIC")
+            self.channelMap.WireASIC    = temp.get("wireASIC")
+            self.channelMap.StripASIC   = temp.get("stripASIC")
  
     def get_MONmap(self):
              
-        mapm = self.conf.get('Monitor')
+        mapm = self.conf.get('monitor')
         
         if mapm is None:
             print('\t \033[1;33mWARNING: No monitor config found in json file \033[1;37m')
@@ -537,8 +539,8 @@ class read_json_config():
                   self.MONmap.ID             = cc.get("ID")               
                   self.MONmap.hardwareType   = cc.get("hardwareType")
                   self.MONmap.connectionType = cc.get("connectionType")
-                  self.MONmap.RingID         = cc.get("Ring")
-                  self.MONmap.channel        = cc.get("Channel")
+                  self.MONmap.RingID         = cc.get("ring")
+                  self.MONmap.channel        = cc.get("channel")
                                     
                   if self.printFlag is True:
                      self.checkBMsettings(self.MONmap.hardwareType, self.MONmap.connectionType,self.MONmap.RingID) 
@@ -549,33 +551,33 @@ class read_json_config():
 
     def checkBMsettings(self,hardwareType,connectionType,RingID):
              
-             if hardwareType == "GENERIC" or hardwareType == "IBM" : 
+             if hardwareType == "generic" or hardwareType == "ibm" : 
                  pass
              else:
-                 print('\n\t\033[1;31mERROR: MON hardware (found {}) can only be either GENERIC or IBM  -> check config file! ---> Exiting ... \n\033[1;37m'.format(hardwareType),end='') 
+                 print('\n\t\033[1;31mERROR: MON hardware (found {}) can only be either generic or ibm  -> check config file! ---> Exiting ... \n\033[1;37m'.format(hardwareType),end='') 
                  time.sleep(2)
                  sys.exit()
                  
                  
-             if connectionType == "LEMO" or connectionType == "RING" : 
+             if connectionType == "lemo" or connectionType == "ring" : 
                  pass
              else:
-                 print('\n\t\033[1;31mERROR: MON connection type (found {}) can only be either LEMO or RING  -> check config file! ---> Exiting ... \n\033[1;37m'.format(connectionType),end='') 
+                 print('\n\t\033[1;31mERROR: MON connection type (found {}) can only be either lemo or ring  -> check config file! ---> Exiting ... \n\033[1;37m'.format(connectionType),end='') 
                  time.sleep(2)
                  sys.exit()    
 
             # BM LEMO type can only be in rings that are not physical rings but created in thew RMM config RINGS >= 11, usually >= 12
-             if connectionType == "LEMO" :
+             if connectionType == "lemo" :
                  if RingID < 11:
-                     print('\n\t\033[1;33mWARNING: MON mode {} selected with RING < 11 (ring {}) (can be any ring 11 - inf, but not < 11)-> check config file! ---> Exiting ... \n\033[1;37m'.format(connectionType,RingID),end='') 
+                     print('\n\t\033[1;33mWARNING: MON mode {} selected with ring < 11 (ring {}) (can be any ring 11 - inf, but not < 11)-> check config file! ---> Exiting ... \n\033[1;37m'.format(connectionType,RingID),end='') 
                      time.sleep(1)
                      sys.exit()
                  
     
              # if the BM is on one ring can be in any ring but usually 11, if not 11 give a warning. 
-             if connectionType == "RING" : 
+             if connectionType == "ring" : 
                  if RingID != 11:
-                     print('\n\t\033[1;33mWARNING: MON mode {} selected with RING != 11 (ring {} found in config file)\n\033[1;37m'.format(connectionType,RingID),end='') 
+                     print('\n\t\033[1;33mWARNING: MON mode {} selected with ring != 11 (ring {} found in config file)\n\033[1;37m'.format(connectionType,RingID),end='') 
                      time.sleep(1)
                  # else:
                  #     print('\n\t\033[1;33mWARNING: MON mode {} selected with RING != 11 (must be ring 11) -> check config file! ---> Exiting ... \n\033[1;37m'.format(connectionType),end='') 
@@ -873,12 +875,16 @@ class mapDetector():
         self.mappAllCass()
         self.mapChannels()  
         
+        # print(np.sum(readouts.Ring >= 11))
+        
         self.hits.removeUnmappedData()
             
     def mappAllCassAndChannelsGlob(self):
         
         self.mappAllCass()
         self.mapChannelsGlob()
+        
+        # print(np.sum(readouts.Ring >= 11))
         
         self.hits.removeUnmappedData()
 
@@ -958,10 +964,10 @@ class mapMonitor():
 
 if __name__ == '__main__':
 
-   filePath  = '/Users/francescopiscitelli/Documents/PYTHON/MBUTYcap/config/'+"AMOR.json"
+   filePath  = '/Users/francescopiscitelli/Documents/PYTHON/MBUTYcap copy 2/config/'+"AMOR26.json"
    # filePathD = './'+"VMM3a_Freia.pcapng"
 
-   config1 = read_json_config(filePath)
+   config = read_json_config(filePath)
    
    # print(config1.MONmap.type)
    
@@ -975,8 +981,8 @@ if __name__ == '__main__':
    
    filePath = '/Users/francescopiscitelli/Documents/PYTHON/MBUTYcap/data/'
    # file = 'miracles_trig2.pcapng'
-   file = 'ESSmask2023_1000pkts.pcapng'
-   file = 'testALLON.pcapng'
+   file = 'ESSmask2023.pcapng'
+   # file = 'testALLON.pcapng'
    
    filePathAndFileName1 = filePath+file
 
@@ -986,27 +992,40 @@ if __name__ == '__main__':
    
    # typeOfLoading = 'quick'
    
-   # pcap = pcapr.pcapng_reader(filePathAndFileName1,NSperClockTick, MONtype='LEMO', MONring=11, timeResolutionType='fine', sortByTimeStampsONOFF=True, operationMode='normal',pcapLoadingMethod=typeOfLoading)
+   import libReadPcapng as pcapr
+   pcap = pcapr.pcapng_reader(
+        filePathAndFileName1,
+        NSperClockTick        = NSperClockTick,
+        MONhw                 = 'GENERIC',
+        MONconn               = 'RING',
+        MONring               = 11,
+        timeResolutionType    = 'coarse',
+        sortByTimeStampsONOFF = False,
+        operationMode         = 'normal',
+        pcapLoadingMethod     = typeOfLoading,
+   )
+   
+   readouts = pcap.readouts
 
-   # readouts = pcap.readouts
-
-   # readoutsArray = readouts.concatenateReadoutsInArrayForDebug()
+   readoutsArray = readouts.concatenateReadoutsInArrayForDebug()
    
    # # change = readouts.Ring == 0
    # # readouts.Ring[change]    = 12
    # # readouts.Channel[change] = 5
    
    
-   # md  = mapDetector(readouts, config1)
-   # md.mappAllCassAndChannelsGlob()
-   # hits = md.hits
-   # hitsArray  = hits.concatenateHitsInArrayForDebug()
    
-   # # readouts.
    
-   # MON = mapMonitor(readouts, config1)
+   md  = mapDetector(readouts, config)
+   md.mappAllCassAndChannelsGlob()
+   hits = md.hits
+   hitsArray  = hits.concatenateHitsInArrayForDebug()
    
-   # # print(MON.flagMONfound)
+   MON = mapMonitor(readouts, config)
+   
+   
+  
+   print(MON.flagMONfound)
    
    # if MON.flagMONfound:
    #     hitsMON = MON.hits
