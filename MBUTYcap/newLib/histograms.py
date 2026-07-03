@@ -73,7 +73,18 @@ class Histogrammer:
     def _bin_index(values: np.ndarray, centers: np.ndarray) -> np.ndarray:
         n = len(centers)
         vmin, vmax = centers[0], centers[-1]
-        return np.rint((n - 1) * (values - vmin) / (vmax - vmin)).astype(np.int64)
+        
+        # Prevent runtime warnings by substituting NaN elements with 0 prior to integer evaluation
+        nan_mask = np.isnan(values)
+        safe_values = np.where(nan_mask, vmin, values)
+        
+        indices = np.rint((n - 1) * (safe_values - vmin) / (vmax - vmin)).astype(np.int64)
+        
+        # Force rows containing NaNs out of bounds so the downstream histogrammer masks drop them cleanly
+        if np.any(nan_mask):
+            indices[nan_mask] = -1
+            
+        return indices
 
     def hist1d(self, axis_centers: np.ndarray, values: np.ndarray) -> np.ndarray:
         """
@@ -197,8 +208,9 @@ class BaseAxisSet:
     which concrete subclasses must implement.
     """
 
-    def __init__(self, parameters, offset: float = 0):
+    def __init__(self, parameters, config: dict, offset: float = 0):
         self.parameters = parameters
+        self.config = config
         self._build_generic_axes()
         self.build_specific_axes(offset)
 
@@ -206,7 +218,9 @@ class BaseAxisSet:
         p = self.parameters
         self.ax_energy_mon = Axis(0, p.MONitor.maxEnerg, p.MONitor.energyBins)
         self.ax_energy     = Axis(0, p.pulseHeigthSpect.maxEnerg, p.pulseHeigthSpect.energyBins)
-        self.ax_tof        = Axis(0, p.plotting.ToFrange, p.plotting.ToFbins)
+        # Calculate steps safely by dividing the total ToF range window by the individual bin width
+        tof_steps = int(round(p.plotting.ToFrange / p.plotting.ToFbinning))
+        self.ax_tof        = Axis(0, p.plotting.ToFrange, tof_steps)
         self.ax_lambda     = Axis(p.wavelength.lambdaRange[0], p.wavelength.lambdaRange[1], p.wavelength.lambdaBins)
 
         start = -p.plotting.ToFrange
@@ -221,45 +235,54 @@ class BaseAxisSet:
     def rebuild_all(self, offset: float = 0) -> None:
         self._build_generic_axes()
         self.build_specific_axes(offset)
+        
+    def _resolve_position_bins(self, default_wires: int, default_strips: int) -> tuple[int, int]:
+        """
+        Dynamically calculates the total matrix grid bin resolution based on the 
+        active positionReconstruction string parameter.
+        """
+        pos_recon = getattr(self.parameters.plotting, 'positionReconstruction', 'W.max-S.cog')
+        
+        if pos_recon == 'W.max-S.max':
+            return default_wires, default_strips
+        elif pos_recon == 'W.cog-S.cog':
+            return default_wires * 2, default_strips * 2
+        elif pos_recon == 'W.max-S.cog':
+            return default_wires, default_strips * 2
+        else:
+            return default_wires, default_strips
 
 
 class MBAxisSet(BaseAxisSet):
     """Position axes for Multi-Blade (VMM) wire/strip detectors."""
 
-    def build_specific_axes(self, cass_offset: float = 0) -> None:
-        p   = self.parameters
-        det = p.config.DETparameters
+    def build_specific_axes(self, cass_offset: float = 0) -> None:        
+        num_strips = int(self.config.get('strips', 64))
+        num_wires  = int(self.config.get('wires', 32))
+        blades_inclination = float(self.config.get('blades_inclination', 5.0))
+        wire_pitch = float(self.config.get('wire_pitch', 2.0))
+        strip_pitch = float(self.config.get('strip_pitch', 4.0))
+        cass_in_config = self.config.get('topology', [])
+        
+        pos_w_bins, pos_s_bins = self._resolve_position_bins(num_wires, num_strips)
 
-        self.ax_mult = Axis(0, det.numOfStrips - 1, det.numOfStrips)
+        self.ax_mult = Axis(0, num_strips - 1, num_strips)
 
-        sine   = np.sin(np.deg2rad(det.bladesInclination))
-        n_cass = len(det.cassInConfig)
+        sine   = np.sin(np.deg2rad(blades_inclination))
+        n_cass = len(cass_in_config)
+        total_wires = n_cass * num_wires
 
-        offset = cass_offset * det.numOfWires
-        self.ax_wires = Axis(
-            offset,
-            n_cass * det.numOfWires - 1 + offset,
-            n_cass * p.plotting.posWbins - int(p.plotting.posWbins / det.numOfWires - 1),
-        )
+        offset = cass_offset * num_wires
+        self.ax_wires = Axis(offset, total_wires - 1 + offset, n_cass * pos_w_bins)
+        self.ax_strips = Axis(0, num_strips - 1, pos_s_bins)
 
-        self.ax_strips = Axis(
-            0,
-            det.numOfStrips - 1,
-            p.plotting.posSbins - int(p.plotting.posSbins / det.numOfStrips - 1),
-        )
-
-        offset_mm = cass_offset * det.numOfWires * det.wirePitch * sine
+        offset_mm = cass_offset * num_wires * wire_pitch * sine
         self.ax_wires_mm = Axis(
             offset_mm,
-            (n_cass * det.numOfWires - 1) * det.wirePitch * sine + offset_mm,
+            (total_wires - 1) * wire_pitch * sine + offset_mm,
             self.ax_wires.steps,
         )
-
-        self.ax_strips_mm = Axis(
-            0,
-            (det.numOfStrips - 1) * det.stripPitch,
-            self.ax_strips.steps,
-        )
+        self.ax_strips_mm = Axis(0, (num_strips - 1) * strip_pitch, self.ax_strips.steps)
         
 class R5560AxisSet(BaseAxisSet):
     """Position axes for R5560 tube detector (1D position geometry)."""
@@ -296,36 +319,24 @@ class R5560AxisSet(BaseAxisSet):
 class MGAxisSet(BaseAxisSet):
     """Position axes for Multi-Grid detector (VMM-like wire/strip geometry)."""
 
-    def build_specific_axes(self, cass_offset: float = 0) -> None:
-        p   = self.parameters
-        det = p.config.DETparameters
+    def build_specific_axes(self, cass_offset: float = 0) -> None:        
+        # Multi-Grid names the layout parameter 'grids' instead of 'strips'
+        num_grids  = int(self.config.get('grids', 120))
+        num_wires  = int(self.config.get('wires', 96))
+        cass_in_config = self.config.get('topology', [])
 
-        self.ax_mult = Axis(0, det.numOfStrips - 1, det.numOfStrips)
+        # Pass grids directly as the strips argument to the shared resolver
+        pos_w_bins, pos_g_bins = self._resolve_position_bins(num_wires, num_grids)
 
-        n_cass = len(det.cassInConfig)
-        offset = cass_offset * det.numOfWires
+        self.ax_mult = Axis(0, num_grids - 1, num_grids)
 
-        self.ax_wires = Axis(
-            offset,
-            n_cass * det.numOfWires - 1 + offset,
-            n_cass * p.plotting.posWbins - int(p.plotting.posWbins / det.numOfWires - 1),
-        )
+        n_cass = len(cass_in_config)
+        total_wires = n_cass * num_wires
+        offset = cass_offset * num_wires
 
-        self.ax_strips = Axis(
-            0,
-            det.numOfStrips - 1,
-            p.plotting.posSbins - int(p.plotting.posSbins / det.numOfStrips - 1),
-        )
+        self.ax_wires = Axis(offset, total_wires - 1 + offset, n_cass * pos_w_bins)
+        self.ax_strips = Axis(0, num_grids - 1, pos_g_bins)
 
         # Physical coordinates (4 mm pitch for MG)
-        self.ax_wires_mm = Axis(
-            0,
-            (n_cass * det.numOfWires - 1) * 4,
-            self.ax_wires.steps,
-        )
-
-        self.ax_strips_mm = Axis(
-            0,
-            (det.numOfStrips - 1) * 4,
-            self.ax_strips.steps,
-        )
+        self.ax_wires_mm = Axis(0, (total_wires - 1) * 4, self.ax_wires.steps)
+        self.ax_strips_mm = Axis(0, (num_grids - 1) * 4, self.ax_strips.steps)

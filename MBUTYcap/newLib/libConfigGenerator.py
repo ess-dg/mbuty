@@ -5,12 +5,25 @@ Created on Thu Jun 19 11:59:32 2025
 
 @author: francescopiscitelli
 """
-# lib/libConfigGenerator.py
+
 import json
 import os
 import sys
 import time 
 import numpy as np 
+
+import ipaddress
+
+_workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _workspace not in sys.path:
+    sys.path.insert(0, _workspace)
+    
+from newLib.config_validator import match_instrument_and_detector
+
+from newLib.colors import WARN, ERR, INFO, OK, RESET
+
+
+
 
 ###############################################################################
 ###############################################################################
@@ -68,25 +81,25 @@ def _generateTopologyMG(num_units):
 # The helper function (renamed from a method)
 def _generateTopologySKADI(num_units):
     unit_config = []
-    ring    = 0
-    IP      = 0
-    sysID      = 0
-    rotation = 'normal'
+    # ring     = 0
+    IP       = ipaddress.IPv4Address("192.168.0.1") 
+    # sysID    = 0
+    rotation = 0
+    bank     = 0
     for i in range(num_units):
         unit_config.append({
             "ID": i,
-            "IP": IP,
+            "IP": str(IP),
             "rotation": rotation,
-            "bank": bank,
+            "bank":     bank,
         })
-        ring += 1
-        if np.mod(i,2) == 0 :
-            rotation = 'flip'
-        else:
-            rotation = 'normal'
-            
-            
-            
+        IP = IP+1
+        # ring += 1
+        # if np.mod(i,2) == 0 :
+        #     rotation = 'flip'
+        # else:
+        #     rotation = 'normal'
+      
     return unit_config
 
 
@@ -116,7 +129,7 @@ def _generateTopologyHe3(num_units):
 ###############################################################################
 
 # The main function to generate the config file
-def generateDefaultDetConfig(path, detectorName, detectorType, instrumentName, num_units, orientation='horizontal', operationMode="normal", overwrite=False):
+def generateDefaultDetConfig(path, detectorName, detectorType, instrumentName, units, orientation='horizontal' ,operationMode="normal",  overwrite=False):
     """
     Generates a default detector configuration JSON file based on provided parameters.
 
@@ -131,7 +144,8 @@ def generateDefaultDetConfig(path, detectorName, detectorType, instrumentName, n
         str: The full path to the generated JSON file, or None if an error occurred.
     """
     
-    
+    flag = match_instrument_and_detector(detectorType,instrumentName)
+
     file_name = _createFileName(detectorName)
     
     # print(file_name)
@@ -152,13 +166,13 @@ def generateDefaultDetConfig(path, detectorName, detectorType, instrumentName, n
         "detectorName": detectorName,
         "detectorType": detectorType,
         "instrumentName": instrumentName,
-        "units": num_units,
+        "units": units,
         "orientation": orientation,
      }
     
     if detectorType == 'MB':
         # Call the helper function
-        topology = _generateTopologyMB(num_units)
+        topology = _generateTopologyMB(units)
         data.update({
             "operationMode": operationMode,
             "topology": topology,
@@ -178,7 +192,7 @@ def generateDefaultDetConfig(path, detectorName, detectorType, instrumentName, n
     elif  detectorType == 'MG':  
         
         # Call the helper function
-        topology = _generateTopologyMG(num_units)
+        topology = _generateTopologyMG(units)
         data.update({
             "operationMode": operationMode,
             "topology": topology,
@@ -199,14 +213,14 @@ def generateDefaultDetConfig(path, detectorName, detectorType, instrumentName, n
     elif  detectorType == 'SKADI':  
         
         # Call the helper function
-        topology = _generateTopologySKADI(num_units)
+        topology = _generateTopologySKADI(units)
         data.update({
             "topology": topology,
-            "Xpix": 16,
-            "Ypix": 16,
-            "PitchX_mm": 4,
-            "PitchY_mm": 4,
             "tilesPerRow": 10,
+            # "xpix": 16,
+            # "ypix": 16,
+            "gapX_mm": 4,
+            "gapY_mm": 4,
             "monitor" : monitor,
         })
     
@@ -216,7 +230,7 @@ def generateDefaultDetConfig(path, detectorName, detectorType, instrumentName, n
     elif  detectorType == 'He3':  
         
         # Call the helper function
-       topology = _generateTopologyHe3(num_units)
+       topology = _generateTopologyHe3(units)
        data.update({
             "topology": topology,
             "positionBins": 256,
@@ -234,7 +248,7 @@ def generateDefaultDetConfig(path, detectorName, detectorType, instrumentName, n
         time.sleep(2)
         sys.exit()
         
-    return filePathName  
+    return filePathName  , flag 
 ##########################
 
 def makeFile(path,filePathName,data):
@@ -292,6 +306,9 @@ def checkIfExists(pathFile):
           
     return writeFile   
 
+
+
+
 ###############################################################################
 ###############################################################################
 ###############################################################################
@@ -300,12 +317,13 @@ def checkIfExists(pathFile):
 if __name__ == '__main__':
     path = '/Users/francescopiscitelli/Documents/PYTHON/MBUTYcapWorkInProgress/config/'
     
+    path = '/Users/francescopiscitelli/git_repos/mbuty/MBUTYcap/config/'
     
     # path = '/Users/francescopiscitelli/git_repos/mbuty/MBUTYcap/config/'
 
-    detectorName = "AMOR"
-    detectorType = 'MB'
-    instrumentName = 'AMOR'
+    # detectorName = "AMOR"
+    # detectorType = 'MB'
+    # instrumentName = 'AMOR'
     
     # detectorName = "CAB"
     # detectorType = 'MB'
@@ -365,6 +383,10 @@ if __name__ == '__main__':
     # detectorType = 'MB'
     # instrumentName = 'ESTIA'
     
+    
+    detectorName = "SKADI1"
+    detectorType = 'SKADI'
+    instrumentName = 'SKADI'
  
     
     operationMode = 'normal'
@@ -372,7 +394,7 @@ if __name__ == '__main__':
     orientation = 'horizontal'
 
     # Call the function directly
-    generated_file = generateDefaultDetConfig(path, detectorName, detectorType, instrumentName, units, orientation, operationMode, overwrite=True) # add overwrite=True to overwrite a file
+    generated_file = generateDefaultDetConfig(path, detectorName, detectorType, instrumentName, units, orientation = orientation , operationMode = operationMode,  overwrite=True) # add overwrite=True to overwrite a file
     print(f"Generated file path: {generated_file}")
 
     if generated_file and os.path.exists(generated_file):

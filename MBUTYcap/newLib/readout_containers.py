@@ -20,7 +20,8 @@ class readouts():
             # Ess header
             ('pulseT',    'int64'),
             ('prevPT',    'int64'),
-            # 'instrID' column is completely removed from the matrix schema
+            ('instrID',   'int64')
+            # 'instrID' column to filter by ID if needed
         ]
         # Instrument ID's are a set of unique ids - 
         # should be length 1, otherwise we have mixed readouts (corrupted stream)
@@ -76,10 +77,11 @@ class readouts():
         if len(self.instrumentIDs) > 1:
             print(f"\n{WARN}WARNING: Multiple instrument IDs detected within {self.__class__.__name__}: {list(self.instrumentIDs)} — data stream may be corrupted!{RESET}\n")
 
-
-
-# add clean other IDs with ID as vector 
-
+        
+        ##############################################################
+        # NOTE for future devel add clean other IDs with ID as vector 
+        ##############################################################
+        
 
         sort_enabled = getattr(getattr(parameters, 'VMMsettings', None), 'sortReadoutsByTimeStampsONOFF', False)
         if sort_enabled:
@@ -422,6 +424,7 @@ class readoutsVMMnormal(readoutsVMM):
             'bc',
             'oth',
             'length',
+            'instrID',
         ]
 
         df = pd.DataFrame(active_data[columns_to_extract])
@@ -488,6 +491,7 @@ class readoutsVMMclustered(readoutsVMM):
             'g0',
             'geo',    
             'length',
+            'instrID',
         ]
 
         df = pd.DataFrame(active_data[columns_to_extract])
@@ -532,6 +536,7 @@ class readoutsR5560(readouts):
             'counter1',
             'counter2',
             'length',
+            'instrID',
         ]
 
         df = pd.DataFrame(active_data[columns_to_extract])
@@ -608,6 +613,7 @@ class readoutsBM(readouts):
             'posY',
             'type',
             'length',
+            'instrID',
         ]
 
         df = pd.DataFrame(active_data[columns_to_extract])
@@ -680,6 +686,7 @@ class readoutsIBM(readouts):
             'mcaSum',
             'type',
             'length',
+            'instrID',
         ]
 
         df = pd.DataFrame(active_data[columns_to_extract])
@@ -729,6 +736,7 @@ class readoutsSKADI(readouts):
             'flag',
             'opMode',
             'length',
+            'instrID',
         ]
 
         df = pd.DataFrame(active_data[columns_to_extract])

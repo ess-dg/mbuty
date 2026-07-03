@@ -22,7 +22,7 @@ from typing import Iterable, NamedTuple, Sequence
 
 import numpy as np
 
-from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex, QSortFilterProxyModel
+from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex, QSortFilterProxyModel, QTimer
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -74,13 +74,7 @@ class DashboardDataSource:
 # --------------------------------------------------------------------------
 
 class StructuredArrayTableModel(QAbstractTableModel):
-    """Read-only view over array[:fill_count], filtered by:
-       - NaN on any floating-point field (math noise sentinel)
-       - < 0 on any field listed in index_fields (uninitialized -1 sentinel)
-    Never re-sorts; upstream stable-sort order is preserved in the source
-    model. Header-click sorting is applied on top via QSortFilterProxyModel
-    in _build_dataframe_pane(), so it never touches this array or order.
-    """
+    """Read-only view over array[:fill_count], filtered by sentinel masks."""
 
     def __init__(self, index_fields: Iterable[str] = (), parent=None):
         super().__init__(parent)
@@ -96,17 +90,46 @@ class StructuredArrayTableModel(QAbstractTableModel):
         self._valid_rows = self._compute_valid_rows()
         self.endResetModel()
 
+    def sort(self, column: int, order: Qt.SortOrder = Qt.AscendingOrder) -> None:
+        """
+        Bypasses Qt loops by using C-optimized NumPy vector sorting on the underlying array data.
+        """
+        if self._fill_count == 0 or self._array.dtype.names is None or len(self._valid_rows) == 0:
+            return
+
+        self.layoutAboutToBeChanged.emit()
+        
+        # Get the name of the column field clicked
+        field_name = self._array.dtype.names[column]
+        
+        # Extract only the active valid rows for this column to sort on
+        sort_values = self._array[field_name][self._valid_rows]
+        
+        # Perform highly optimized vector argsort
+        sorted_indices = np.argsort(sort_values)
+        
+        if order == Qt.DescendingOrder:
+            sorted_indices = sorted_indices[::-1]
+            
+        # Re-order our valid rows index map instantly
+        self._valid_rows = self._valid_rows[sorted_indices]
+        
+        self.layoutChanged.emit()
+
     def _compute_valid_rows(self) -> np.ndarray:
         if self._fill_count == 0 or self._array.dtype.names is None:
             return np.empty(0, dtype=np.int64)
         view = self._array[: self._fill_count]
         mask = np.ones(self._fill_count, dtype=bool)
-        for name in view.dtype.names:
-            col = view[name]
-            if np.issubdtype(col.dtype, np.floating):
-                mask &= ~np.isnan(col)
-            if name in self._index_fields:
-                mask &= col >= 0
+        
+        float_fields = [name for name in view.dtype.names if np.issubdtype(view.dtype[name], np.floating)]
+        idx_fields = [name for name in self._index_fields if name in view.dtype.names]
+        
+        for name in float_fields:
+            mask &= ~np.isnan(view[name])
+        for name in idx_fields:
+            mask &= view[name] >= 0
+            
         return np.nonzero(mask)[0]
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
@@ -118,7 +141,7 @@ class StructuredArrayTableModel(QAbstractTableModel):
         return len(self._array.dtype.names)
 
     def data(self, index: QModelIndex, role: int = Qt.DisplayRole):
-        if not index.isValid():
+        if not index.isValid() or index.row() >= len(self._valid_rows):
             return None
         row = self._valid_rows[index.row()]
         field = self._array.dtype.names[index.column()]
@@ -127,9 +150,6 @@ class StructuredArrayTableModel(QAbstractTableModel):
             if isinstance(value, np.floating):
                 return f"{value:.6g}"
             return str(value)
-        if role == Qt.EditRole:
-            # Raw typed value, used as the sort key by the proxy model.
-            return value.item() if hasattr(value, "item") else value
         return None
 
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.DisplayRole):
@@ -141,21 +161,31 @@ class StructuredArrayTableModel(QAbstractTableModel):
 
 
 def _build_dataframe_pane(index_fields: Iterable[str]) -> tuple[QWidget, StructuredArrayTableModel, QTableView]:
-    """Single reusable factory for a sortable, read-only dataframe view.
-    Used both by each instrument tab's 'Dataframe View' sub-tab and by the
-    Comparison Matrix when a 'Dataframe View' item is selected.
-    """
+    """Single reusable factory for a sortable, read-only dataframe view."""
     model = StructuredArrayTableModel(index_fields=index_fields)
-    proxy = QSortFilterProxyModel()
-    proxy.setSourceModel(model)
-    proxy.setSortRole(Qt.EditRole)
-
+    
     view = QTableView()
-    view.setModel(proxy)
+    # Direct binding: bypasses the proxy model bottleneck entirely
+    view.setModel(model)
     view.setEditTriggers(QTableView.NoEditTriggers)
     view.setSelectionBehavior(QTableView.SelectRows)
     view.setAlternatingRowColors(True)
-    view.setSortingEnabled(True)  # click header to sort; source array/order untouched
+    view.setSortingEnabled(True)  # Still enabled, but handled via vector sorting now
+
+    # Bump the font a notch -- the default point size reads cramped/tiny,
+    # especially on Readouts with its wider column count.
+    font = view.font()
+    font.setPointSize(font.pointSize() + 2)
+    view.setFont(font)
+    view.horizontalHeader().setFont(font)
+
+    # Fixed row height: without this Qt can fall back to measuring every
+    # row's sizeHint (O(rows)) on layout changes instead of O(visible).
+    # Cheap, unconditional win once row counts get into the 10^4-10^6 range.
+    # Sized up to match the larger font above.
+    vheader = view.verticalHeader()
+    vheader.setSectionResizeMode(vheader.ResizeMode.Fixed)
+    vheader.setDefaultSectionSize(28)
 
     return view, model, view
 
@@ -193,9 +223,23 @@ class TabSpec(NamedTuple):
 # --------------------------------------------------------------------------
 
 class InstrumentView(QWidget):
+    """
+    Sub-tabs are ordered plots-first, "Dataframe View" last -- the plots are
+    what a physicist actually watches during a run; the dataframe is a
+    debugging tool, more useful side-by-side in the Comparison Matrix than
+    as this tab's default landing page.
+
+    Only the sub-tab shown first is built synchronously. Once it's up, the
+    rest fill in one at a time on the Qt event loop's idle turns (a 0ms
+    QTimer chain), so by the time the user has looked around, everything's
+    already built with no perceptible per-tab click lag. If the user clicks
+    an unbuilt tab before the queue gets to it, that click jumps the queue.
+    """
+
     def __init__(self, spec: TabSpec, data_source: DashboardDataSource, parent=None):
         super().__init__(parent)
         self._tab_key = spec.key
+        self._spec = spec
         self._data_source = data_source
 
         layout = QVBoxLayout(self)
@@ -204,16 +248,83 @@ class InstrumentView(QWidget):
         self.sub_tabs = QTabWidget()
         layout.addWidget(self.sub_tabs)
 
-        df_pane, self.table_model, self.table_view = _build_dataframe_pane(spec.index_fields)
-        self.sub_tabs.addTab(df_pane, "Dataframe View")
-
+        self.table_model: StructuredArrayTableModel | None = None
+        self.table_view: QTableView | None = None
         self._plot_canvases: dict[str, FigureCanvasQTAgg] = {}
+
+        self._built: set[str] = set()
         for plot_name in spec.active_plots:
-            page, canvas = _build_plot_pane(self._tab_key, plot_name, data_source)
-            self._plot_canvases[plot_name] = canvas
-            self.sub_tabs.addTab(page, plot_name)
+            self.sub_tabs.addTab(QWidget(), plot_name)
+        self.sub_tabs.addTab(QWidget(), "Dataframe View")
+
+        self._fill_queue: list[str] = [self.sub_tabs.tabText(i) for i in range(self.sub_tabs.count())]
+
+        self.sub_tabs.currentChanged.connect(self._ensure_built)
+        self._ensure_built(0)  # the sub-tab shown by default needs content now
+        QTimer.singleShot(0, self._process_background_queue)
+
+    def _process_background_queue(self) -> None:
+        while self._fill_queue and self._fill_queue[0] in self._built:
+            self._fill_queue.pop(0)
+        if not self._fill_queue:
+            return
+        title = self._fill_queue.pop(0)
+        index = self._index_of(title)
+        if index is not None:
+            self._ensure_built(index)
+        # Yield back to the event loop between builds so clicks stay
+        # responsive and can jump ahead of the queue.
+        QTimer.singleShot(0, self._process_background_queue)
+
+    def _index_of(self, title: str) -> int | None:
+        for i in range(self.sub_tabs.count()):
+            if self.sub_tabs.tabText(i) == title:
+                return i
+        return None
+
+    def _ensure_built(self, index: int) -> None:
+        if index < 0:
+            return  # removeTab() below can transiently emit currentChanged(-1)
+        title = self.sub_tabs.tabText(index)
+        if not title or title in self._built:
+            return
+        self._built.add(title)
+
+        if title == "Dataframe View":
+            page, self.table_model, self.table_view = _build_dataframe_pane(self._spec.index_fields)
+            array, fill_count = self._data_source.get_dataframe_array(self._tab_key)
+            self.table_model.set_data(array, fill_count)
+        else:
+            page, canvas = _build_plot_pane(self._tab_key, title, self._data_source)
+            self._plot_canvases[title] = canvas
+
+        # removeTab()/insertTab() shift the current tab and re-emit
+        # currentChanged reentrantly (into this same slot) while we're mid-
+        # swap. Block signals for the swap itself, then restore selection
+        # afterwards -- but ONLY force focus onto the rebuilt tab if it's
+        # the one the user was already looking at. A background fill of
+        # some other tab must not yank the view out from under them; Qt
+        # already keeps the currently-viewed widget selected automatically
+        # since we insert back at the exact index we removed from.
+        was_current_index = self.sub_tabs.currentIndex()
+        was_current_title = self.sub_tabs.tabText(was_current_index) if was_current_index >= 0 else None
+
+        old = self.sub_tabs.widget(index)
+        self.sub_tabs.blockSignals(True)
+        try:
+            self.sub_tabs.removeTab(index)
+            self.sub_tabs.insertTab(index, page, title)
+        finally:
+            self.sub_tabs.blockSignals(False)
+
+        if index == was_current_index or title == was_current_title:
+            self.sub_tabs.setCurrentIndex(index)
+        if old is not None:
+            old.deleteLater()
 
     def refresh_dataframe(self) -> None:
+        if self.table_model is None:
+            return  # Dataframe sub-tab hasn't been opened yet -- nothing to do
         array, fill_count = self._data_source.get_dataframe_array(self._tab_key)
         self.table_model.set_data(array, fill_count)
 
@@ -256,21 +367,24 @@ class ComparisonMatrixView(QWidget):
             line.setFrameShape(QFrame.HLine)
             panel_layout.addWidget(line)
 
-            df_key = (spec.key, self.DATAFRAME_ITEM)
-            df_cb = QCheckBox(self.DATAFRAME_ITEM)
-            df_cb.toggled.connect(self._on_toggle)
-            panel_layout.addWidget(df_cb)
-            self._checkboxes[df_key] = df_cb
-
             # Comparison Matrix lists every plot the pipeline supports for
             # this tab, not just the config-selected subset shown in the
-            # instrument tab itself.
+            # instrument tab itself. Plots first, Dataframe View last --
+            # it's the debugging tool, most useful here specifically for
+            # side-by-side comparison (e.g. hits vs. events to verify
+            # clustering), not as the thing someone reaches for first.
             for plot_name in data_source.get_available_plots(spec.key):
                 item_key = (spec.key, plot_name)
                 cb = QCheckBox(plot_name)
                 cb.toggled.connect(self._on_toggle)
                 panel_layout.addWidget(cb)
                 self._checkboxes[item_key] = cb
+
+            df_key = (spec.key, self.DATAFRAME_ITEM)
+            df_cb = QCheckBox(self.DATAFRAME_ITEM)
+            df_cb.toggled.connect(self._on_toggle)
+            panel_layout.addWidget(df_cb)
+            self._checkboxes[df_key] = df_cb
 
         panel_layout.addStretch()
         scroll.setWidget(panel)
@@ -393,11 +507,15 @@ class MbutyDashboard(QMainWindow):
         # Single source of truth for which tabs exist, their field config,
         # and which plots each instrument tab shows (config-selected,
         # pre-run — fixed for the lifetime of this window).
+        # Reverse-pipeline order: Events is what a physicist watches during
+        # a run (and has the most plots), so it's shown -- and built --
+        # first. Readouts/Hits are further back in the pipeline and mostly
+        # matter for debugging, so they load later / on demand.
         tab_specs: list[TabSpec] = [
             TabSpec(
-                "readouts", "Readouts",
-                tuple(config.get("readouts_index_fields", ())),
-                tuple(config.get("readouts_active_plots", data_source.get_available_plots("readouts"))),
+                "coincidence_events", "Coincidence Events",
+                tuple(config.get("events_index_fields", ())),
+                tuple(config.get("events_active_plots", data_source.get_available_plots("coincidence_events"))),
             ),
             TabSpec(
                 "mapped_hits", "Mapped Hits",
@@ -405,9 +523,9 @@ class MbutyDashboard(QMainWindow):
                 tuple(config.get("hits_active_plots", data_source.get_available_plots("mapped_hits"))),
             ),
             TabSpec(
-                "coincidence_events", "Coincidence Events",
-                tuple(config.get("events_index_fields", ())),
-                tuple(config.get("events_active_plots", data_source.get_available_plots("coincidence_events"))),
+                "readouts", "Readouts",
+                tuple(config.get("readouts_index_fields", ())),
+                tuple(config.get("readouts_active_plots", data_source.get_available_plots("readouts"))),
             ),
         ]
         if data_source.beam_monitor_present():
@@ -417,18 +535,48 @@ class MbutyDashboard(QMainWindow):
                 tuple(config.get("bm_active_plots", data_source.get_available_plots("beam_monitor"))),
             ))
 
+        # Main tabs are lazy too: each InstrumentView is only constructed
+        # (and its default sub-tab built) when the user actually clicks it,
+        # not for all 4 instruments before the window has even painted.
+        self._tab_specs = tab_specs
+        self._data_source = data_source
         self.views: dict[str, InstrumentView] = {}
+        self._built_main: set[int] = set()
+
         for spec in tab_specs:
-            view = InstrumentView(spec, data_source)
-            self.views[spec.key] = view
-            self.main_tabs.addTab(view, spec.title)
+            self.main_tabs.addTab(QWidget(), spec.title)
 
         self.comparison_view = ComparisonMatrixView(data_source, tab_specs)
         self.main_tabs.addTab(self.comparison_view, "Comparison Matrix")
 
-        self.refresh_all_dataframes()
+        self.main_tabs.currentChanged.connect(self._ensure_main_built)
+        self._ensure_main_built(0)  # whichever tab is shown first needs content now
+
+    def _ensure_main_built(self, index: int) -> None:
+        if index < 0 or index in self._built_main:
+            return  # removeTab() below can transiently emit currentChanged(-1)
+        title = self.main_tabs.tabText(index)
+        spec = next((s for s in self._tab_specs if s.title == title), None)
+        if spec is None:
+            return  # Comparison Matrix -- already fully built up front
+        self._built_main.add(index)
+
+        view = InstrumentView(spec, self._data_source)
+        self.views[spec.key] = view
+
+        old = self.main_tabs.widget(index)
+        self.main_tabs.blockSignals(True)
+        try:
+            self.main_tabs.removeTab(index)
+            self.main_tabs.insertTab(index, view, title)
+        finally:
+            self.main_tabs.blockSignals(False)
+        self.main_tabs.setCurrentIndex(index)
+        if old is not None:
+            old.deleteLater()
 
     def refresh_all_dataframes(self) -> None:
+        """Refresh dataframes only for tabs that have actually been opened."""
         for view in self.views.values():
             view.refresh_dataframe()
 

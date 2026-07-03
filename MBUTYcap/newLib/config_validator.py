@@ -95,12 +95,14 @@ INSTRUMENT_TYPE_MAP = {
     "FREIA":    ["MB"],
     "AMOR":     ["MB"],
     "TREX":     ["MG"],
+    "SKADI":    ["SKADI"]
 }
 
-VALID_DETECTOR_TYPES = ("MB", "MG", "He3")
+VALID_DETECTOR_TYPES = ("MB", "MG", "He3", "SKADI")
 VALID_INSTRUMENT_NAMES = (
     "TBL", "AMOR", "ESTIA", "FREIA", "TREX",
     "MIRACLES", "CSPEC", "BIFROST", "VESPA",
+    "SKADI",
 )
 
 
@@ -145,8 +147,40 @@ def validate_instrument_and_detector(config: dict) -> None:
 
     det_name = config.get('detectorName', None)
     print(f"{INFO}Configuration for Detector {det_name}, type {det_type}, instrument {instrument}{RESET}")
+    
+# =============================================================================
+
+def match_instrument_and_detector(det_type,instrument) -> None:
+    
+    flag = True
+
+    # --- detectorType check (legacy get_DETtype) ------------------------------
+    if det_type not in VALID_DETECTOR_TYPES:
+        print(f"\n\t{ERR}Config File Error ---> Detector type (found {det_type}) can only be either MB, MG or He3 -> check config file! ---> Exiting ... \n{RESET}", end='')
+        time.sleep(2)
+        sys.exit()
+
+    # --- instrumentName check (legacy get_instrumName) -------------------------
+    if instrument not in VALID_INSTRUMENT_NAMES:
+        allowed = ", ".join(VALID_INSTRUMENT_NAMES)
+        print(f"\n\t{ERR}Config File Error ---> Instrument name {instrument} is invalid. Must be one of: {allowed} \n{RESET}")
+        time.sleep(2)
+        sys.exit()
+
+    # --- Instrument <-> detectorType cross-check (legacy verifyTypeWithInstrument) ---
+    allowed_types = INSTRUMENT_TYPE_MAP.get(instrument, [])
+
+    if det_type not in allowed_types:
+        flag = False
+        expected = " or ".join(allowed_types)
+        print(f"\n\t{WARN}Config File WARNING: Potential configuration mismatch!")
+        print(f"\tInstrument '{instrument}' usually uses type: {expected}.")
+        print(f"\tCurrent config has: '{det_type}'.")
+        print(f"\tAnalysis will proceed, but please verify your JSON settings.{RESET}\n")
+        time.sleep(1)
 
 
+    return flag
 # =============================================================================
 # validate_operation_mode
 # =============================================================================

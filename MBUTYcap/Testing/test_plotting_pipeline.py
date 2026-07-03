@@ -131,7 +131,7 @@ if __name__ == '__main__':
     # Build the shared axis set for histogramming / plotting
     # -------------------------------------------------------------------------
     section('BUILDING AXIS SET')
-    axis_set = MBAxisSet(parameters)
+    axis_set = MBAxisSet(parameters, config_new)
     print(f'  ax_wires steps={axis_set.ax_wires.steps}, ax_strips steps={axis_set.ax_strips.steps}, '
           f'ax_tof steps={axis_set.ax_tof.steps}')
 

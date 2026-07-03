@@ -174,19 +174,7 @@ class fileManagement():
 
             self.reducedCompressionHDFT  = 'gzip'  
             self.reducedCompressionHDFL  = 9     # gzip compression level 0 - 9
-            
-      def importConfigFileDetails(self,config=None):
-          
-          if config is None:
-              
-             self.configFilePath = './'
-             self.configFileName = './'
-              
-          else:
-          
-            self.configFilePath = config.configFilePath
-            self.configFileName = config.configFileName
-            
+
       def parseFileSerialsList(self):
           
             input_list = self.fileSerials
@@ -216,7 +204,7 @@ class kafkaSettings():
         self.topic        = 'freia_debug'
         self.numOfPackets = 100
             
-class VMMsettings():
+class VMMsettings(): # TO DO - change to timeSettings 
     def __init__(self):
         
         self.timeResolutionType    = 'fine'
@@ -270,7 +258,7 @@ class dataReduction():
           self.calibrateVMM_ADC_ONOFF = False
 
          
-    def createThArrays(self, parameters, config):   
+    def createThArrays(self, parameters, config):   # TO DO - change this to units - fix when doing software threshold - move out of params 
         
         cassettes = config.DETparameters.cassInConfig
             
@@ -332,30 +320,7 @@ class plotting():
           
           self.histogOutBounds = True
           
-          self.bareReadoutsCalculation = False
-          
-      def calculateDerivedParam(self, config):
-          
-          self.config = config
-          
-          
-          if self.config is not None:
-              try:
-                   if self.positionReconstruction == 'W.max-S.max': # w x s max max
-                         self.posWbins = int(self.config.DETparameters.numOfWires)
-                         self.posSbins = int(self.config.DETparameters.numOfStrips)
-                   elif self.positionReconstruction == 'W.cog-S.cog': # w x s CoG CoG
-                         self.posWbins = int(self.config.DETparameters.numOfWires*2)
-                         self.posSbins = int(self.config.DETparameters.numOfStrips*2) 
-                   elif self.positionReconstruction == 'W.max-S.cog': # w x s max CoG
-                         self.posWbins = int(self.config.DETparameters.numOfWires)
-                         self.posSbins = int(self.config.DETparameters.numOfStrips*2)
-                         
-              except:
-                  
-                  self.posWbins = int(1)
-                  self.posSbins = int(1)
-                  
+          self.bareReadoutsCalculation = False                  
              
           self.ToFbins  = round(self.ToFrange/self.ToFbinning) 
           
@@ -387,11 +352,6 @@ class wavelength():
             # PickUpTimeShift = -0.002 #s on chopper, time shift betweeen chopper edge 
           self.chopperPickUpDelay =  13.5/(2.*180.) * self.chopperPeriod/self.numOfBunchesPerPulse  #s  
           
-      def update(self):
-         
-          self.chopperFreq  = 1/self.chopperPeriod    #Hz
-          self.chopperPickUpDelay =  13.5/(2.*180.) * self.chopperPeriod/self.numOfBunchesPerPulse  #s  
-
 ###############################################################################
 ###############################################################################               
 
@@ -401,10 +361,6 @@ class parameters():
         self.fileManagement = fileManagement(currentPath)
         
         self.acqMode = None
-        
-        self.initializeParam()
-        
-    def initializeParam(self):
         
         self.dumpSettings   = dumpSettings(self.fileManagement.currentPath)
          
@@ -423,38 +379,6 @@ class parameters():
         self.kafkaSettings = kafkaSettings()
         
         self.VMMsettings   = VMMsettings()
-           
-
-             
-#################
-    
-    # def HistNotification(self,plottingInBlocks=False):
-        
-    #     # if plottingInBlocks is False:
-    #     #     if self.plotting.histogOutBounds is True:
-    #     #         print('\n\t histogram outBounds param set as True (Events out of bounds stored in first and last bin)')
-    #     #     else:
-    #     #         print('\n\t histogram outBounds param set as False (Events out of bounds not stored in any bin)')
-    #     # else:
-    #     #     if self.plotting.histogOutBounds is True:
-    #     #         print('\n\t histogram outBounds param set as True (Events out of bounds stored in first and last bin) -> overridden with False since plottingInSections is True')
-    #     #         self.plotting.histogOutBounds = False
-    #     #     else: 
-    #     #         print('\n\t histogram outBounds param set as False (Events out of bounds not stored in any bin)')
-            
-        
-    #     if self.plotting.histogOutBounds is True:
-            
-    #         if plottingInBlocks is False:
-    #             print('\n\t histogram outBounds param set as True (Events out of bounds stored in first and last bin)')
-    #         else:
-    #             print('\n\t histogram outBounds param set as True (Events out of bounds stored in first and last bin) -> overridden with False since plottingInSections is True')
-    #             self.plotting.histogOutBounds = False
-                
-    #     else:
-
-    #         print('\n\t histogram outBounds param set as False (Events out of bounds not stored in any bin)')
-            
             
     def HistNotification(self, plottingInBlocks=False):
         # Check if we need to perform the override

@@ -53,38 +53,74 @@ class BasePipeline:
         raise NotImplementedError
 
 
-class VMMNormalPipeline(BasePipeline):
-    """Execution track for Multi-Blade / Multi-Grid VMM3A normal hardware channels (opMode == 'normal')."""
+class MBPipeline(BasePipeline):
+    """Clean execution track dedicated exclusively to Multi-Blade hardware in normal mode."""
     def execute(self) -> None:
         if self.readouts_container.fill_count == 0:
-            print(f"{WARN}VMM Normal Readouts Container is empty — skipping pipeline pass.{RESET}")
+            print(f"{WARN}Multi-Blade Readouts Container is empty — skipping pipeline pass.{RESET}")
             return
 
         if getattr(self.parameters.dataReduction, 'calibrateVMM_ADC_ONOFF', False):
             print(f'{INFO}Running in-place vectorized VMM calibration pass...{RESET}')
             self.readouts_container.calibrate(self.parameters, self.config)
 
-        print(f'{INFO}Executing normal mapping engine pass...{RESET}')
-        detector_type = self.config.get('detectorType', 'MB')
-        if detector_type == 'MG':
-            hits_container = MGMapper.map(self.readouts_container, self.config)
-        else:
-            hits_container = MBMapper.map(self.readouts_container, self.config)
+        print(f'{INFO}Executing Multi-Blade mapping engine pass...{RESET}')
+        hits_container = MBMapper.map(self.readouts_container, self.config)
         
         print(f'{INFO}Executing coincidence clustering engine pass...{RESET}')
         time_window = getattr(self.parameters.dataReduction, 'timeWindow', 3e-6)
         events_container = VMMNormalClusterer.cluster(hits_container, self.config, time_window)
-        # Note this is wrong need to check if mb or mg 
+        
         print(f'{INFO}Calculating absolute physical coordinates and spectroscopy vectors...{RESET}')
         abs_calc = MBAbsUnitsCalculator(events_container, self.config, self.parameters)
         abs_calc.process_pipeline(remove_invalid_tofs=True)
 
-        axis_set = getattr(self.parameters, 'axis_set', None)
-        
-        self.readout_plotter = VMMReadoutsPlotter(self.readouts_container, axis_set)
-        self.hit_plotter = VMMHitsPlotter(hits_container)
-        self.event_plotter = VMMEventsPlotter(events_container, axis_set)
+        # 5. Build and initialize axis geometry via the modernized Multi-Blade set
+        from newLib.histograms import MBAxisSet
+        axis_set = MBAxisSet(self.parameters, self.config)
 
+        topology = self.config.get('topology', [])
+        num_wires = int(self.config['wires'])
+        
+        self.readout_plotter = MBReadoutsPlotter(self.readouts_container, topology, axis_set)
+        self.hit_plotter = MBHitsPlotter(hits_container, num_wires)
+        self.event_plotter = MBEventsPlotter(events_container, axis_set, self.config)
+
+
+class MGPipeline(BasePipeline):
+    """Clean execution track dedicated exclusively to Multi-Grid hardware in normal mode."""
+    def execute(self) -> None:
+        if self.readouts_container.fill_count == 0:
+            print(f"{WARN}Multi-Grid Readouts Container is empty — skipping pipeline pass.{RESET}")
+            return
+
+        if getattr(self.parameters.dataReduction, 'calibrateVMM_ADC_ONOFF', False):
+            print(f'{INFO}Running in-place vectorized VMM calibration pass...{RESET}')
+            self.readouts_container.calibrate(self.parameters, self.config)
+
+        print(f'{INFO}Executing Multi-Grid mapping engine pass...{RESET}')
+        hits_container = MGMapper.map(self.readouts_container, self.config)
+        
+        print(f'{INFO}Executing coincidence clustering engine pass...{RESET}')
+        time_window = getattr(self.parameters.dataReduction, 'timeWindow', 3e-6)
+        events_container = VMMNormalClusterer.cluster(hits_container, self.config, time_window)
+        
+        print(f'{INFO}Calculating absolute physical coordinates and spectroscopy vectors...{RESET}')
+        abs_calc = MBAbsUnitsCalculator(events_container, self.config, self.parameters)
+        abs_calc.process_pipeline(remove_invalid_tofs=True)
+
+        from newLib.plotting_readouts import VMMReadoutsPlotter
+        from newLib.plotting_hits import VMMHitsPlotter
+        from newLib.plotting_events import MGEventsPlotter
+        # 5. Build and initialize axis geometry via the modernized Multi-Grid set
+        from newLib.histograms import MGAxisSet
+        axis_set = MGAxisSet(self.parameters)
+
+        topology = self.config.get('topology', [])
+        
+        self.readout_plotter = MGReadoutsPlotter(self.readouts_container, topology, axis_set)
+        self.hit_plotter = MGHitsPlotter(hits_container)
+        self.event_plotter = MGEventsPlotter(events_container, axis_set, self.config)
 
 class VMMClusteredPipeline(BasePipeline):
     """Execution track for pre-clustered VMM3A hardware tracking streams (opMode == 'clustered')."""
@@ -113,10 +149,11 @@ class R5560Pipeline(BasePipeline):
         events_container = He3Clusterer.cluster(hits_container, self.config)
         
         axis_set = getattr(self.parameters, 'axis_set', None)
+        topology = self.config.get('topology', [])
         
-        self.readout_plotter = BaseReadoutsPlotter(self.readouts_container)
-        self.hit_plotter = BaseHitsPlotter(hits_container)
-        self.event_plotter = R5560EventsPlotter(events_container, axis_set)
+        self.readout_plotter = R5560ReadoutsPlotter(self.readouts_container, topology)
+        self.hit_plotter = R5560HitsPlotter(hits_container, axis_set)
+        self.event_plotter = R5560EventsPlotter(events_container, axis_set, self.config)
 
 
 class SkadiPipeline(BasePipeline):
@@ -132,8 +169,8 @@ class GenericBMPipeline(BasePipeline):
     def execute(self) -> None:
         if self.readouts_container.fill_count == 0:
             return
-        print(f'{INFO}Not yet implemented...{RESET}')
-        
+        print(f'{INFO}Executing Generic Beam Monitor timeline filtering and binning pass...{RESET}')
+        # Inizializzazione della pipeline monitor...
 
 
 class IBMPipeline(BasePipeline):
@@ -149,16 +186,17 @@ class IBMPipeline(BasePipeline):
 # =============================================================================
 
 class PipelineFactory:
-    """Maps (detector_type, opMode) cleanly to concrete execution classes."""
+    """Maps (detector_type, opMode) cleanly to concrete execution classes without internal switching branches."""
     
     @classmethod
     def get_detector_pipeline(cls, detector_type: str, op_mode: str, readouts_container, parameters, config: dict) -> BasePipeline | None:
-        # Resolve combinations cleanly to matching workflow architectures
-        if detector_type in ['MB', 'MG']:
-            if op_mode == 'normal':
-                return VMMNormalPipeline(readouts_container, parameters, config)
-            elif op_mode == 'clustered':
-                return VMMClusteredPipeline(readouts_container, parameters, config)
+        if op_mode == 'normal':
+            if detector_type == 'MB':
+                return MBPipeline(readouts_container, parameters, config)
+            elif detector_type == 'MG':
+                return MGPipeline(readouts_container, parameters, config)
+        elif op_mode == 'clustered' and detector_type in ['MB', 'MG']:
+            return VMMClusteredPipeline(readouts_container, parameters, config)
         elif detector_type == 'He3':
             return R5560Pipeline(readouts_container, parameters, config)
         elif detector_type == 'SKADI':
@@ -308,11 +346,11 @@ class OrchestratorDataSource(DashboardDataSource):
         elif tab_key == "coincidence_events":
             container = self.orch.detector_pipeline.event_plotter.container
         elif tab_key == "beam_monitor" and self.orch.bm_pipeline:
-            container = self.orch.bm_pipeline.event_plotter.events
+            container = self.orch.bm_pipeline.event_plotter.container
         else:
             return np.empty(0, dtype=[("_", "i4")]), 0
             
-        return container.matrix, container.fill_count
+        return container.matrix[:container.fill_count], container.fill_count
 
     def get_available_plots(self, tab_key: str) -> list[str]:
         """Queries public methods starting with 'plot_' on the active plotter instances via inspection."""
@@ -358,16 +396,15 @@ class OrchestratorDataSource(DashboardDataSource):
         import matplotlib.pyplot as plt
         import inspect
 
-        # Target the single-source figure context allocated by the dashboard grid layout
-        plt.figure(figure.number)
+        # Clear the dashboard layout's single-source figure canvas directly
         figure.clear()
 
-        # Gather current runtime arguments from the parameter structures
+        # Gather current runtime arguments from the parameter structures safely
         global_ui_kwargs = {
-            "logScale": getattr(self.orch.parameters.dataReduction, "logScale", False),
-            "absUnits": getattr(self.orch.parameters.dataReduction, "absUnits", False),
+            "log_scale": getattr(self.orch.parameters.dataReduction, "logScale", False),
+            "abs_units": getattr(self.orch.parameters.dataReduction, "absUnits", False),
             "orientation": self.orch.config.get("orientation", "vertical"),
-            "fig": figure
+            "fig_num": figure  # Pass the canvas figure context down explicitly instead of an integer ID
         }
 
         # Filter keywords through method signature inspection to prevent argument mismatch crashes
@@ -404,8 +441,8 @@ if __name__ == '__main__':
     dashboard_config = {
         "readouts_active_plots": ["plot_channels_raw", "plot_adc_vs_channel"],
         "hits_active_plots": ["plot_channels_raw", "plot_timestamps_vs_channel"],
-        "events_active_plots": ["plot_detector_image", "plot_tof", "plot_wavelength", "plot_phs"],
-        "bm_active_plots": ["plot_tof_and_phs", "plot_wavelength"]
+        "events_active_plots": ["plot_xy_tof", "plot_tof", "plot_lambda", "plot_phs", "plot_phs_correlation", "plot_x_lambda"],
+        "bm_active_plots": ["plot_tof_and_phs", "plot_lambda_mon"]
     }
     
     window = MbutyDashboard(data_bridge, config=dashboard_config)

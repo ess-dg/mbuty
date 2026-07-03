@@ -21,7 +21,7 @@ import json
 from GUI import LineNumberedText
 from GUI.gui_utils import create_gui_widget, update_widget_fonts, setup_dynamic_file_options
 from GUI import base_constants as const
-from lib.libConfigGenerator import generateDefaultDetConfig
+from newLib.libConfigGenerator import generateDefaultDetConfig
 
 # --- Configuration for the Config Creator GUI ---
 # Determine the current script's directory for default paths
@@ -67,26 +67,26 @@ ui_config = {
             "inputValidation": "localPath",
             "info": "The directory where the new configuration file will be saved. Must be an existing local path."
         },
-        "DetectorName": {
+        "detectorName": {
             "label": "Detector Name",
             "type": "entry",
             "info": "Select the name of the detector, the configuration file will be this name + .json"
         },
-        "DetectorType": {
+        "detectorType": {
             "label": "Detector Type",
             "type": "bool",
-            "options": ["MB", "MG", "He3"],
+            "options": ["MB", "MG", "He3", "SKADI"],
             "default": "MB",
-            "info": "Select the type of the detector: MB, MG or He3 (MIRA,CSPEC,BIFRO,VESPA)."
+            "info": "Select the type of the detector: MB, MG, He3 (for MIRA,CSPEC,BIFROST,VESPA) or SKADI."
         },
-        "InstrumentName": {
+        "instrumentName": {
             "label": "Instrument Name",
             "type": "dropdown",
-            "options": ["TBL", "AMOR", "ESTIA", "FREIA", "TREX", "MIRACLES", "CSPEC", "BIFROST", "VESPA"],
+            "options": ["TBL", "AMOR", "ESTIA", "FREIA", "TREX", "MIRACLES", "CSPEC", "BIFROST", "VESPA", "SKADI"],
             "default": "ESTIA",
             "info": "Select the intrument according to the type of detector."
         },
-        "cassettes": {
+        "units": {
             "label": "Number of Units",
             "type": "entry",
             "default": "2",
@@ -533,7 +533,7 @@ class ConfigCreatorFrame(tk.Frame):
         
         # Extract necessary data for opening file and updating the button and popups with correct paths and file names
         output_directory = new_file_data["path"]
-        detector_name = new_file_data["DetectorName"]
+        detector_name    = new_file_data["detectorName"]
         file_name = f"{detector_name}.json"
         file_path = os.path.join(output_directory, file_name)
 
@@ -551,14 +551,22 @@ class ConfigCreatorFrame(tk.Frame):
             overwrite = True # Set overwrite flag if user confirms
 
         try:
+            
+            
             # Create a copy of `new_file_data` to pass to the backend function.
             config_args_for_backend = new_file_data.copy()
             # Add the 'overwrite' flag which is determined by the user's choice.
             config_args_for_backend["overwrite"] = overwrite
             # Call the backend function to generate the configuration file.
             
-            generated_file_path = generateDefaultDetConfig(**config_args_for_backend)
+            generated_file_path, flag = generateDefaultDetConfig(**config_args_for_backend)
             
+            if flag is False:
+                messagebox.showwarning(
+                "Configuration Alert",  # The window title
+                "WARNING: Potential configuration mismatch! Instrument and detector type do not match!" # The actual text inside the popup
+                )
+
             if generated_file_path is None:
                 # If the backend function returns None, it indicates a failure.
                 messagebox.showerror("Error", "Config file generation failed (check console for backend errors).")

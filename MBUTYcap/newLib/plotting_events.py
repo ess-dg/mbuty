@@ -13,6 +13,8 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 import sys, os
+import matplotlib.figure
+
 # =============================================================================
 # RUNTIME PATH BOOTSTRAP
 # =============================================================================
@@ -301,7 +303,12 @@ class VMMEventsPlotter(BaseEventsPlotter):
 
         h, _ = self.hist.hist2d(ax_lambda.centers, m['wavelength'][self.selc], ax_wires.centers, wire_values[self.selc])
 
-        fig, ax = plt.subplots(num=fig_num, figsize=(6, 6), nrows=1, ncols=1)
+        if isinstance(fig_num, matplotlib.figure.Figure):
+            fig = fig_num
+            ax = fig.subplots(nrows=1, ncols=1)
+        else:
+            fig, ax = plt.subplots(num=fig_num, figsize=(6, 6), nrows=1, ncols=1)
+
         pos = ax.imshow(h, aspect='auto', norm=norm_colors, interpolation='nearest',
                          extent=[ax_lambda.start, ax_lambda.stop, ax_wires.start, ax_wires.stop], origin='lower', cmap='viridis')
         _safe_colorbar(fig, pos, ax, 'X vs Lambda')
@@ -345,16 +352,24 @@ class MBEventsPlotter(VMMEventsPlotter):
         )
         h_proj_all = self.hist.hist1d(ax_wires.centers, wire_values)   # NOTE: unfiltered, matches legacy (true "all events" curve)
         h_proj_2d  = np.sum(h2d, axis=0)
-
+        
         if orientation == 'vertical':
-            fig2d, (ax1, ax2) = plt.subplots(num=fig_num, figsize=(6, 12), nrows=2, ncols=1)
+            if isinstance(fig_num, matplotlib.figure.Figure):
+                fig2d = fig_num
+                (ax1, ax2) = fig2d.subplots(nrows=2, ncols=1)
+            else:
+                fig2d, (ax1, ax2) = plt.subplots(num=fig_num, figsize=(6, 12), nrows=2, ncols=1)
             pos1 = ax1.imshow(h2d, aspect='auto', norm=norm_colors, interpolation='none',
                                extent=[ax_wires.start, ax_wires.stop, ax_strips.stop, ax_strips.start], origin='upper', cmap='viridis')
             _safe_colorbar(fig2d, pos1, ax1, 'XY', orientation='horizontal', fraction=0.07, anchor=(1.0, 0.0))
             ax1.set_xlabel(wire_label)
             ax1.set_ylabel(strip_label)
         else:  # 'horizontal'
-            fig2d, (ax1, ax2) = plt.subplots(num=fig_num, figsize=(12, 6), nrows=1, ncols=2)
+            if isinstance(fig_num, matplotlib.figure.Figure):
+                fig2d = fig_num
+                (ax1, ax2) = fig2d.subplots(nrows=1, ncols=2)
+            else:
+                fig2d, (ax1, ax2) = plt.subplots(num=fig_num, figsize=(12, 6), nrows=1, ncols=2)
             pos1 = ax1.imshow(np.rot90(h2d, 1), aspect='auto', norm=norm_colors, interpolation='none',
                                extent=[ax_strips.start, ax_strips.stop, ax_wires.start, ax_wires.stop], origin='upper', cmap='viridis')
             _safe_colorbar(fig2d, pos1, ax1, 'XY', orientation='horizontal', fraction=0.07, anchor=(1.0, 0.0))
@@ -371,7 +386,12 @@ class MBEventsPlotter(VMMEventsPlotter):
         ax2.set_xlim(ax_wires.start, ax_wires.stop)
         ax2.legend(loc='upper right', shadow=False, fontsize='large')
 
-        fig_tof, ax_t = plt.subplots(num=tof_fig_num, figsize=(6, 6), nrows=1, ncols=1)
+        if isinstance(tof_fig_num, matplotlib.figure.Figure):
+            fig_tof = tof_fig_num
+            ax_t = fig_tof.subplots(nrows=1, ncols=1)
+        else:
+            fig_tof, ax_t = plt.subplots(num=tof_fig_num, figsize=(6, 6), nrows=1, ncols=1)
+            
         pos_t = ax_t.imshow(h_tof, aspect='auto', norm=norm_colors, interpolation='nearest',
                              extent=[ax_tof.start * 1e3, ax_tof.stop * 1e3, ax_wires.start, ax_wires.stop], origin='lower', cmap='viridis')
         _safe_colorbar(fig_tof, pos_t, ax_t, 'YToF')
@@ -423,7 +443,11 @@ class MGEventsPlotter(VMMEventsPlotter):
         h_proj_all = self.hist.hist1d(ax_wires.centers, m['coordinate0'])   # NOTE: unfiltered, matches legacy
         h_proj_2d  = np.sum(h2d, axis=0)
 
-        fig2d, ax22 = plt.subplots(num=fig_num, figsize=(9, 9), nrows=2, ncols=2)
+        if isinstance(fig_num, matplotlib.figure.Figure):
+            fig2d = fig_num
+            ax22 = fig2d.subplots(nrows=2, ncols=2)
+        else:
+            fig2d, ax22 = plt.subplots(num=fig_num, figsize=(9, 9), nrows=2, ncols=2)
 
         if orientation == 'vertical':
             pos1 = ax22[0][0].imshow(h2d, aspect='auto', norm=norm_colors, interpolation='none',
@@ -439,7 +463,7 @@ class MGEventsPlotter(VMMEventsPlotter):
                 ax22[0][0].plot([k * num_wires - 0.5, k * num_wires - 0.5],
                                  [-0.5, num_strips - 1 + 0.5], color='m', linewidth=1)
             ax22[0][0].set_xlim(ax_wires.centers[0], ax_wires.centers[-1])
-        else:  # 'horizontal' -- NOTE: legacy bug preserved, panel intentionally left blank
+        else:  # 'horizontal'
             print(f'\n --> {WARN}WARNING: horizontal is not supported yet for MG for now, change in config file{RESET}', end='')
 
         fig2d.suptitle('DET image')
@@ -498,7 +522,12 @@ class MGEventsPlotter(VMMEventsPlotter):
         ax22[1][1].set_xlim(ax_wires.centers[0] / wires_per_row - 0.5, ax_wires.centers[-1] / wires_per_row - 0.5)
         ax22[1][1].legend(loc='upper right', shadow=False, fontsize='large')
 
-        fig_tof, ax_t = plt.subplots(num=tof_fig_num, figsize=(6, 6), nrows=1, ncols=1)
+        if isinstance(tof_fig_num, matplotlib.figure.Figure):
+            fig_tof = tof_fig_num
+            ax_t = fig_tof.subplots(nrows=1, ncols=1)
+        else:
+            fig_tof, ax_t = plt.subplots(num=tof_fig_num, figsize=(6, 6), nrows=1, ncols=1)
+            
         pos_t = ax_t.imshow(h_tof, aspect='auto', norm=norm_colors, interpolation='nearest',
                              extent=[ax_tof.start * 1e3, ax_tof.stop * 1e3, ax_wires.start, ax_wires.stop], origin='lower', cmap='viridis')
         _safe_colorbar(fig_tof, pos_t, ax_t, 'YToF')

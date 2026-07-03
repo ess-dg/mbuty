@@ -29,10 +29,22 @@ class PlotGrid:
     """Thin wrapper around plt.subplots producing a guaranteed-2D axis grid."""
 
     def __init__(self, fig_num, n_rows, n_cols=1, fig_size=(12, 12), sharex='col', sharey='row', **kwargs):
-        self.fig, axes = plt.subplots(
-            num=fig_num, figsize=fig_size, nrows=n_rows, ncols=n_cols,
-            sharex=sharex, sharey=sharey, **kwargs,
-        )
+        import matplotlib.figure
+        
+        # If running inside a GUI context, populate the injected canvas figure directly
+        if isinstance(fig_num, matplotlib.figure.Figure):
+            self.fig = fig_num
+            axes = self.fig.subplots(
+                nrows=n_rows, ncols=n_cols,
+                sharex=sharex, sharey=sharey, **kwargs
+            )
+        # Fallback to standard PyPlot state manager if running a standalone script track
+        else:
+            self.fig, axes = plt.subplots(
+                num=fig_num, figsize=fig_size, nrows=n_rows, ncols=n_cols,
+                sharex=sharex, sharey=sharey, **kwargs,
+            )
+            
         self.ax = np.atleast_2d(axes).reshape(n_rows, n_cols)
 
     def unshare_row(self, row_idx):

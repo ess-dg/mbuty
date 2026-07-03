@@ -118,7 +118,7 @@ class BaseReader:
         self._ip_tuples_raw   = []
 
         # ---- one-shot warning flags -----------------------------------------
-        self._warned_bm = False  # BM data found in ring < 11
+        # self._warned_bm = False  # BM data found in ring < 11
 
         # ---- debug toggle ---------------------------------------------------
         self.debug = False
@@ -439,6 +439,8 @@ class BaseReader:
             # ------------------------------------------------------------------
             dest_block['pulseT']  = pulse_t
             dest_block['prevPT']  = prev_pt
+            
+            dest_block['instrID']  = int(instr_id)
             
             dest_container.instrumentIDs.add(int(instr_id))
 
