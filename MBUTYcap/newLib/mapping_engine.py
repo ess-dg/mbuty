@@ -882,7 +882,8 @@ class IBMMonitorMapper(BaseMonitorMapper):
 
 
 # =============================================================================
-# map_detector — top-level dispatcher
+# map_detector — top-level dispatcher - only used when testing mapping module 
+# independently. Can theoretically be deleted after fully tested module 
 # =============================================================================
 
 def map_detector(readouts, config: dict):

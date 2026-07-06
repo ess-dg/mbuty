@@ -40,7 +40,7 @@ class MBUTYOrchestrator:
         
         user_name = os.environ.get('USER', os.environ.get('USERNAME', 'User'))
         print('----------------------------------------------------------------------')
-        print(f'{INFO}Ciao {user_name}! Welcome to MBUTY 8.3 [Guarded Architecture] {RESET}')
+        print(f'{INFO}Ciao {user_name}! Welcome to MBUTY 8.0 {RESET}')
         print('----------------------------------------------------------------------')
         
         config_path = os.path.join(
@@ -86,58 +86,17 @@ class MBUTYOrchestrator:
                 )
                 reader.run()
 
-        # 2. Extract Registry Definitions via Configuration Parameters
-        detector_type = self.config.get('detectorType') 
-        op_mode = self.config.get('opMode', 'normal')
-        print(f'{INFO}\nEvaluating hardware metrics: detector_type = "{detector_type}", opMode = "{op_mode}"...{RESET}')
+        # 2. Detector Pipeline Track Instantiation & Execution Pass via Factory-
+        self.detector_pipeline = PipelineFactory.build_detector_pipeline(self.config, reader, self.parameters)
+        if self.detector_pipeline:
+            print(f'{OK}Executing verified pipeline reduction track for: {self.config.get("detectorType")}{RESET}')
+            self.detector_pipeline.execute()
 
-        # 3. Guarded Multi-Key Detector Container Switching Pass
-        if detector_type in ['MB', 'MG']:
-            if op_mode == 'normal':
-                active_readouts = getattr(reader, 'readouts_vmm_normal', None)
-            elif op_mode == 'clustered':
-                active_readouts = getattr(reader, 'readouts_vmm_clustered', None)
-            else:
-                print(f'\n{ERR}FATAL ERROR: Unrecognized opMode "{op_mode}" for VMM detector systems! Exit.{RESET}')
-                sys.exit(1)
-        elif detector_type == 'He3':
-            active_readouts = getattr(reader, 'readouts_r5560', None)
-        elif detector_type == 'SKADI':
-            active_readouts = getattr(reader, 'readouts_skadi', None)
-        else:
-            # Absolute Gate Guard: Reject unmapped configurations instantly
-            print(f'\n{ERR}FATAL ERROR: Configuration mismatch. detector_type "{detector_type}" '
-                  f'is completely unrecognized by the pipeline registry hardware definitions! Exit.{RESET}')
-            sys.exit(1)
-
-        # 4. Pipeline Track Instantiation & Execution Pass via Factory
-        if active_readouts is not None:
-            self.detector_pipeline = PipelineFactory.get_detector_pipeline(
-                detector_type, op_mode, active_readouts, self.parameters, self.config
-            )
-            if self.detector_pipeline:
-                print(f'{OK}Executing verified pipeline reduction track for: {detector_type} [{op_mode}]{RESET}')
-                self.detector_pipeline.execute()
-        else:
-            print(f'{WARN}Target readout container for "{detector_type}" was not populated during ingestion.{RESET}')
-
-        # 5. Conditionally Dispatch Beam Monitor Tracking Stream
-        if self.config.get('beam_monitor_present', False):
-            bm_type = self.config.get('bm_hardware_type', 'generic')
-            
-            if bm_type.lower() == 'ibm':
-                bm_readouts = getattr(reader, 'readouts_ibm', None)
-            else:
-                bm_readouts = getattr(reader, 'readouts_bm', None)
-            
-            if bm_readouts is not None:
-                self.bm_pipeline = PipelineFactory.get_bm_pipeline(
-                    bm_type, bm_readouts, self.parameters, self.config
-                )
-                print(f'{OK}Executing verified pipeline track for Beam Monitor: {bm_type}{RESET}')
-                self.bm_pipeline.execute()
-            else:
-                print(f'{WARN}Beam Monitor flagged as active, but associated BM readouts are empty.{RESET}')
+        # 3. Conditionally Dispatch Beam Monitor Tracking Stream
+        self.bm_pipeline = PipelineFactory.build_bm_pipeline(self.config, reader, self.parameters)
+        if self.bm_pipeline:
+            print(f'{OK}Executing verified pipeline track for Beam Monitor: {self.config.get("bm_hardware_type", "generic")}{RESET}')
+            self.bm_pipeline.execute()
 
         print(f'{OK}\nIngestion, Guarded Factory Routing, and Vector Processing Complete.{RESET}')
 
@@ -172,7 +131,7 @@ class OrchestratorDataSource(DashboardDataSource):
         """Single lookup shared by get_available_plots/render_plot/render_plot_headless,
         so the tab_key -> plotter mapping only exists in one place. Returns None for
         anything unavailable (unbuilt pipeline, or a stage deliberately left as None --
-        bareReadoutsCalculation, or VMMClusteredPipeline's hit_plotter, etc.)."""
+        bareReadoutsCalculation, or MBClusteredPipeline's hit_plotter, etc.)."""
         pipeline = self.orch.bm_pipeline if tab_key == "beam_monitor" else self.orch.detector_pipeline
         if not pipeline:
             return None
@@ -226,11 +185,6 @@ class OrchestratorDataSource(DashboardDataSource):
         if figure is not None:
             figure.clear()  # Clear the dashboard layout's single-source figure canvas directly
 
-        # Gather current runtime arguments from the parameter structures safely.
-        # NOTE: previously read from parameters.dataReduction.logScale/absUnits,
-        # which don't exist on that class at all (silently fell back to False
-        # via getattr's default every time) -- libParameters.py's canonical
-        # source for these is parameters.plotting.plotIMGlog / plotABSunits.
         global_ui_kwargs = global_ui_kwargs_from_parameters(
             self.orch.parameters, self.orch.config,
             unit_ids=self.section_unit_ids, figure=figure,
@@ -356,10 +310,7 @@ if __name__ == '__main__':
     # Run backend scientific computation track
     pipeline_orchestrator = MBUTYOrchestrator(params)
     pipeline_orchestrator.run_pipeline()
-
-    # Which plots to show is derived entirely from @toggled_by flags
-    # declared directly on each plot_* method (see plotting_base.py) --
-    # the same selection feeds both the dashboard and the headless fallback below.
+    
     detector_pipeline = pipeline_orchestrator.detector_pipeline
     bm_pipeline = pipeline_orchestrator.bm_pipeline
     dashboard_config = resolve_active_plots(
