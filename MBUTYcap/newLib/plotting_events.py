@@ -23,7 +23,7 @@ if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
 from newLib.colors import WARN, RESET
 from newLib.histograms import Histogrammer
-from newLib.plotting_base import PlotGrid, BasePlotter, log_scale_norm, _safe_colorbar
+from newLib.plotting_base import PlotGrid, BasePlotter, log_scale_norm, _safe_colorbar, toggled_by
 
 
 # ============================================================================
@@ -80,6 +80,7 @@ class VMMEventsPlotter(BaseEventsPlotter):
         """
         raise NotImplementedError("Subclasses must implement _get_wire_channel().")
 
+    @toggled_by("plotting.plotToFDistr")
     def plot_tof(self, unit_ids=None, fig_num=333):
         """ToF distribution per unit: all events overlaid with 2D-coincidence-only events."""
         if self.is_empty:
@@ -105,6 +106,7 @@ class VMMEventsPlotter(BaseEventsPlotter):
                 grid.ax[0][k].set_ylabel('counts')
             grid.ax[0][k].legend(loc='upper right', shadow=False, fontsize='large')
 
+    @toggled_by("wavelength.plotLambdaDistr")
     def plot_lambda(self, unit_ids=None, fig_num=339):
         """Wavelength distribution per unit: all events overlaid with 2D-coincidence-only events."""
         if self.is_empty:
@@ -130,6 +132,7 @@ class VMMEventsPlotter(BaseEventsPlotter):
                 grid.ax[0][k].set_ylabel('counts')
             grid.ax[0][k].legend(loc='upper right', shadow=False, fontsize='large')
 
+    @toggled_by("plotting.plotInstRate")
     def plot_instantaneous_rate(self, unit_ids=None, fig_num=209):
         """
         Delta-time between consecutive 2D-coincidence events, per unit.
@@ -158,6 +161,7 @@ class VMMEventsPlotter(BaseEventsPlotter):
             if k == 0:
                 grid.ax[0][k].set_ylabel('num of events')
 
+    @toggled_by("plotting.plotMultiplicity")
     def plot_multiplicity(self, unit_ids=None, fig_num=401):
         """Normalized wire/strip multiplicity distributions and their 2D coincidence correlation, per unit."""
         if self.is_empty:
@@ -211,6 +215,7 @@ class VMMEventsPlotter(BaseEventsPlotter):
                 grid.ax[1][k].set_ylabel('multiplicity strips')
             grid.fig.colorbar(pos1, ax=grid.ax[1][k])
 
+    @toggled_by("pulseHeigthSpect.plotPHS")
     def plot_phs(self, unit_ids=None, log_scale: bool = False, fig_num=601):
         """Wire/strip pulse-height spectra per unit: raw wire, raw strip, wire-with-strip-coincidence, and the summed 1D comparison."""
         if self.is_empty:
@@ -262,6 +267,7 @@ class VMMEventsPlotter(BaseEventsPlotter):
             if k == 0:
                 grid.ax[3][k].set_ylabel('counts')
 
+    @toggled_by("pulseHeigthSpect.plotPHScorrelation")
     def plot_phs_correlation(self, unit_ids=None, log_scale: bool = False, fig_num=602):
         """Wire vs strip pulse-height correlation for 2D-coincidence events, per unit."""
         if self.is_empty:
@@ -288,6 +294,7 @@ class VMMEventsPlotter(BaseEventsPlotter):
             if k == 0:
                 grid.ax[0][k].set_ylabel('pulse height strips (a.u.)')
 
+    @toggled_by("wavelength.plotXLambda")
     def plot_x_lambda(self, log_scale: bool = False, abs_units: bool = False, fig_num=103):
         """2D wavelength vs wire-position image across all units combined, raw channel or absolute-mm coordinates. Respects the global coincidence mask."""
         if self.is_empty:
@@ -548,6 +555,7 @@ class R5560EventsPlotter(BaseEventsPlotter):
     legacy.
     """
 
+    @toggled_by("plotting.plotToFDistr")
     def plot_tof(self, unit_ids=None, fig_num=333):
         """ToF distribution per tube (single curve, no coincidence overlay)."""
         if self.is_empty:
@@ -568,6 +576,7 @@ class R5560EventsPlotter(BaseEventsPlotter):
             if k == 0:
                 grid.ax[0][k].set_ylabel('counts')
 
+    @toggled_by("wavelength.plotLambdaDistr")
     def plot_lambda(self, unit_ids=None, fig_num=339):
         """Wavelength distribution per tube (single curve, no coincidence overlay)."""
         if self.is_empty:
@@ -588,6 +597,7 @@ class R5560EventsPlotter(BaseEventsPlotter):
             if k == 0:
                 grid.ax[0][k].set_ylabel('counts')
 
+    @toggled_by("plotting.plotInstRate")
     def plot_instantaneous_rate(self, unit_ids=None, fig_num=209):
         """Delta-time between consecutive events, per tube. Always linear-binned (out_of_bounds forced off, matching legacy)."""
         if self.is_empty:
@@ -610,6 +620,7 @@ class R5560EventsPlotter(BaseEventsPlotter):
             if k == 0:
                 grid.ax[0][k].set_ylabel('num of events')
 
+    @toggled_by("pulseHeigthSpect.plotPHS")
     def plot_phs(self, unit_ids=None, log_scale: bool = False, fig_num=601):
         """Pulse-height spectrum per tube. `log_scale` accepted for API parity but never wired up in legacy (kept unused, always linear)."""
         if self.is_empty:
@@ -630,18 +641,21 @@ class R5560EventsPlotter(BaseEventsPlotter):
                 grid.ax[0][k].set_ylabel('counts')
             grid.ax[0][k].set_xlabel('pulse height (a.u.)')
 
+    @toggled_by("plotting.plotMultiplicity")
     def plot_multiplicity(self, unit_ids=None):
         """Not supported for R5560 (single coordinate, no wire/strip pair)."""
         if self.is_empty:
             return
         print(f"\n\t{WARN}WARNING: Multiplicity not supported for {self.config['detectorType']} -> SKIPPING PLOT.{RESET}")
 
+    @toggled_by("pulseHeigthSpect.plotPHScorrelation")
     def plot_phs_correlation(self, unit_ids=None, log_scale: bool = False):
         """Not supported for R5560 -- use the raw hits ADC vs ADC correlation instead."""
         if self.is_empty:
             return
         print(f"\t{WARN}WARNING: PHS correlation not supported for {self.config['detectorType']} -> SKIPPING PLOT (use raw hits for ADC VS ADC).{RESET}")
 
+    @toggled_by("wavelength.plotXLambda")
     def plot_x_lambda(self, log_scale: bool = False, abs_units: bool = False):
         """Not supported for R5560."""
         if self.is_empty:
@@ -750,6 +764,7 @@ class MonitorEventsPlotter(BasePlotter):
         super().__init__(container, hist_out_of_bounds)
         self.axis_set = axis_set
 
+    @toggled_by("MONitor.plotMONtofPHS")
     def plot_tof_phs_mon(self, fig_num=999):
         """ToF and pulse-height spectra for the monitor stream, side by side."""
         if self.is_empty:
@@ -773,6 +788,7 @@ class MonitorEventsPlotter(BasePlotter):
         ax2.set_ylabel('counts')
         ax2.set_title('PHS')
 
+    @toggled_by("wavelength.plotLambdaDistr")
     def plot_lambda_mon(self, fig_num=9998):
         """Wavelength spectrum for the monitor stream."""
         if self.is_empty:

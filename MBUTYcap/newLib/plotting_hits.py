@@ -17,7 +17,7 @@ _workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
 from newLib.colors import WARN, RESET
-from newLib.plotting_base import PlotGrid, BasePlotter, log_scale_norm
+from newLib.plotting_base import PlotGrid, BasePlotter, log_scale_norm, toggled_by
 
 
 # ============================================================================
@@ -54,6 +54,7 @@ class VMMHitsPlotter(BaseHitsPlotter):
         """Un-offset a global wire coordinate back to this unit's local 0..num_wires-1 range."""
         return np.mod(global_index, self.num_wires)
 
+    @toggled_by("plotting.plotHitsTimeStamps")
     def plot_timestamps(self, unit_ids=None, fig_num=1004):
         """Wire and strip trigger timestamps per unit, overlaid."""
         if self.is_empty:
@@ -90,6 +91,7 @@ class VMMHitsPlotter(BaseHitsPlotter):
             plotht.ax[0][k].set_title(f'ID {uid}')
             plotht.ax[0][k].grid(axis='both', alpha=0.75)
 
+    @toggled_by("plotting.plotHitsTimeStampsVSChannels")
     def plot_timestamps_vs_channel(self, unit_ids=None, fig_num=1005):
         """Wire and strip channel (after mapping) vs. trigger timestamp, overlaid."""
         if self.is_empty:
@@ -148,6 +150,7 @@ class MBHitsPlotter(VMMHitsPlotter):
         super().__init__(container, num_wires, hist_out_of_bounds)
         self.xbins = np.linspace(0, n_channels - 1, n_channels)
 
+    @toggled_by("plotting.plotRawHits")
     def plot_channels_raw(self, unit_ids=None, fig_num=1003):
         """Mapped wire/strip channel occupancy per unit."""
         if self.is_empty:
@@ -200,6 +203,7 @@ class MGHitsPlotter(VMMHitsPlotter):
         self.wbins = np.linspace(0, num_wires - 1, num_wires)
         self.gbins = np.linspace(0, num_grids - 1, num_grids)
 
+    @toggled_by("plotting.plotRawHits")
     def plot_channels_raw(self, unit_ids=None, fig_num=1003):
         """Mapped wire/grid channel occupancy per unit."""
         if self.is_empty:
@@ -248,6 +252,7 @@ class R5560HitsPlotter(BaseHitsPlotter):
         super().__init__(container, hist_out_of_bounds)
         self.axis_set = axis_set
 
+    @toggled_by("plotting.plotRawHits")
     def plot_channels_raw(self, unit_ids=None, fig_num=1003):
         """Pulse-height correlation (ampA vs ampB) per tube. Always linear scale (matches legacy: logScale was never actually wired up here)."""
         if self.is_empty:
@@ -271,12 +276,14 @@ class R5560HitsPlotter(BaseHitsPlotter):
             if k == 0:
                 plotPHScorr.ax[0][k].set_ylabel('pulse height B (a.u.)')
 
+    @toggled_by("plotting.plotHitsTimeStamps")
     def plot_timestamps(self, unit_ids=None, fig_num=1004):
         """Not supported for R5560 -- use the raw readouts timestamp plots instead."""
         if self.is_empty:
             return
         print(f'\n\t{WARN}WARNING: Hits time stamp not supported for R5560 -> SKIPPING PLOT (use raw readouts timestamp plots).{RESET}')
 
+    @toggled_by("plotting.plotHitsTimeStampsVSChannels")
     def plot_timestamps_vs_channel(self, unit_ids=None, fig_num=1005):
         """Not supported for R5560 -- use the raw readouts timestamp plots instead."""
         if self.is_empty:

@@ -280,7 +280,13 @@ class plotting():
           
           #  is you want stats of clusters per cassette or for all at once, 0 no  stat, individualStat stat per cass, globalStat stat all cass glob
           self.showStat = 'globalStat'
-          
+
+          # Primary plotting surface is the PySide6 dashboard. Flip this off
+          # to fall back to plain matplotlib windows (one per active plot,
+          # via plt.show()) without the dashboard's extra moving parts --
+          # useful as a backup if the dashboard itself is misbehaving.
+          self.useDashboard = True
+
           self.plottingInSections       = False
           self.plottingInSectionsBlocks = 5
                     

@@ -17,7 +17,7 @@ _workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
 from newLib.colors import WARN, RESET
-from newLib.plotting_base import PlotGrid, BasePlotter, log_scale_norm
+from newLib.plotting_base import PlotGrid, BasePlotter, log_scale_norm, toggled_by
 
 
 # ============================================================================
@@ -51,6 +51,7 @@ class BaseReadoutsPlotter(BasePlotter):
     def _topology_entry(self, unit_id) -> dict:
         return self._topo_by_id[unit_id]
 
+    @toggled_by("plotting.plotChopperResets")
     def plot_chopper_resets(self, fig_num=9999):
         if self.is_empty:
             return
@@ -94,6 +95,7 @@ class MBReadoutsPlotter(BaseReadoutsPlotter):
         sel3 = m['hybrid'] == entry['hybrid']
         return sel1 & sel2 & sel3
 
+    @toggled_by("plotting.plotRawReadouts")
     def plot_channels_raw(self, unit_ids=None, fig_num=1001):
         """Raw ASIC0/ASIC1 (or channel0/channel1 for clustered) channel occupancy per hybrid."""
         if self.is_empty:
@@ -125,6 +127,7 @@ class MBReadoutsPlotter(BaseReadoutsPlotter):
                 ploth.ax[0][k].set_ylabel('counts')
                 ploth.ax[1][k].set_ylabel('counts')
 
+    @toggled_by("plotting.plotReadoutsTimeStamps")
     def plot_timestamps(self, unit_ids=None, fig_num=1002):
         """Raw ASIC0/ASIC1 trigger timestamps per hybrid."""
         if self.is_empty:
@@ -161,6 +164,7 @@ class MBReadoutsPlotter(BaseReadoutsPlotter):
             plotht.ax[0][k].grid(axis='y', alpha=0.75)
             plotht.ax[1][k].grid(axis='y', alpha=0.75)
 
+    @toggled_by("plotting.plotADCvsCh")
     def plot_adc_vs_channel(self, unit_ids=None, logScale: bool = False, fig_num=1006):
         """ADC vs channel 2D occupancy per hybrid, ASIC0/ASIC1 (or ch0/ch1 for clustered)."""
         if self.is_empty:
@@ -231,6 +235,7 @@ class MGReadoutsPlotter(BaseReadoutsPlotter):
         selG = sel1 & sel2 & sel4
         return selW, selG
 
+    @toggled_by("plotting.plotRawReadouts")
     def plot_channels_raw(self, unit_ids=None, fig_num=1001):
         """Raw WIRE/GRID ASIC0/ASIC1 channel occupancy per unit."""
         if self.is_empty:
@@ -266,6 +271,7 @@ class MGReadoutsPlotter(BaseReadoutsPlotter):
 
             ploth.ax[0][k].set_title(f'MG.{uid}')
 
+    @toggled_by("plotting.plotReadoutsTimeStamps")
     def plot_timestamps(self, unit_ids=None, fig_num=1002):
         """Raw WIRE/GRID ASIC0/ASIC1 trigger timestamps per unit."""
         if self.is_empty:
@@ -319,6 +325,7 @@ class MGReadoutsPlotter(BaseReadoutsPlotter):
             plotht.ax[2][k].grid(axis='y', alpha=0.75)
             plotht.ax[3][k].grid(axis='y', alpha=0.75)
 
+    @toggled_by("plotting.plotADCvsCh")
     def plot_adc_vs_channel(self, unit_ids=None, logScale: bool = False, fig_num=1006):
         """ADC vs channel 2D occupancy per unit, WIRE/GRID x ASIC0/ASIC1."""
         if self.is_empty:
@@ -389,6 +396,7 @@ class R5560ReadoutsPlotter(BaseReadoutsPlotter):
         sel3 = m['tube'] == entry['tube']
         return sel1 & sel2 & sel3
 
+    @toggled_by("plotting.plotRawReadouts")
     def plot_channels_raw(self, unit_ids=None, fig_num=1001):
         """Bar chart of raw entry counts per tube, across every unit ID present in topology."""
         if self.is_empty:
@@ -411,6 +419,7 @@ class R5560ReadoutsPlotter(BaseReadoutsPlotter):
         ploth.ax[0][0].set_ylabel('num of entries')
         ploth.ax[0][0].set_xticks(xbins)
 
+    @toggled_by("plotting.plotReadoutsTimeStamps")
     def plot_timestamps(self, unit_ids=None, fig_num=1002):
         """Raw trigger timestamps per tube."""
         if self.is_empty:
@@ -432,6 +441,7 @@ class R5560ReadoutsPlotter(BaseReadoutsPlotter):
             plotht.ax[0][k].grid(axis='x', alpha=0.75)
             plotht.ax[0][k].grid(axis='y', alpha=0.75)
 
+    @toggled_by("plotting.plotADCvsCh")
     def plot_adc_vs_channel(self, unit_ids=None, logScale: bool = False, fig_num=None):
         """ADC vs channel is not supported for R5560 -- use raw hits for ADC vs ADC instead."""
         print(f'\n\t{WARN}WARNING: ADC vs Ch not supported for R5560 -> SKIPPING PLOT (use raw hits for ADC VS ADC).{RESET}')

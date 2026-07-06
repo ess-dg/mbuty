@@ -9,7 +9,6 @@ for ESS Neutron Detectors.
 
 import os
 import sys
-import time
 import json
 import numpy as np
 
@@ -17,197 +16,13 @@ import numpy as np
 from newLib.reader import PcapngFileReader
 from newLib.kafka_reader import KafkaReader
 from newLib.colors import INFO, OK, WARN, ERR, RESET
-from newLib.instrument_registry import get_info
 
-# Ingest engine libraries for modular workflows
-from newLib.mapping_engine import MBMapper, MBClustMapper, MGMapper, He3Mapper
-from newLib.clustering_engine import VMMNormalClusterer
-from newLib.abs_units_engine import MBAbsUnitsCalculator
+# Ingest object-oriented pipeline tracks and factory router registry
+from newLib.pipelines import PipelineFactory
 
 # Ingest legacy file resolver as an isolated asset
 from lib.libFileManagmentUtil import fileDialogue
 import newLib.libParameters as para
-
-
-# Ingest split plotting architecture sub-modules
-from newLib.plotting_readouts import MBReadoutsPlotter, MGReadoutsPlotter, R5560ReadoutsPlotter
-from newLib.plotting_hits import MBHitsPlotter, MGHitsPlotter, R5560HitsPlotter
-from newLib.plotting_events import MBEventsPlotter, MGEventsPlotter, R5560EventsPlotter, MonitorEventsPlotter
-# =============================================================================
-# Object-Oriented Pipeline Tracks
-# =============================================================================
-
-class BasePipeline:
-    """Non-negotiable contract for all hardware instrument workflows."""
-    def __init__(self, readouts_container, parameters, config_dict: dict):
-        self.readouts_container = readouts_container
-        self.parameters = parameters
-        self.config = config_dict
-        
-        # Public plotter properties bound dynamically for direct Dashboard inspection
-        self.readout_plotter = None
-        self.hit_plotter = None
-        self.event_plotter = None
-
-    def execute(self) -> None:
-        raise NotImplementedError
-
-
-class MBPipeline(BasePipeline):
-    """Clean execution track dedicated exclusively to Multi-Blade hardware in normal mode."""
-    def execute(self) -> None:
-        if self.readouts_container.fill_count == 0:
-            print(f"{WARN}Multi-Blade Readouts Container is empty — skipping pipeline pass.{RESET}")
-            return
-
-        if getattr(self.parameters.dataReduction, 'calibrateVMM_ADC_ONOFF', False):
-            print(f'{INFO}Running in-place vectorized VMM calibration pass...{RESET}')
-            self.readouts_container.calibrate(self.parameters, self.config)
-
-        print(f'{INFO}Executing Multi-Blade mapping engine pass...{RESET}')
-        hits_container = MBMapper.map(self.readouts_container, self.config)
-        
-        print(f'{INFO}Executing coincidence clustering engine pass...{RESET}')
-        time_window = getattr(self.parameters.dataReduction, 'timeWindow', 3e-6)
-        events_container = VMMNormalClusterer.cluster(hits_container, self.config, time_window)
-        
-        print(f'{INFO}Calculating absolute physical coordinates and spectroscopy vectors...{RESET}')
-        abs_calc = MBAbsUnitsCalculator(events_container, self.config, self.parameters)
-        abs_calc.process_pipeline(remove_invalid_tofs=True)
-
-        # 5. Build and initialize axis geometry via the modernized Multi-Blade set
-        from newLib.histograms import MBAxisSet
-        axis_set = MBAxisSet(self.parameters, self.config)
-
-        topology = self.config.get('topology', [])
-        num_wires = int(self.config['wires'])
-        
-        self.readout_plotter = MBReadoutsPlotter(self.readouts_container, topology, axis_set)
-        self.hit_plotter = MBHitsPlotter(hits_container, num_wires)
-        self.event_plotter = MBEventsPlotter(events_container, axis_set, self.config)
-
-
-class MGPipeline(BasePipeline):
-    """Clean execution track dedicated exclusively to Multi-Grid hardware in normal mode."""
-    def execute(self) -> None:
-        if self.readouts_container.fill_count == 0:
-            print(f"{WARN}Multi-Grid Readouts Container is empty — skipping pipeline pass.{RESET}")
-            return
-
-        if getattr(self.parameters.dataReduction, 'calibrateVMM_ADC_ONOFF', False):
-            print(f'{INFO}Running in-place vectorized VMM calibration pass...{RESET}')
-            self.readouts_container.calibrate(self.parameters, self.config)
-
-        print(f'{INFO}Executing Multi-Grid mapping engine pass...{RESET}')
-        hits_container = MGMapper.map(self.readouts_container, self.config)
-        
-        print(f'{INFO}Executing coincidence clustering engine pass...{RESET}')
-        time_window = getattr(self.parameters.dataReduction, 'timeWindow', 3e-6)
-        events_container = VMMNormalClusterer.cluster(hits_container, self.config, time_window)
-        
-        print(f'{INFO}Calculating absolute physical coordinates and spectroscopy vectors...{RESET}')
-        abs_calc = MBAbsUnitsCalculator(events_container, self.config, self.parameters)
-        abs_calc.process_pipeline(remove_invalid_tofs=True)
-
-        from newLib.plotting_readouts import VMMReadoutsPlotter
-        from newLib.plotting_hits import VMMHitsPlotter
-        from newLib.plotting_events import MGEventsPlotter
-        # 5. Build and initialize axis geometry via the modernized Multi-Grid set
-        from newLib.histograms import MGAxisSet
-        axis_set = MGAxisSet(self.parameters)
-
-        topology = self.config.get('topology', [])
-        
-        self.readout_plotter = MGReadoutsPlotter(self.readouts_container, topology, axis_set)
-        self.hit_plotter = MGHitsPlotter(hits_container)
-        self.event_plotter = MGEventsPlotter(events_container, axis_set, self.config)
-
-class VMMClusteredPipeline(BasePipeline):
-    """Execution track for pre-clustered VMM3A hardware tracking streams (opMode == 'clustered')."""
-    def execute(self) -> None:
-        if self.readouts_container.fill_count == 0:
-            print(f"{WARN}VMM Clustered Readouts Container is empty — skipping pipeline pass.{RESET}")
-            return
-            
-        print(f'{INFO}Executing hardware-clustered VMM mapping pass...{RESET}')
-        hits_container = MBClustMapper.map(self.readouts_container, self.config)
-        
-        print(f'{INFO}Routing to clustered coincidence matching layout tracks...{RESET}')
-        # Downstream clustered engine execution calls go here...
-
-
-class R5560Pipeline(BasePipeline):
-    """Execution track for CAEN R5560 Helium-3 continuous gas tube detectors."""
-    def execute(self) -> None:
-        if self.readouts_container.fill_count == 0:
-            return
-            
-        print(f'{INFO}Executing R5560 Helium-3 mapping and customized tube clustering...{RESET}')
-        hits_container = He3Mapper.map(self.readouts_container, self.config)
-        
-        from newLib.clustering_engine import He3Clusterer
-        events_container = He3Clusterer.cluster(hits_container, self.config)
-        
-        axis_set = getattr(self.parameters, 'axis_set', None)
-        topology = self.config.get('topology', [])
-        
-        self.readout_plotter = R5560ReadoutsPlotter(self.readouts_container, topology)
-        self.hit_plotter = R5560HitsPlotter(hits_container, axis_set)
-        self.event_plotter = R5560EventsPlotter(events_container, axis_set, self.config)
-
-
-class SkadiPipeline(BasePipeline):
-    """Execution track for specialized SKADI detector layout streams."""
-    def execute(self) -> None:
-        if self.readouts_container.fill_count == 0:
-            return
-        print(f'{INFO}Not yet implemented...{RESET}')
-
-
-class GenericBMPipeline(BasePipeline):
-    """Telemetry pipeline track for Standard/Passthrough Beam Monitors."""
-    def execute(self) -> None:
-        if self.readouts_container.fill_count == 0:
-            return
-        print(f'{INFO}Executing Generic Beam Monitor timeline filtering and binning pass...{RESET}')
-        # Inizializzazione della pipeline monitor...
-
-
-class IBMPipeline(BasePipeline):
-    """Telemetry pipeline track for Ionization Beam Monitors (IBM)."""
-    def execute(self) -> None:
-        if self.readouts_container.fill_count == 0:
-            return
-        print(f'{INFO}Not yet implemented...{RESET}')
-
-
-# =============================================================================
-# Pipeline Factory Router Registry
-# =============================================================================
-
-class PipelineFactory:
-    """Maps (detector_type, opMode) cleanly to concrete execution classes without internal switching branches."""
-    
-    @classmethod
-    def get_detector_pipeline(cls, detector_type: str, op_mode: str, readouts_container, parameters, config: dict) -> BasePipeline | None:
-        if op_mode == 'normal':
-            if detector_type == 'MB':
-                return MBPipeline(readouts_container, parameters, config)
-            elif detector_type == 'MG':
-                return MGPipeline(readouts_container, parameters, config)
-        elif op_mode == 'clustered' and detector_type in ['MB', 'MG']:
-            return VMMClusteredPipeline(readouts_container, parameters, config)
-        elif detector_type == 'He3':
-            return R5560Pipeline(readouts_container, parameters, config)
-        elif detector_type == 'SKADI':
-            return SkadiPipeline(readouts_container, parameters, config)
-        return None
-
-    @classmethod
-    def get_bm_pipeline(cls, bm_hardware_type: str, readouts_container, parameters, config: dict) -> BasePipeline:
-        if bm_hardware_type.lower() == 'ibm':
-            return IBMPipeline(readouts_container, parameters, config)
-        return GenericBMPipeline(readouts_container, parameters, config)
 
 
 # =============================================================================
@@ -327,65 +142,78 @@ class MBUTYOrchestrator:
         print(f'{OK}\nIngestion, Guarded Factory Routing, and Vector Processing Complete.{RESET}')
 
 from newLib.mbuty_dashboard import DashboardDataSource, MbutyDashboard
+from newLib.plotting_base import resolve_active_plots, global_ui_kwargs_from_parameters
 from PySide6.QtWidgets import QApplication
 
 class OrchestratorDataSource(DashboardDataSource):
-    """Bridges the executed MBUTYOrchestrator pipeline data directly to the PySide6 layout shell."""
-    def __init__(self, orchestrator: MBUTYOrchestrator):
+    """Bridges the executed MBUTYOrchestrator pipeline data directly to the PySide6 layout shell.
+
+    section_unit_ids: when set, scopes every plot call to this block of
+    unit IDs (cassettes/tubes) -- used for plottingInSections, one
+    dashboard window per block. Methods that don't accept a unit_ids
+    kwarg (whole-detector composite images like plot_xy_tof/plot_x_lambda)
+    silently ignore it, same signature-filtering mechanism as everything
+    else in render_plot().
+
+    include_bm: lets the orchestrator show the Beam Monitor tab on only
+    one of several sequential section windows, since the monitor stream
+    doesn't vary per cassette block and would otherwise be duplicated in
+    every window.
+    """
+    def __init__(self, orchestrator: MBUTYOrchestrator, section_unit_ids=None, include_bm: bool = True):
         self.orch = orchestrator
+        self.section_unit_ids = section_unit_ids
+        self.include_bm = include_bm
 
     def beam_monitor_present(self) -> bool:
-        return bool(self.orch.config.get('beam_monitor_present', False))
+        return self.include_bm and bool(self.orch.config.get('beam_monitor_present', False))
+
+    def _resolve_plotter(self, tab_key: str):
+        """Single lookup shared by get_available_plots/render_plot/render_plot_headless,
+        so the tab_key -> plotter mapping only exists in one place. Returns None for
+        anything unavailable (unbuilt pipeline, or a stage deliberately left as None --
+        bareReadoutsCalculation, or VMMClusteredPipeline's hit_plotter, etc.)."""
+        pipeline = self.orch.bm_pipeline if tab_key == "beam_monitor" else self.orch.detector_pipeline
+        if not pipeline:
+            return None
+        if tab_key == "readouts":
+            return getattr(pipeline, "readout_plotter", None)
+        if tab_key == "mapped_hits":
+            return getattr(pipeline, "hit_plotter", None)
+        if tab_key in ("coincidence_events", "beam_monitor"):
+            return getattr(pipeline, "event_plotter", None)
+        return None
 
     def get_dataframe_array(self, tab_key: str) -> tuple[np.ndarray, int]:
         """Routes structured matrix arrays and active row count counters straight to QTableViews."""
         if tab_key == "readouts":
-            container = self.orch.detector_pipeline.readouts_container
-        elif tab_key == "mapped_hits":
-            container = self.orch.detector_pipeline.hit_plotter.container
-        elif tab_key == "coincidence_events":
-            container = self.orch.detector_pipeline.event_plotter.container
-        elif tab_key == "beam_monitor" and self.orch.bm_pipeline:
-            container = self.orch.bm_pipeline.event_plotter.container
+            pipeline = self.orch.detector_pipeline
+            container = getattr(pipeline, "readouts_container", None) if pipeline else None
         else:
+            plotter = self._resolve_plotter(tab_key)
+            container = plotter.container if plotter is not None else None
+
+        if container is None:
             return np.empty(0, dtype=[("_", "i4")]), 0
-            
+
         return container.matrix[:container.fill_count], container.fill_count
 
     def get_available_plots(self, tab_key: str) -> list[str]:
-        """Queries public methods starting with 'plot_' on the active plotter instances via inspection."""
-        pipeline = self.orch.bm_pipeline if tab_key == "beam_monitor" else self.orch.detector_pipeline
-        if not pipeline:
-            return []
-            
-        if tab_key == "readouts":
-            plotter = pipeline.readout_plotter
-        elif tab_key == "mapped_hits":
-            plotter = pipeline.hit_plotter
-        elif tab_key == "coincidence_events" or tab_key == "beam_monitor":
-            plotter = pipeline.event_plotter
-        else:
-            plotter = None
-            
+        """Queries public methods starting with 'plot_' on the active plotter instances via inspection.
+        Returns [] whenever the backing plotter is None -- this doubles as the tab-availability
+        signal MbutyDashboard uses to decide whether to build a tab at all."""
+        plotter = self._resolve_plotter(tab_key)
         if plotter is None:
             return []
-            
         # Dynamically discover all public plotting functions implemented on this concrete instance
         return [method for method in dir(plotter) if method.startswith('plot_') and callable(getattr(plotter, method))]
 
-    def render_plot(self, tab_key: str, plot_name: str, figure) -> None:
-        """Dynamically passes the dashboard target figure canvas context straight to the active plotter."""
-        pipeline = self.orch.bm_pipeline if tab_key == "beam_monitor" else self.orch.detector_pipeline
-        if not pipeline:
-            return
-            
-        if tab_key == "readouts":
-            plotter = pipeline.readout_plotter
-        elif tab_key == "mapped_hits":
-            plotter = pipeline.hit_plotter
-        elif tab_key == "coincidence_events" or tab_key == "beam_monitor":
-            plotter = pipeline.event_plotter
-        else:
+    def _dispatch(self, tab_key: str, plot_name: str, figure=None) -> None:
+        """Shared dispatch for both the GUI (figure=Qt Figure) and headless
+        (figure=None -> method opens its own standalone matplotlib window
+        via its default int fig_num) rendering paths."""
+        plotter = self._resolve_plotter(tab_key)
+        if plotter is None:
             return
 
         method = getattr(plotter, plot_name, None)
@@ -393,27 +221,126 @@ class OrchestratorDataSource(DashboardDataSource):
             print(f"{WARN}WARNING: Plotting method '{plot_name}' not supported by {type(plotter).__name__}.{RESET}")
             return
 
-        import matplotlib.pyplot as plt
         import inspect
 
-        # Clear the dashboard layout's single-source figure canvas directly
-        figure.clear()
+        if figure is not None:
+            figure.clear()  # Clear the dashboard layout's single-source figure canvas directly
 
-        # Gather current runtime arguments from the parameter structures safely
-        global_ui_kwargs = {
-            "log_scale": getattr(self.orch.parameters.dataReduction, "logScale", False),
-            "abs_units": getattr(self.orch.parameters.dataReduction, "absUnits", False),
-            "orientation": self.orch.config.get("orientation", "vertical"),
-            "fig_num": figure  # Pass the canvas figure context down explicitly instead of an integer ID
-        }
+        # Gather current runtime arguments from the parameter structures safely.
+        # NOTE: previously read from parameters.dataReduction.logScale/absUnits,
+        # which don't exist on that class at all (silently fell back to False
+        # via getattr's default every time) -- libParameters.py's canonical
+        # source for these is parameters.plotting.plotIMGlog / plotABSunits.
+        global_ui_kwargs = global_ui_kwargs_from_parameters(
+            self.orch.parameters, self.orch.config,
+            unit_ids=self.section_unit_ids, figure=figure,
+        )
 
         # Filter keywords through method signature inspection to prevent argument mismatch crashes
         sig = inspect.signature(method)
         filtered_kwargs = {k: v for k, v in global_ui_kwargs.items() if k in sig.parameters}
 
         method(**filtered_kwargs)
+
+    def render_plot(self, tab_key: str, plot_name: str, figure) -> None:
+        """Dynamically passes the dashboard target figure canvas context straight to the active plotter."""
+        self._dispatch(tab_key, plot_name, figure=figure)
+
+    def render_plot_headless(self, tab_key: str, plot_name: str) -> None:
+        """Backup plotting path (parameters.plotting.useDashboard = False): lets each
+        plot method open its own standalone matplotlib window instead of drawing onto
+        a Qt canvas. Same selection/kwargs logic as the dashboard -- only the output
+        surface differs."""
+        self._dispatch(tab_key, plot_name, figure=None)
         
         
+def _chunk(seq: list, size: int) -> list[list]:
+    size = max(1, int(size))
+    return [seq[i:i + size] for i in range(0, len(seq), size)]
+
+
+def _section_blocks(orchestrator: MBUTYOrchestrator, params) -> list:
+    """Returns a list of unit-ID blocks to iterate over. A single-element
+    list containing None means "no sectioning -- one pass over everything",
+    which is both the default (plottingInSections == False) and the
+    fallback whenever there's no readout_plotter to pull a topology from
+    (e.g. detector_pipeline never got built)."""
+    if not params.plotting.plottingInSections:
+        return [None]
+
+    pipeline = orchestrator.detector_pipeline
+    readout_plotter = getattr(pipeline, "readout_plotter", None) if pipeline else None
+    if readout_plotter is None:
+        return [None]
+
+    unit_ids = readout_plotter.topology_unit_ids()
+    blocks = _chunk(unit_ids, params.plotting.plottingInSectionsBlocks)
+    return blocks if blocks else [None]
+
+
+def run_dashboard(orchestrator: MBUTYOrchestrator, params, dashboard_config: dict) -> None:
+    """Primary plotting path: one MbutyDashboard window per section block,
+    opened sequentially -- the next window only appears once the current
+    one is closed (closer to legacy's blocking 'next section?' prompt than
+    popping every window at once). With plottingInSections off, this is
+    just the single window it always was."""
+    app = QApplication(sys.argv)
+    blocks = _section_blocks(orchestrator, params)
+
+    for i, block in enumerate(blocks):
+        # Beam Monitor doesn't vary per cassette/tube block, so it's only
+        # attached to the first section window rather than duplicated in each.
+        data_bridge = OrchestratorDataSource(orchestrator, section_unit_ids=block, include_bm=(i == 0))
+        window = MbutyDashboard(data_bridge, config=dashboard_config)
+
+        title = "MBUTY Dashboard"
+        if block is not None:
+            title += f" -- section {i + 1}/{len(blocks)} (unit IDs {block[0]}-{block[-1]})"
+        window.setWindowTitle(title)
+        window.resize(1400, 850)
+        window.show()
+        app.exec()  # returns once this window (the only one open) is closed
+
+    sys.exit(0)
+
+
+def run_headless(orchestrator: MBUTYOrchestrator, params, dashboard_config: dict) -> None:
+    """Backup plotting path (parameters.plotting.useDashboard = False):
+    same plot selection as the dashboard, but each plot opens its own
+    plain matplotlib window via plt.show(). Mirrors legacy's behaviour,
+    including plottingInSections' block-by-block "press Enter to continue".
+    """
+    import matplotlib.pyplot as plt
+
+    data_bridge = OrchestratorDataSource(orchestrator)
+    blocks = _section_blocks(orchestrator, params)
+
+    tab_plot_pairs = [
+        ("readouts", dashboard_config["readouts_active_plots"]),
+        ("mapped_hits", dashboard_config["hits_active_plots"]),
+        ("coincidence_events", dashboard_config["events_active_plots"]),
+    ]
+    if orchestrator.bm_pipeline is not None:
+        tab_plot_pairs.append(("beam_monitor", dashboard_config["bm_active_plots"]))
+
+    for i, block in enumerate(blocks):
+        data_bridge.section_unit_ids = block
+        for tab_key, plot_names in tab_plot_pairs:
+            # Beam Monitor doesn't vary per section -- only plot it once, on the first pass.
+            if tab_key == "beam_monitor" and block is not None and i > 0:
+                continue
+            if not data_bridge.get_available_plots(tab_key):
+                continue
+            for plot_name in plot_names:
+                data_bridge.render_plot_headless(tab_key, plot_name)
+
+        section_note = f" (section {i + 1}/{len(blocks)})" if block is not None else ""
+        print(f"{INFO}\nPlots ready{section_note}. Close the figure windows to continue...{RESET}")
+        plt.show()  # blocks until every open figure window is closed
+        if i < len(blocks) - 1:
+            input("Press Enter for the next section... ")
+
+
 if __name__ == '__main__':
     current_dir = os.path.abspath(os.path.dirname(__file__)) + os.sep
     params = para.parameters(current_dir)
@@ -429,23 +356,23 @@ if __name__ == '__main__':
     # Run backend scientific computation track
     pipeline_orchestrator = MBUTYOrchestrator(params)
     pipeline_orchestrator.run_pipeline()
-    
-    # Initialize the PySide6 Application layout shell environment
-    print(f"\n{INFO}Launching PySide6 Interactive Dashboard...{RESET}")
-    app = QApplication(sys.argv)
-    
-    # Bind data source adapter to dashboard initialization specifications
-    data_bridge = OrchestratorDataSource(pipeline_orchestrator)
-    
-    # Build demo dictionary mapping for user active plot views (passed directly to sub-tab generator)
-    dashboard_config = {
-        "readouts_active_plots": ["plot_channels_raw", "plot_adc_vs_channel"],
-        "hits_active_plots": ["plot_channels_raw", "plot_timestamps_vs_channel"],
-        "events_active_plots": ["plot_xy_tof", "plot_tof", "plot_lambda", "plot_phs", "plot_phs_correlation", "plot_x_lambda"],
-        "bm_active_plots": ["plot_tof_and_phs", "plot_lambda_mon"]
-    }
-    
-    window = MbutyDashboard(data_bridge, config=dashboard_config)
-    window.resize(1400, 850)
-    window.show()
-    sys.exit(app.exec())
+
+    # Which plots to show is derived entirely from @toggled_by flags
+    # declared directly on each plot_* method (see plotting_base.py) --
+    # the same selection feeds both the dashboard and the headless fallback below.
+    detector_pipeline = pipeline_orchestrator.detector_pipeline
+    bm_pipeline = pipeline_orchestrator.bm_pipeline
+    dashboard_config = resolve_active_plots(
+        params,
+        readout_plotter=getattr(detector_pipeline, "readout_plotter", None) if detector_pipeline else None,
+        hit_plotter=getattr(detector_pipeline, "hit_plotter", None) if detector_pipeline else None,
+        event_plotter=getattr(detector_pipeline, "event_plotter", None) if detector_pipeline else None,
+        bm_plotter=getattr(bm_pipeline, "event_plotter", None) if bm_pipeline else None,
+    )
+
+    if params.plotting.useDashboard:
+        print(f"\n{INFO}Launching PySide6 Interactive Dashboard...{RESET}")
+        run_dashboard(pipeline_orchestrator, params, dashboard_config)
+    else:
+        print(f"\n{INFO}useDashboard is False -- falling back to plain matplotlib windows...{RESET}")
+        run_headless(pipeline_orchestrator, params, dashboard_config)

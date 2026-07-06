@@ -511,23 +511,41 @@ class MbutyDashboard(QMainWindow):
         # a run (and has the most plots), so it's shown -- and built --
         # first. Readouts/Hits are further back in the pipeline and mostly
         # matter for debugging, so they load later / on demand.
-        tab_specs: list[TabSpec] = [
-            TabSpec(
-                "coincidence_events", "Coincidence Events",
-                tuple(config.get("events_index_fields", ())),
-                tuple(config.get("events_active_plots", data_source.get_available_plots("coincidence_events"))),
-            ),
-            TabSpec(
-                "mapped_hits", "Mapped Hits",
-                tuple(config.get("hits_index_fields", ())),
-                tuple(config.get("hits_active_plots", data_source.get_available_plots("mapped_hits"))),
-            ),
-            TabSpec(
-                "readouts", "Readouts",
-                tuple(config.get("readouts_index_fields", ())),
-                tuple(config.get("readouts_active_plots", data_source.get_available_plots("readouts"))),
-            ),
-        ]
+        #
+        # Generic availability rule: a tab is only added if the pipeline
+        # actually has something behind it. get_available_plots() already
+        # returns [] whenever the backing plotter is None (see
+        # OrchestratorDataSource) -- e.g. bareReadoutsCalculation stopped
+        # the pipeline after the readouts stage, or a given pipeline
+        # deliberately suppresses a plotter (VMMClusteredPipeline currently
+        # sets hit_plotter to None even though hits are still computed
+        # internally -- see pipelines.py). One rule covers every such case
+        # without the dashboard needing to know *why* a tab is missing.
+        def _maybe_tab(key: str, title: str, index_cfg_key: str, active_cfg_key: str) -> TabSpec | None:
+            available = data_source.get_available_plots(key)
+            if not available:
+                return None
+            return TabSpec(
+                key, title,
+                tuple(config.get(index_cfg_key, ())),
+                tuple(config.get(active_cfg_key, available)),
+            )
+
+        tab_specs: list[TabSpec] = []
+        for spec in (
+            _maybe_tab("coincidence_events", "Coincidence Events", "events_index_fields", "events_active_plots"),
+            _maybe_tab("mapped_hits", "Mapped Hits", "hits_index_fields", "hits_active_plots"),
+            _maybe_tab("readouts", "Readouts", "readouts_index_fields", "readouts_active_plots"),
+        ):
+            if spec is not None:
+                tab_specs.append(spec)
+
+        # Beam Monitor stays on its own explicit condition rather than the
+        # generic None-check above: it's an independent pipeline (possibly
+        # of a different hardware type than the main detector), not a stage
+        # of the same pipeline, so "is a BM stream present at all" is a
+        # different question than "did this stage of the detector pipeline
+        # produce data".
         if data_source.beam_monitor_present():
             tab_specs.append(TabSpec(
                 "beam_monitor", "Beam Monitor",
