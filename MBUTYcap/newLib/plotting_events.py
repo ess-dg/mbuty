@@ -23,7 +23,7 @@ if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
 from newLib.colors import WARN, RESET
 from newLib.histograms import Histogrammer
-from newLib.plotting_base import PlotGrid, BasePlotter, log_scale_norm, _safe_colorbar, toggled_by
+from newLib.plotting_base import PlotGrid, BasePlotter, log_scale_norm, _safe_colorbar
 
 
 # ============================================================================
@@ -46,6 +46,17 @@ class BaseEventsPlotter(BasePlotter):
         """Boolean row mask for rows belonging to this unit ID (cassette/tube)."""
         return self.matrix['ID'] == unit_id
 
+    # placholder stubs - give warning if this function is not implemented (overwritten) in daughter class
+    def plot_xy(self, *args, **kwargs): self._skip('plot_xy')
+    def plot_tof_xy(self, *args, **kwargs): self._skip('plot_tof_xy')
+    def plot_tof(self, *args, **kwargs): self._skip('plot_tof')
+    def plot_lambda(self, *args, **kwargs): self._skip('plot_lambda')
+    def plot_x_lambda(self, *args, **kwargs): self._skip('plot_x_lambda')
+    def plot_multiplicity(self, *args, **kwargs): self._skip('plot_multiplicity')
+    def plot_phs(self, *args, **kwargs): self._skip('plot_phs')
+    def plot_phs_correlation(self, *args, **kwargs): self._skip('plot_phs_correlation')
+    def plot_instantaneous_rate(self, *args, **kwargs): self._skip('plot_instantaneous_rate')
+    def plot_position_per_tube(self, *args, **kwargs): self._skip('plot_position_per_tube')
 
 # ============================================================================
 # Shared VMM (ASIC-based) layer -- Multi-Blade + Multi-Grid
@@ -80,7 +91,6 @@ class VMMEventsPlotter(BaseEventsPlotter):
         """
         raise NotImplementedError("Subclasses must implement _get_wire_channel().")
 
-    @toggled_by("plotting.plotToFDistr")
     def plot_tof(self, unit_ids=None, fig_num=333):
         """ToF distribution per unit: all events overlaid with 2D-coincidence-only events."""
         if self.is_empty:
@@ -106,7 +116,6 @@ class VMMEventsPlotter(BaseEventsPlotter):
                 grid.ax[0][k].set_ylabel('counts')
             grid.ax[0][k].legend(loc='upper right', shadow=False, fontsize='large')
 
-    @toggled_by("wavelength.plotLambdaDistr")
     def plot_lambda(self, unit_ids=None, fig_num=339):
         """Wavelength distribution per unit: all events overlaid with 2D-coincidence-only events."""
         if self.is_empty:
@@ -132,10 +141,9 @@ class VMMEventsPlotter(BaseEventsPlotter):
                 grid.ax[0][k].set_ylabel('counts')
             grid.ax[0][k].legend(loc='upper right', shadow=False, fontsize='large')
 
-    @toggled_by("plotting.plotInstRate")
     def plot_instantaneous_rate(self, unit_ids=None, fig_num=209):
         """
-        Delta-time between consecutive 2D-coincidence events, per unit.
+        Delta-time between consecutive events and internal cluster time spans, per unit.
         Always linear-binned: legacy hardcodes out_of_bounds=False here
         regardless of the instance's hist_out_of_bounds setting.
         """
@@ -143,25 +151,37 @@ class VMMEventsPlotter(BaseEventsPlotter):
             return
         unit_ids = self.unit_ids() if unit_ids is None else unit_ids
         grid = PlotGrid(fig_num, 1, len(unit_ids))
-        grid.fig.suptitle('Instantaneous Rate')
+        grid.fig.suptitle('Instantaneous Rate & Clustering Diagnostics')
         ax_rate = self.axis_set.ax_inst_rate
         m = self.matrix
         forced_hist = Histogrammer(out_of_bounds=False)
 
+        # Determine if this container instance has VMM normal clustering analytics fields
+        has_cluster_span = 'clusterTimeSpan' in m.dtype.names
+
         for k, uid in enumerate(unit_ids):
             sel = self.select_unit(uid)
-            sel_2d = m['coordinate1'] >= 0
-            diff_time = np.diff(m['timeStamp'][sel & sel_2d])
+            
+            # Use the precalculated field (stored in ns) instead of manually computing np.diff
+            # Filtering for rows where delta is valid (> 0)
+            valid_delta = sel & (m['timeBetweenEvents'] > 0)
+            inter_cluster_times = m['timeBetweenEvents'][valid_delta] / 1e9 # convert ns to seconds for axis centers matching
 
-            hist_rate = forced_hist.hist1d(ax_rate.centers, diff_time / 1e9)
+            hist_rate = forced_hist.hist1d(ax_rate.centers, inter_cluster_times)
+            grid.ax[0][k].step(ax_rate.centers * 1e6, hist_rate, 'b', where='mid', label='Inter-cluster delta')
 
-            grid.ax[0][k].step(ax_rate.centers * 1e6, hist_rate, 'k', where='mid', label='w')
-            grid.ax[0][k].set_xlabel('delta time between events (us)')
+            # Overlay cluster time span if dealing with eventsVMMnormal
+            if has_cluster_span:
+                cluster_spans = m['clusterTimeSpan'][sel] / 1e9 # convert ns to seconds
+                hist_span = forced_hist.hist1d(ax_rate.centers, cluster_spans)
+                grid.ax[0][k].step(ax_rate.centers * 1e6, hist_span, 'r', where='mid', label='Cluster TimeSpan')
+
+            grid.ax[0][k].set_xlabel('delta time / span (us)')
             grid.ax[0][k].set_title(f'ID {uid}')
+            grid.ax[0][k].legend(loc='upper right', shadow=False, fontsize='medium')
             if k == 0:
                 grid.ax[0][k].set_ylabel('num of events')
 
-    @toggled_by("plotting.plotMultiplicity")
     def plot_multiplicity(self, unit_ids=None, fig_num=401):
         """Normalized wire/strip multiplicity distributions and their 2D coincidence correlation, per unit."""
         if self.is_empty:
@@ -215,7 +235,6 @@ class VMMEventsPlotter(BaseEventsPlotter):
                 grid.ax[1][k].set_ylabel('multiplicity strips')
             grid.fig.colorbar(pos1, ax=grid.ax[1][k])
 
-    @toggled_by("pulseHeigthSpect.plotPHS")
     def plot_phs(self, unit_ids=None, log_scale: bool = False, fig_num=601):
         """Wire/strip pulse-height spectra per unit: raw wire, raw strip, wire-with-strip-coincidence, and the summed 1D comparison."""
         if self.is_empty:
@@ -267,7 +286,6 @@ class VMMEventsPlotter(BaseEventsPlotter):
             if k == 0:
                 grid.ax[3][k].set_ylabel('counts')
 
-    @toggled_by("pulseHeigthSpect.plotPHScorrelation")
     def plot_phs_correlation(self, unit_ids=None, log_scale: bool = False, fig_num=602):
         """Wire vs strip pulse-height correlation for 2D-coincidence events, per unit."""
         if self.is_empty:
@@ -294,7 +312,6 @@ class VMMEventsPlotter(BaseEventsPlotter):
             if k == 0:
                 grid.ax[0][k].set_ylabel('pulse height strips (a.u.)')
 
-    @toggled_by("wavelength.plotXLambda")
     def plot_x_lambda(self, log_scale: bool = False, abs_units: bool = False, fig_num=103):
         """2D wavelength vs wire-position image across all units combined, raw channel or absolute-mm coordinates. Respects the global coincidence mask."""
         if self.is_empty:
@@ -335,12 +352,11 @@ class MBEventsPlotter(VMMEventsPlotter):
         """Wrap a global wire coordinate into this cassette's local wire-channel range."""
         return np.mod(global_wire_coord, len(self.axis_set.ax_wires.centers))
 
-    def plot_xy_tof(self, log_scale: bool = False, abs_units: bool = False, orientation: str = 'vertical',
-                     fig_num=101, tof_fig_num=102):
+    def plot_xy(self, log_scale: bool = False, abs_units: bool = False, orientation: str = 'vertical', fig_num=101):
+        """Generates the main detector image (wire vs strip) and its 1D projection panel."""
         if self.is_empty:
             return
         norm_colors = log_scale_norm(log_scale)
-        ax_tof = self.axis_set.ax_tof
         m = self.matrix
 
         if not abs_units:
@@ -352,12 +368,12 @@ class MBEventsPlotter(VMMEventsPlotter):
             wire_values, strip_values = m['absCoordinate0'], m['absCoordinate1']
             wire_label, strip_label = 'Wire coord. (mm)', 'Strip (mm)'
 
-        h2d, _, h_tof = self.hist.hist_xyz(
+        h2d, _, _ = self.hist.hist_xyz(
             ax_wires.centers, wire_values[self.selc],
             ax_strips.centers, strip_values[self.selc],
-            ax_tof.centers, m['ToF'][self.selc] / 1e9,
+            self.axis_set.ax_tof.centers, m['ToF'][self.selc] / 1e9,
         )
-        h_proj_all = self.hist.hist1d(ax_wires.centers, wire_values)   # NOTE: unfiltered, matches legacy (true "all events" curve)
+        h_proj_all = self.hist.hist1d(ax_wires.centers, wire_values)   
         h_proj_2d  = np.sum(h2d, axis=0)
         
         if orientation == 'vertical':
@@ -393,11 +409,34 @@ class MBEventsPlotter(VMMEventsPlotter):
         ax2.set_xlim(ax_wires.start, ax_wires.stop)
         ax2.legend(loc='upper right', shadow=False, fontsize='large')
 
-        if isinstance(tof_fig_num, matplotlib.figure.Figure):
-            fig_tof = tof_fig_num
+    def plot_tof_xy(self, log_scale: bool = False, abs_units: bool = False, fig_num=102):
+        """Generates the dedicated Time of Flight vs Position layout."""
+        if self.is_empty:
+            return
+        norm_colors = log_scale_norm(log_scale)
+        ax_tof = self.axis_set.ax_tof
+        m = self.matrix
+
+        if not abs_units:
+            ax_wires = self.axis_set.ax_wires
+            wire_values = m['coordinate0']
+            wire_label = 'Wire ch.'
+        else:
+            ax_wires = self.axis_set.ax_wires_mm
+            wire_values = m['absCoordinate0']
+            wire_label = 'Wire coord. (mm)'
+
+        _, _, h_tof = self.hist.hist_xyz(
+            ax_wires.centers, wire_values[self.selc],
+            self.axis_set.ax_strips.centers, m['coordinate1'][self.selc],
+            ax_tof.centers, m['ToF'][self.selc] / 1e9,
+        )
+
+        if isinstance(fig_num, matplotlib.figure.Figure):
+            fig_tof = fig_num
             ax_t = fig_tof.subplots(nrows=1, ncols=1)
         else:
-            fig_tof, ax_t = plt.subplots(num=tof_fig_num, figsize=(6, 6), nrows=1, ncols=1)
+            fig_tof, ax_t = plt.subplots(num=fig_num, figsize=(6, 6), nrows=1, ncols=1)
             
         pos_t = ax_t.imshow(h_tof, aspect='auto', norm=norm_colors, interpolation='nearest',
                              extent=[ax_tof.start * 1e3, ax_tof.stop * 1e3, ax_wires.start, ax_wires.stop], origin='lower', cmap='viridis')
@@ -405,7 +444,6 @@ class MBEventsPlotter(VMMEventsPlotter):
         ax_t.set_ylabel(wire_label)
         ax_t.set_xlabel('ToF (ms)')
         fig_tof.suptitle('DET ToF')
-
 
 # ============================================================================
 # Multi-Grid
@@ -426,8 +464,8 @@ class MGEventsPlotter(VMMEventsPlotter):
         """MG wire channels are already flat/linear across the full detector -- no per-cassette wrapping applied."""
         return global_wire_coord
 
-    def plot_xy_tof(self, log_scale: bool = False, abs_units: bool = False, orientation: str = 'vertical',
-                     fig_num=101, tof_fig_num=102):
+    def plot_xy(self, log_scale: bool = False, abs_units: bool = False, orientation: str = 'vertical', fig_num=101):
+        """Generates the 2x2 grid featuring multi-grid wire views and row-projected layouts."""
         if self.is_empty:
             return
         if abs_units:
@@ -442,12 +480,12 @@ class MGEventsPlotter(VMMEventsPlotter):
         ax_wires, ax_strips, ax_tof = self.axis_set.ax_wires, self.axis_set.ax_strips, self.axis_set.ax_tof
         m = self.matrix
 
-        h2d, _, h_tof = self.hist.hist_xyz(
+        h2d, _, _ = self.hist.hist_xyz(
             ax_wires.centers, m['coordinate0'][self.selc],
             ax_strips.centers, m['coordinate1'][self.selc],
             ax_tof.centers, m['ToF'][self.selc] / 1e9,
         )
-        h_proj_all = self.hist.hist1d(ax_wires.centers, m['coordinate0'])   # NOTE: unfiltered, matches legacy
+        h_proj_all = self.hist.hist1d(ax_wires.centers, m['coordinate0'])   
         h_proj_2d  = np.sum(h2d, axis=0)
 
         if isinstance(fig_num, matplotlib.figure.Figure):
@@ -484,10 +522,6 @@ class MGEventsPlotter(VMMEventsPlotter):
         ax22[1][0].set_xlim(ax_wires.centers[0], ax_wires.centers[-1])
         ax22[1][0].legend(loc='upper right', shadow=False, fontsize='large')
 
-        # Row-projected image: folds the wire axis into (cassette, row) pairs.
-        # NOTE: legacy uses fresh default Histogrammer() instances here (out_of_bounds=True),
-        # not self.hist -- preserved verbatim even though it's inconsistent with the rest
-        # of this method, which honours self.hist's configured out_of_bounds.
         default_hist = Histogrammer(out_of_bounds=True)
         wire_ch_for_x = np.floor_divide(m['coordinate0'][self.selc], wires_per_row)
 
@@ -529,11 +563,27 @@ class MGEventsPlotter(VMMEventsPlotter):
         ax22[1][1].set_xlim(ax_wires.centers[0] / wires_per_row - 0.5, ax_wires.centers[-1] / wires_per_row - 0.5)
         ax22[1][1].legend(loc='upper right', shadow=False, fontsize='large')
 
-        if isinstance(tof_fig_num, matplotlib.figure.Figure):
-            fig_tof = tof_fig_num
+    def plot_tof_xy(self, log_scale: bool = False, abs_units: bool = False, fig_num=102):
+        """Generates the dedicated multi-grid ToF panel."""
+        if self.is_empty:
+            return
+        if abs_units:
+            return
+        norm_colors = log_scale_norm(log_scale)
+        ax_wires, ax_strips, ax_tof = self.axis_set.ax_wires, self.axis_set.ax_strips, self.axis_set.ax_tof
+        m = self.matrix
+
+        _, _, h_tof = self.hist.hist_xyz(
+            ax_wires.centers, m['coordinate0'][self.selc],
+            ax_strips.centers, m['coordinate1'][self.selc],
+            ax_tof.centers, m['ToF'][self.selc] / 1e9,
+        )
+
+        if isinstance(fig_num, matplotlib.figure.Figure):
+            fig_tof = fig_num
             ax_t = fig_tof.subplots(nrows=1, ncols=1)
         else:
-            fig_tof, ax_t = plt.subplots(num=tof_fig_num, figsize=(6, 6), nrows=1, ncols=1)
+            fig_tof, ax_t = plt.subplots(num=fig_num, figsize=(6, 6), nrows=1, ncols=1)
             
         pos_t = ax_t.imshow(h_tof, aspect='auto', norm=norm_colors, interpolation='nearest',
                              extent=[ax_tof.start * 1e3, ax_tof.stop * 1e3, ax_wires.start, ax_wires.stop], origin='lower', cmap='viridis')
@@ -541,8 +591,6 @@ class MGEventsPlotter(VMMEventsPlotter):
         ax_t.set_ylabel('Wire ch.')
         ax_t.set_xlabel('ToF (ms)')
         fig_tof.suptitle('DET ToF')
-
-
 # ============================================================================
 # R5560 tubes
 # ============================================================================
@@ -555,7 +603,6 @@ class R5560EventsPlotter(BaseEventsPlotter):
     legacy.
     """
 
-    @toggled_by("plotting.plotToFDistr")
     def plot_tof(self, unit_ids=None, fig_num=333):
         """ToF distribution per tube (single curve, no coincidence overlay)."""
         if self.is_empty:
@@ -576,7 +623,6 @@ class R5560EventsPlotter(BaseEventsPlotter):
             if k == 0:
                 grid.ax[0][k].set_ylabel('counts')
 
-    @toggled_by("wavelength.plotLambdaDistr")
     def plot_lambda(self, unit_ids=None, fig_num=339):
         """Wavelength distribution per tube (single curve, no coincidence overlay)."""
         if self.is_empty:
@@ -597,7 +643,6 @@ class R5560EventsPlotter(BaseEventsPlotter):
             if k == 0:
                 grid.ax[0][k].set_ylabel('counts')
 
-    @toggled_by("plotting.plotInstRate")
     def plot_instantaneous_rate(self, unit_ids=None, fig_num=209):
         """Delta-time between consecutive events, per tube. Always linear-binned (out_of_bounds forced off, matching legacy)."""
         if self.is_empty:
@@ -620,7 +665,6 @@ class R5560EventsPlotter(BaseEventsPlotter):
             if k == 0:
                 grid.ax[0][k].set_ylabel('num of events')
 
-    @toggled_by("pulseHeigthSpect.plotPHS")
     def plot_phs(self, unit_ids=None, log_scale: bool = False, fig_num=601):
         """Pulse-height spectrum per tube. `log_scale` accepted for API parity but never wired up in legacy (kept unused, always linear)."""
         if self.is_empty:
@@ -641,59 +685,77 @@ class R5560EventsPlotter(BaseEventsPlotter):
                 grid.ax[0][k].set_ylabel('counts')
             grid.ax[0][k].set_xlabel('pulse height (a.u.)')
 
-    @toggled_by("plotting.plotMultiplicity")
     def plot_multiplicity(self, unit_ids=None):
         """Not supported for R5560 (single coordinate, no wire/strip pair)."""
         if self.is_empty:
             return
         print(f"\n\t{WARN}WARNING: Multiplicity not supported for {self.config['detectorType']} -> SKIPPING PLOT.{RESET}")
 
-    @toggled_by("pulseHeigthSpect.plotPHScorrelation")
     def plot_phs_correlation(self, unit_ids=None, log_scale: bool = False):
         """Not supported for R5560 -- use the raw hits ADC vs ADC correlation instead."""
         if self.is_empty:
             return
         print(f"\t{WARN}WARNING: PHS correlation not supported for {self.config['detectorType']} -> SKIPPING PLOT (use raw hits for ADC VS ADC).{RESET}")
 
-    @toggled_by("wavelength.plotXLambda")
     def plot_x_lambda(self, log_scale: bool = False, abs_units: bool = False):
         """Not supported for R5560."""
         if self.is_empty:
             return
         print(f"\t{WARN}WARNING: X VS Wavelength not supported for {self.config['detectorType']} -> SKIPPING PLOT.{RESET}")
 
-    def plot_xy_tof(self, log_scale: bool = False, abs_units: bool = False, orientation: str = 'vertical',
-                     fig_num=101, proj_fig_num=104, tof_fig_num=102):
-        """
-        Detector image (position vs tube ID) + per-tube 1D position
-        projections + tube-ID-vs-ToF image.
-
-        NOTE: ignores any externally-supplied unit filtering -- legacy
-        always plots every tube configured in the detector topology here,
-        unlike every other method on this class.
-        """
+    def plot_xy(self, log_scale: bool = False, abs_units: bool = False, orientation: str = 'vertical', fig_num=101):
+        """Detector image (position vs tube ID)."""
         if self.is_empty:
             return
-        unit_ids = np.array([t['ID'] for t in self.config['topology']])
         norm_colors = log_scale_norm(log_scale)
         m = self.matrix
-        ax_tof, ax_strips = self.axis_set.ax_tof, self.axis_set.ax_strips  # ax_strips = tube-ID axis
+        ax_tof, ax_strips = self.axis_set.ax_tof, self.axis_set.ax_strips
 
         if not abs_units:
             ax_wires, wire_values, pos_label = self.axis_set.ax_wires, m['coordinate0'], 'Position (a.u.)'
         else:
             ax_wires, wire_values, pos_label = self.axis_set.ax_wires_mm, m['absCoordinate0'], 'Position (mm)'
 
-        # h2d: position vs tube-ID. h_tof: tube-ID vs ToF (abuses hist_xyz with the
-        # tube-ID axis passed as both x and y, matching legacy).
-        h2d, _, _  = self.hist.hist_xyz(ax_wires.centers, wire_values, ax_strips.centers, m['coordinate1'], ax_tof.centers, m['ToF'] / 1e9)
-        _, _, h_tof = self.hist.hist_xyz(ax_strips.centers, m['coordinate1'], ax_strips.centers, m['coordinate1'], ax_tof.centers, m['ToF'] / 1e9)
+        h2d, _, _ = self.hist.hist_xyz(ax_wires.centers, wire_values, ax_strips.centers, m['coordinate1'], ax_tof.centers, m['ToF'] / 1e9)
 
-        grid2d      = PlotGrid(fig_num, 1, 1, fig_size=(6, 6))
-        ax1         = grid2d.ax[0][0]
-        grid1d      = PlotGrid(proj_fig_num, 1, len(unit_ids))
-        grid_tof    = PlotGrid(tof_fig_num, 1, 1, fig_size=(6, 6))
-        ax2         = grid_tof.ax[0][0]
+        if isinstance(fig_num, matplotlib.figure.Figure):
+            grid_fig = fig_num
+            ax1 = grid_fig.subplots(nrows=1, ncols=1)
+        else:
+            grid_fig, ax1 = plt.subplots(num=fig_num, figsize=(6, 6), nrows=1, ncols=1)
+
+        if orientation == 'vertical':
+            pos1 = ax1.imshow(np.rot90(h2d, 1), aspect='auto', norm=norm_colors, interpolation='none',
+                               extent=[ax_strips.start - 0.5, ax_strips.stop + 0.5, ax_wires.stop, ax_wires.start], origin='upper', cmap='viridis')
+            ax1.set_xticks(ax_strips.centers)
+            ax1.set_xticklabels(ax_strips.centers.astype(int))
+            _safe_colorbar(grid_fig, pos1, ax1, 'XY', orientation='vertical', fraction=0.07, anchor=(1.0, 0.0))
+            ax1.set_ylabel(pos_label)
+            ax1.set_xlabel('Tube ID')
+        else:  # 'horizontal'
+            pos1 = ax1.imshow(h2d, aspect='auto', norm=norm_colors, interpolation='none',
+                               extent=[ax_wires.start, ax_wires.stop, ax_strips.stop + 0.5, ax_strips.start - 0.5], origin='upper', cmap='viridis')
+            ax1.set_yticks(ax_strips.centers)
+            ax1.set_yticklabels(ax_strips.centers.astype(int))
+            _safe_colorbar(grid_fig, pos1, ax1, 'XY', orientation='vertical', fraction=0.07, anchor=(1.0, 0.0))
+            ax1.set_xlabel(pos_label)
+            ax1.set_ylabel('Tube ID')
+            
+        grid_fig.suptitle('DET image')
+
+    def plot_position_per_tube(self, log_scale: bool = False, abs_units: bool = False, fig_num=104):
+        """Generates the multi-panel grid of 1D tube positions."""
+        if self.is_empty:
+            return
+        unit_ids = np.array([t['ID'] for t in self.config['topology']])
+        m = self.matrix
+
+        if not abs_units:
+            ax_wires, wire_values, pos_label = self.axis_set.ax_wires, m['coordinate0'], 'Position (a.u.)'
+        else:
+            ax_wires, wire_values, pos_label = self.axis_set.ax_wires_mm, m['absCoordinate0'], 'Position (mm)'
+
+        grid1d = PlotGrid(fig_num, 1, len(unit_ids))
 
         for k, uid in enumerate(unit_ids):
             sel = self.select_unit(uid)
@@ -707,8 +769,22 @@ class R5560EventsPlotter(BaseEventsPlotter):
             if k == 0:
                 grid1d.ax[0][k].set_ylabel('counts')
 
-        # NOTE: legacy never attaches a colorbar to this panel (unlike MB/MG's
-        # equivalent ToF image) -- preserved verbatim.
+    def plot_tof_xy(self, log_scale: bool = False, fig_num=102):
+        """Tube-ID-vs-ToF image distribution."""
+        if self.is_empty:
+            return
+        norm_colors = log_scale_norm(log_scale)
+        m = self.matrix
+        ax_tof, ax_strips = self.axis_set.ax_tof, self.axis_set.ax_strips
+
+        _, _, h_tof = self.hist.hist_xyz(ax_strips.centers, m['coordinate1'], ax_strips.centers, m['coordinate1'], ax_tof.centers, m['ToF'] / 1e9)
+
+        if isinstance(fig_num, matplotlib.figure.Figure):
+            fig_tof = fig_num
+            ax2 = fig_tof.subplots(nrows=1, ncols=1)
+        else:
+            fig_tof, ax2 = plt.subplots(num=fig_num, figsize=(6, 6), nrows=1, ncols=1)
+
         ax2.imshow(h_tof, aspect='auto', norm=norm_colors, interpolation='nearest',
                    extent=[ax_tof.start * 1e3, ax_tof.stop * 1e3, ax_strips.start - 0.5, ax_strips.stop + 0.5], origin='lower', cmap='viridis')
         ax2.set_yticks(ax_strips.centers)
@@ -716,30 +792,7 @@ class R5560EventsPlotter(BaseEventsPlotter):
         ax2.set_ylabel('Tube ID')
         ax2.set_xlabel('ToF (ms)')
         
-        grid_tof.fig.suptitle('DET ToF')
-
-        if orientation == 'vertical':
-            pos1 = ax1.imshow(np.rot90(h2d, 1), aspect='auto', norm=norm_colors, interpolation='none',
-                               extent=[ax_strips.start - 0.5, ax_strips.stop + 0.5, ax_wires.stop, ax_wires.start], origin='upper', cmap='viridis')
-            ax1.set_xticks(ax_strips.centers)
-            ax1.set_xticklabels(ax_strips.centers.astype(int))
-            
-            _safe_colorbar(grid2d.fig, pos1, ax1, 'XY', orientation='vertical', fraction=0.07, anchor=(1.0, 0.0))
-            ax1.set_ylabel(pos_label)
-            ax1.set_xlabel('Tube ID')
-        else:  # 'horizontal'
-            pos1 = ax1.imshow(h2d, aspect='auto', norm=norm_colors, interpolation='none',
-                               extent=[ax_wires.start, ax_wires.stop, ax_strips.stop + 0.5, ax_strips.start - 0.5], origin='upper', cmap='viridis')
-            ax1.set_yticks(ax_strips.centers)
-            ax1.set_yticklabels(ax_strips.centers.astype(int))
-            
-            _safe_colorbar(grid2d.fig, pos1, ax1, 'XY', orientation='vertical', fraction=0.07, anchor=(1.0, 0.0))
-            ax1.set_xlabel(pos_label)
-            ax1.set_ylabel('Tube ID')
-            
-        grid2d.fig.suptitle('DET image')
-
-
+        fig_tof.suptitle('DET ToF')
 # ============================================================================
 # Beam monitor
 # ============================================================================
@@ -764,7 +817,6 @@ class MonitorEventsPlotter(BasePlotter):
         super().__init__(container, hist_out_of_bounds)
         self.axis_set = axis_set
 
-    @toggled_by("MONitor.plotMONtofPHS")
     def plot_tof_phs_mon(self, fig_num=999):
         """ToF and pulse-height spectra for the monitor stream, side by side."""
         if self.is_empty:
@@ -788,7 +840,6 @@ class MonitorEventsPlotter(BasePlotter):
         ax2.set_ylabel('counts')
         ax2.set_title('PHS')
 
-    @toggled_by("wavelength.plotLambdaDistr")
     def plot_lambda_mon(self, fig_num=9998):
         """Wavelength spectrum for the monitor stream."""
         if self.is_empty:

@@ -139,7 +139,7 @@ class KafkaReader(BaseReader):
         self._steps_for_progress         = max(1, int(self._n_packets / 20) + 1)
 
         print('allocating memory ... ', end='')
-        super().run()
+        return super().run()
 
     # ------------------------------------------------------------------
     # Packet source — Kafka poll or local simulator

@@ -3,28 +3,63 @@
 """
 pipelines.py
 ============
-Object-Oriented Pipeline Tracks and Pipeline Factory Router Registry
-for ESS Neutron Detectors.
-
-Extracted from mbuty_new.py as part of a clean file separation.
+Object-Oriented Pipeline Tracks for ESS Neutron Detectors.
 
 Routing model
 -------------
-Each detector_type maps to a small dict of opMode -> (PipelineClass, readouts_attr).
-Only VMM-based hardware (MB, MG) carries an 'opMode' config key at all -- those
-are keyed by 'normal'/'clustered'. Every other detector type (different hardware
-entirely) has no such key and is keyed under None instead. MB is the only track
-with a working clustered mode right now; MG is VMM hardware too and will likely
-grow a 'clustered' entry the same way in the future, but for now only supports
-'normal'.
+build_detector_pipeline() / build_bm_pipeline() are plain if/elif dispatchers:
+they look at detector_type (+ opMode, for VMM hardware) or bm_hardware_type,
+pick the matching pipeline class and readouts container off `readout_source`,
+and return a ready-to-execute pipeline instance (or None, having already
+printed/exited on any error). This is the *only* place config gets inspected
+to make this decision -- callers never re-derive any of that themselves.
 
-PipelineFactory.build_detector_pipeline() / build_bm_pipeline() are the *only*
-places config gets inspected to make this decision -- one lookup resolves the
-opMode validity, the active readouts container, and the concrete pipeline class
-together, so callers never re-derive any of that themselves.
+To add a new detector: copy the closest branch in build_detector_pipeline()
+and the closest pipeline class, then adjust the mapper/clusterer/plotter
+names. No registry table to update anywhere else.
 
-Each pipeline's execute() lazily imports the mapper/clusterer/plotter modules
-it actually needs, right before constructing them, so an inactive pipeline
+Two independent pipeline families
+----------------------------------
+Detector pipelines (MB / MB-clustered / MG / He3 / SKADI) all go through
+BasePipeline. They share a mapping -> clustering -> abs-units analyze()
+shape, and -- because the physicist's plotting parameters mean the same
+thing regardless of which of these detectors is active -- they share a
+single plot() if-chain, written once on BasePipeline itself.
+
+Beam Monitor pipelines (Generic BM / IBM) do NOT go through BasePipeline
+at all. They don't cluster (mapping goes straight to events), they have
+no hits stage, and only two plots exist for them, gated by MONitor
+parameters that don't apply to any detector pipeline. Forcing them through
+the detector if-chain would mean reading fifteen checks against fields
+that don't exist for a monitor stream just to find the two that matter --
+so BeamMonitorPipeline is its own small, standalone base class with its
+own analyze()/plot()/execute(), duplicating the trivial empty-container
+guard rather than sharing it. Tracing "what does the beam monitor do" now
+means opening exactly one self-contained class hierarchy.
+
+Pipeline shape (detector pipelines)
+------------------------------------
+    analyze()        readouts -> hits -> events (mapping, clustering, abs
+                      units). Populates self.hits_container /
+                      self.events_container.
+    build_plotters()  constructs the axis set and the three plotter
+                      objects from whatever analyze() produced. No
+                      plotting decisions here -- construction only.
+    plot()            defined once, on BasePipeline: builds the plotters,
+                      then walks parameters.plotting / .wavelength /
+                      .pulseHeigthSpect exactly once and calls whichever
+                      plot_* methods are switched on. A detector whose
+                      plotter doesn't implement a given plot_* method is
+                      safe -- it just falls through to that stage's base
+                      stub (prints "not supported", does nothing).
+
+execute() (defined once per family) runs analyze() then plot(), after
+checking the readouts container isn't empty. Callers normally only ever
+call execute(); analyze()/plot() are there as a seam for anyone who wants
+to run analysis without plotting (batch jobs, notebooks, etc).
+
+Each pipeline lazily imports the mapper/clusterer/plotter modules it
+actually needs, inside analyze()/build_plotters(), so an inactive pipeline
 never pays for imports it doesn't use.
 """
 import os
@@ -41,54 +76,130 @@ from newLib.colors import INFO, WARN, ERR, RESET
 
 
 # =============================================================================
-# Object-Oriented Pipeline Tracks
+# Detector pipelines (MB / MB-clustered / MG / He3 / SKADI)
 # =============================================================================
 
 class BasePipeline:
-    """Non-negotiable contract for all hardware instrument workflows."""
-    def __init__(self, readouts_container, parameters, config_dict: dict):
+    """Non-negotiable contract for all detector hardware instrument workflows.
+
+    Subclasses implement analyze() (the science) and build_plotters() (just
+    constructing the three plotter objects). plot() is shared -- it is the
+    *only* place parameters.plotting/.wavelength/.pulseHeigthSpect get read
+    to decide what to show, so every detector runs the exact same checklist
+    and nothing is duplicated per subclass. execute() is shared too and
+    should not need to be overridden.
+    """
+    def __init__(self, readouts_container, parameters, config: dict):
         self.readouts_container = readouts_container
         self.parameters = parameters
-        self.config = config_dict
+        self.config = config
 
-        # Public plotter properties bound dynamically for direct Dashboard inspection
+        # Filled in by analyze()
+        self.hits_container = None
+        self.events_container = None
+
+        # Filled in by build_plotters()
         self.readout_plotter = None
         self.hit_plotter = None
         self.event_plotter = None
 
-    def execute(self) -> None:
+    def analyze(self) -> None:
         raise NotImplementedError
+
+    def build_plotters(self) -> None:
+        """Subclasses set self.readout_plotter / hit_plotter / event_plotter
+        here -- construction only, no plotting decisions."""
+        raise NotImplementedError
+
+    def plot(self) -> None:
+        """The one and only place plotting parameters get read. A call to a
+        given detector's plotter that isn't implemented just falls through
+        to that plotter's inherited stub (prints a "not supported" notice,
+        does nothing) instead of needing to be listed or excluded here."""
+        self.build_plotters()
+
+        p = self.parameters.plotting
+        w = self.parameters.wavelength
+        phs = self.parameters.pulseHeigthSpect
+
+        if self.readout_plotter is not None:
+            if getattr(p, 'plotChopperResets', False):
+                self.readout_plotter.plot_chopper_resets()
+            if p.plotRawReadouts:
+                self.readout_plotter.plot_channels_raw()
+            if p.plotReadoutsTimeStamps:
+                self.readout_plotter.plot_timestamps()
+            if p.plotADCvsCh:
+                self.readout_plotter.plot_adc_vs_channel()
+
+        # Matches legacy: bareReadoutsCalculation stops at readouts, no
+        # hits/events plots at all.
+        if getattr(p, 'bareReadoutsCalculation', False):
+            return
+
+        if self.hit_plotter is not None:
+            if p.plotRawHits:
+                self.hit_plotter.plot_channels_raw()
+            if p.plotHitsTimeStamps:
+                self.hit_plotter.plot_timestamps()
+            if p.plotHitsTimeStampsVSChannels:
+                self.hit_plotter.plot_timestamps_vs_channel()
+
+        if self.event_plotter is not None:
+            # Unconditional -- matches legacy's plotXYToF, which always ran
+            # once bareReadoutsCalculation was off. plot_position_per_tube
+            # is R5560-only; it no-ops (via the base stub) everywhere else.
+            self.event_plotter.plot_xy()
+            self.event_plotter.plot_tof_xy()
+            self.event_plotter.plot_position_per_tube()
+
+            if p.plotToFDistr:
+                self.event_plotter.plot_tof()
+            if w.plotXLambda:
+                self.event_plotter.plot_x_lambda()
+            if w.plotLambdaDistr:
+                self.event_plotter.plot_lambda()
+            if p.plotMultiplicity:
+                self.event_plotter.plot_multiplicity()
+            if phs.plotPHS:
+                self.event_plotter.plot_phs()
+            if phs.plotPHScorrelation:
+                self.event_plotter.plot_phs_correlation()
+            if p.plotInstRate:
+                self.event_plotter.plot_instantaneous_rate()
+
+    def execute(self) -> None:
+        if self.readouts_container.fill_count == 0:
+            print(f"{WARN}{type(self).__name__}: readouts container is empty — skipping pipeline pass.{RESET}")
+            return
+        self.analyze()
+        self.plot()
 
 
 class MBPipeline(BasePipeline):
-    """Clean execution track dedicated exclusively to Multi-Blade hardware in normal mode."""
-    def execute(self) -> None:
-        if self.readouts_container.fill_count == 0:
-            print(f"{WARN}Multi-Blade Readouts Container is empty — skipping pipeline pass.{RESET}")
-            return
+    """Multi-Blade hardware, normal mode."""
 
+    def analyze(self) -> None:
         if getattr(self.parameters.dataReduction, 'calibrateVMM_ADC_ONOFF', False):
             print(f'{INFO}Running in-place vectorized VMM calibration pass...{RESET}')
             self.readouts_container.calibrate(self.parameters, self.config)
 
         from newLib.mapping_engine import MBMapper
         print(f'{INFO}Executing Multi-Blade mapping engine pass...{RESET}')
-        hits_container = MBMapper.map(self.readouts_container, self.config)
+        self.hits_container = MBMapper.map(self.readouts_container, self.config)
 
         from newLib.clustering_engine import VMMNormalClusterer
         print(f'{INFO}Executing coincidence clustering engine pass...{RESET}')
         time_window = getattr(self.parameters.dataReduction, 'timeWindow', 3e-6)
-        events_container = VMMNormalClusterer.cluster(hits_container, self.config, time_window)
+        self.events_container = VMMNormalClusterer.cluster(self.hits_container, self.config, time_window)
 
         from newLib.abs_units_engine import MBAbsUnitsCalculator
         print(f'{INFO}Calculating absolute physical coordinates and spectroscopy vectors...{RESET}')
-        abs_calc = MBAbsUnitsCalculator(events_container, self.config, self.parameters)
-        abs_calc.process_pipeline(remove_invalid_tofs=True)
+        MBAbsUnitsCalculator(self.events_container, self.config, self.parameters).process_pipeline(remove_invalid_tofs=True)
 
-        # Build and initialize axis geometry via the modernized Multi-Blade set
+    def build_plotters(self) -> None:
         from newLib.histograms import MBAxisSet
         axis_set = MBAxisSet(self.parameters, self.config)
-
         topology = self.config.get('topology', [])
         num_wires = int(self.config['wires'])
 
@@ -97,79 +208,36 @@ class MBPipeline(BasePipeline):
         from newLib.plotting_events import MBEventsPlotter
 
         self.readout_plotter = MBReadoutsPlotter(self.readouts_container, topology, axis_set)
-        self.hit_plotter = MBHitsPlotter(hits_container, num_wires)
-        self.event_plotter = MBEventsPlotter(events_container, axis_set, self.config)
-
-
-class MGPipeline(BasePipeline):
-    """Clean execution track dedicated exclusively to Multi-Grid hardware in normal mode."""
-    def execute(self) -> None:
-        if self.readouts_container.fill_count == 0:
-            print(f"{WARN}Multi-Grid Readouts Container is empty — skipping pipeline pass.{RESET}")
-            return
-
-        if getattr(self.parameters.dataReduction, 'calibrateVMM_ADC_ONOFF', False):
-            print(f'{INFO}Running in-place vectorized VMM calibration pass...{RESET}')
-            self.readouts_container.calibrate(self.parameters, self.config)
-
-        from newLib.mapping_engine import MGMapper
-        print(f'{INFO}Executing Multi-Grid mapping engine pass...{RESET}')
-        hits_container = MGMapper.map(self.readouts_container, self.config)
-
-        from newLib.clustering_engine import VMMNormalClusterer
-        print(f'{INFO}Executing coincidence clustering engine pass...{RESET}')
-        time_window = getattr(self.parameters.dataReduction, 'timeWindow', 3e-6)
-        events_container = VMMNormalClusterer.cluster(hits_container, self.config, time_window)
-
-        from newLib.abs_units_engine import MBAbsUnitsCalculator
-        print(f'{INFO}Calculating absolute physical coordinates and spectroscopy vectors...{RESET}')
-        abs_calc = MBAbsUnitsCalculator(events_container, self.config, self.parameters)
-        abs_calc.process_pipeline(remove_invalid_tofs=True)
-
-        # Build and initialize axis geometry via the modernized Multi-Grid set
-        from newLib.histograms import MGAxisSet
-        axis_set = MGAxisSet(self.parameters)
-
-        topology = self.config.get('topology', [])
-
-        from newLib.plotting_readouts import MGReadoutsPlotter
-        from newLib.plotting_hits import MGHitsPlotter
-        from newLib.plotting_events import MGEventsPlotter
-
-        self.readout_plotter = MGReadoutsPlotter(self.readouts_container, topology, axis_set)
-        self.hit_plotter = MGHitsPlotter(hits_container)
-        self.event_plotter = MGEventsPlotter(events_container, axis_set, self.config)
+        self.hit_plotter = MBHitsPlotter(self.hits_container, num_wires)
+        self.event_plotter = MBEventsPlotter(self.events_container, axis_set, self.config)
 
 
 class MBClusteredPipeline(BasePipeline):
-    """Execution track for pre-clustered VMM3A hardware tracking streams (opMode == 'clustered').
+    """Pre-clustered VMM3A hardware tracking streams (opMode == 'clustered').
     MB-only for now -- MG has no clustered track yet.
 
     VMMClusteredClusterer is a firmware passthrough (the ASIC already did the
-    time-window clustering on-board), so this pipeline is: map -> passthrough
-    absorb -> abs units -> plot. Same shape as MBPipeline, just missing the
-    VMMNormalClusterer stage since there's nothing left for software to cluster."""
-    def execute(self) -> None:
-        if self.readouts_container.fill_count == 0:
-            print(f"{WARN}VMM Clustered Readouts Container is empty — skipping pipeline pass.{RESET}")
-            return
+    time-window clustering on-board), so analyze() is: map -> passthrough
+    absorb -> abs units. Same shape as MBPipeline, just missing the
+    VMMNormalClusterer stage since there's nothing left for software to cluster.
+    """
 
+    def analyze(self) -> None:
         from newLib.mapping_engine import MBClustMapper
         print(f'{INFO}Executing hardware-clustered VMM mapping pass...{RESET}')
-        hits_container = MBClustMapper.map(self.readouts_container, self.config)
+        self.hits_container = MBClustMapper.map(self.readouts_container, self.config)
 
         from newLib.clustering_engine import VMMClusteredClusterer
         print(f'{INFO}Absorbing hardware-clustered events (firmware passthrough)...{RESET}')
-        events_container = VMMClusteredClusterer.cluster(hits_container, self.config)
+        self.events_container = VMMClusteredClusterer.cluster(self.hits_container, self.config)
 
         from newLib.abs_units_engine import MBAbsUnitsCalculator
         print(f'{INFO}Calculating absolute physical coordinates and spectroscopy vectors...{RESET}')
-        abs_calc = MBAbsUnitsCalculator(events_container, self.config, self.parameters)
-        abs_calc.process_pipeline(remove_invalid_tofs=True)
+        MBAbsUnitsCalculator(self.events_container, self.config, self.parameters).process_pipeline(remove_invalid_tofs=True)
 
+    def build_plotters(self) -> None:
         from newLib.histograms import MBAxisSet
         axis_set = MBAxisSet(self.parameters, self.config)
-
         topology = self.config.get('topology', [])
         num_wires = int(self.config['wires'])
 
@@ -178,23 +246,57 @@ class MBClusteredPipeline(BasePipeline):
         from newLib.plotting_events import MBEventsPlotter
 
         self.readout_plotter = MBReadoutsPlotter(self.readouts_container, topology, axis_set)
-        self.hit_plotter = MBClusteredHitsPlotter(hits_container, num_wires)
-        self.event_plotter = MBEventsPlotter(events_container, axis_set, self.config)
+        self.hit_plotter = MBClusteredHitsPlotter(self.hits_container, num_wires)
+        self.event_plotter = MBEventsPlotter(self.events_container, axis_set, self.config)
+
+
+class MGPipeline(BasePipeline):
+    """Multi-Grid hardware, normal mode."""
+
+    def analyze(self) -> None:
+        if getattr(self.parameters.dataReduction, 'calibrateVMM_ADC_ONOFF', False):
+            print(f'{INFO}Running in-place vectorized VMM calibration pass...{RESET}')
+            self.readouts_container.calibrate(self.parameters, self.config)
+
+        from newLib.mapping_engine import MGMapper
+        print(f'{INFO}Executing Multi-Grid mapping engine pass...{RESET}')
+        self.hits_container = MGMapper.map(self.readouts_container, self.config)
+
+        from newLib.clustering_engine import VMMNormalClusterer
+        print(f'{INFO}Executing coincidence clustering engine pass...{RESET}')
+        time_window = getattr(self.parameters.dataReduction, 'timeWindow', 3e-6)
+        self.events_container = VMMNormalClusterer.cluster(self.hits_container, self.config, time_window)
+
+        from newLib.abs_units_engine import MBAbsUnitsCalculator
+        print(f'{INFO}Calculating absolute physical coordinates and spectroscopy vectors...{RESET}')
+        MBAbsUnitsCalculator(self.events_container, self.config, self.parameters).process_pipeline(remove_invalid_tofs=True)
+
+    def build_plotters(self) -> None:
+        from newLib.histograms import MGAxisSet
+        axis_set = MGAxisSet(self.parameters)
+        topology = self.config.get('topology', [])
+
+        from newLib.plotting_readouts import MGReadoutsPlotter
+        from newLib.plotting_hits import MGHitsPlotter
+        from newLib.plotting_events import MGEventsPlotter
+
+        self.readout_plotter = MGReadoutsPlotter(self.readouts_container, topology, axis_set)
+        self.hit_plotter = MGHitsPlotter(self.hits_container)
+        self.event_plotter = MGEventsPlotter(self.events_container, axis_set, self.config)
 
 
 class R5560Pipeline(BasePipeline):
-    """Execution track for CAEN R5560 Helium-3 continuous gas tube detectors."""
-    def execute(self) -> None:
-        if self.readouts_container.fill_count == 0:
-            return
+    """CAEN R5560 Helium-3 continuous gas tube detectors."""
 
+    def analyze(self) -> None:
         from newLib.mapping_engine import He3Mapper
         print(f'{INFO}Executing R5560 Helium-3 mapping and customized tube clustering...{RESET}')
-        hits_container = He3Mapper.map(self.readouts_container, self.config)
+        self.hits_container = He3Mapper.map(self.readouts_container, self.config)
 
         from newLib.clustering_engine import He3Clusterer
-        events_container = He3Clusterer.cluster(hits_container, self.config)
+        self.events_container = He3Clusterer.cluster(self.hits_container, self.config)
 
+    def build_plotters(self) -> None:
         axis_set = getattr(self.parameters, 'axis_set', None)
         topology = self.config.get('topology', [])
 
@@ -203,165 +305,185 @@ class R5560Pipeline(BasePipeline):
         from newLib.plotting_events import R5560EventsPlotter
 
         self.readout_plotter = R5560ReadoutsPlotter(self.readouts_container, topology)
-        self.hit_plotter = R5560HitsPlotter(hits_container, axis_set)
-        self.event_plotter = R5560EventsPlotter(events_container, axis_set, self.config)
+        self.hit_plotter = R5560HitsPlotter(self.hits_container, axis_set)
+        self.event_plotter = R5560EventsPlotter(self.events_container, axis_set, self.config)
 
 
 class SkadiPipeline(BasePipeline):
-    """Execution track for specialized SKADI detector layout streams."""
+    """SKADI detector layout streams -- not yet implemented."""
+
+    def analyze(self) -> None:
+        print(f'{INFO}SKADI pipeline not yet implemented...{RESET}')
+
+    def build_plotters(self) -> None:
+        pass
+
+    def plot(self) -> None:
+        pass
+
+
+# =============================================================================
+# Beam Monitor pipelines -- independent of BasePipeline entirely
+# =============================================================================
+
+class BeamMonitorPipeline:
+    """Non-negotiable contract for beam-monitor workflows.
+
+    Deliberately does NOT inherit BasePipeline: monitors map straight to
+    events (no hits stage, no clustering), and only two plots exist for
+    them (plot_tof_phs_mon, plot_lambda_mon), gated by parameters.MONitor
+    rather than the detector-side plotting/wavelength/pulseHeigthSpect
+    checklist. Sharing BasePipeline here would mean tracing a monitor's
+    behaviour through a 15-branch if-chain built for a different kind of
+    hardware -- worse than the small amount of duplication below (an
+    __init__ and an empty-container guard, both a few lines).
+
+    Subclasses implement analyze() (map -> ToF/wavelength) and
+    build_plotter() (construct self.event_plotter). plot() is shared here
+    since both monitor hardware types show exactly the same two plots.
+    """
+
+    def __init__(self, readouts_container, parameters, config: dict):
+        self.readouts_container = readouts_container
+        self.parameters = parameters
+        self.config = config
+
+        self.events_container = None
+        self.event_plotter = None
+
+    def analyze(self) -> None:
+        raise NotImplementedError
+
+    def build_plotter(self) -> None:
+        """Subclasses set self.event_plotter here -- construction only."""
+        raise NotImplementedError
+
+    def plot(self) -> None:
+        self.build_plotter()
+
+        mon = self.parameters.MONitor
+        if getattr(mon, 'plotMONtofPHS', False):
+            self.event_plotter.plot_tof_phs_mon()
+            if self.parameters.wavelength.calculateLambda:
+                self.event_plotter.plot_lambda_mon()
+
     def execute(self) -> None:
         if self.readouts_container.fill_count == 0:
+            print(f"{WARN}{type(self).__name__}: readouts container is empty — skipping pipeline pass.{RESET}")
             return
-        print(f'{INFO}Not yet implemented...{RESET}')
+        self.analyze()
+        self.plot()
 
 
-class GenericBMPipeline(BasePipeline):
-    """ BMMapper maps readouts straight into a
+class GenericBMPipeline(BeamMonitorPipeline):
+    """Generic Beam Monitor. BMMapper maps readouts straight into a
     fully-formed eventsBM container. A lightweight abs-units pass then
     fills in ToF (generic, from the events base class) and wavelength
     (monitor-specific: fixed distance, no depth correction) before plotting."""
-    def execute(self) -> None:
-        if self.readouts_container.fill_count == 0:
-            return
 
+    def analyze(self) -> None:
         from newLib.mapping_engine import BMMapper
         print(f'{INFO}Executing Generic Beam Monitor mapping pass...{RESET}')
-        events_container = BMMapper.map(self.readouts_container, self.config)
+        self.events_container = BMMapper.map(self.readouts_container, self.config)
 
         print(f'{INFO}Calculating Beam Monitor ToF/wavelength...{RESET}')
-        events_container.compute_and_filter_tof(remove_invalid=True)
+        self.events_container.compute_and_filter_tof(remove_invalid=True)
         if self.parameters.wavelength.calculateLambda:
             from newLib.abs_units_engine import calculate_monitor_wavelength
-            calculate_monitor_wavelength(events_container, self.parameters)
+            calculate_monitor_wavelength(self.events_container, self.parameters)
 
+    def build_plotter(self) -> None:
         axis_set = getattr(self.parameters, 'axis_set', None)
-
         from newLib.plotting_events import MonitorEventsPlotter
-        self.event_plotter = MonitorEventsPlotter(events_container, axis_set)
+        self.event_plotter = MonitorEventsPlotter(self.events_container, axis_set)
 
 
-class IBMPipeline(BasePipeline):
-    """ IBMMonitorMapper maps readouts
-    straight into a fully-formed eventsIBM container, then the same
-    generic ToF + monitor-wavelength pass runs before plotting."""
-    def execute(self) -> None:
-        if self.readouts_container.fill_count == 0:
-            return
+class IBMPipeline(BeamMonitorPipeline):
+    """Ionization Beam Monitor. IBMMonitorMapper maps readouts straight into
+    a fully-formed eventsIBM container, then the same generic ToF +
+    monitor-wavelength pass runs before plotting."""
 
+    def analyze(self) -> None:
         from newLib.mapping_engine import IBMMonitorMapper
         print(f'{INFO}Executing Ionization Beam Monitor mapping pass...{RESET}')
-        events_container = IBMMonitorMapper.map(self.readouts_container, self.config)
+        self.events_container = IBMMonitorMapper.map(self.readouts_container, self.config)
 
         print(f'{INFO}Calculating Beam Monitor ToF/wavelength...{RESET}')
-        events_container.compute_and_filter_tof(remove_invalid=True)
+        self.events_container.compute_and_filter_tof(remove_invalid=True)
         if self.parameters.wavelength.calculateLambda:
             from newLib.abs_units_engine import calculate_monitor_wavelength
-            calculate_monitor_wavelength(events_container, self.parameters)
+            calculate_monitor_wavelength(self.events_container, self.parameters)
 
+    def build_plotter(self) -> None:
         axis_set = getattr(self.parameters, 'axis_set', None)
-
         from newLib.plotting_events import MonitorEventsPlotter
-        self.event_plotter = MonitorEventsPlotter(events_container, axis_set)
+        self.event_plotter = MonitorEventsPlotter(self.events_container, axis_set)
 
 
 # =============================================================================
-# Pipeline Factory Router Registry
+# Dispatchers -- plain if/elif, no registry table
 # =============================================================================
 
-class PipelineFactory:
-    """Single-pass config routing for both detector and beam-monitor tracks.
+def build_detector_pipeline(config: dict, readout_source, parameters) -> BasePipeline | None:
+    """Picks the pipeline class + matching readouts container for this
+    config's detector_type (+ opMode, for VMM hardware), and returns a
+    ready-to-execute pipeline instance. Fatal misconfiguration exits; a
+    merely unpopulated readouts container is still returned -- execute()
+    itself is what prints the warning and skips.
 
-    Each build_* method is the *only* place that inspects config for its
-    respective decision -- it resolves opMode validity (where applicable),
-    the active readouts container, and the concrete pipeline class together
-    in one lookup, and returns a ready-to-execute pipeline instance (or None,
-    having already printed/exited on any error). Callers never re-check
-    detector_type/opMode/bm_hardware_type themselves.
+    To add a new detector, add a branch here and a matching pipeline class
+    above. Nothing else in the codebase needs to change.
+
+    opMode is only ever consulted for MB -- MG, He3, and SKADI don't have
+    a clustered/normal distinction in hardware, so their branches never
+    look at op_mode at all.
     """
+    detector_type = config.get('detectorType')
+    op_mode = config.get('opMode', 'normal')
+    print(f'{INFO}\nEvaluating hardware metrics: detector_type = "{detector_type}"...{RESET}')
 
-    # detector_type -> { opMode -> (PipelineClass, readouts_attr) }
-    # Non-VMM hardware has no 'opMode' config key at all and is keyed under None.
-    _DETECTOR_REGISTRY = {
-        'MB': {
-            'normal':    (MBPipeline, 'readouts_vmm_normal'),
-            'clustered': (MBClusteredPipeline, 'readouts_vmm_clustered'),
-        },
-        # VMM hardware too, but clustered mode isn't implemented for MG yet --
-        # add a 'clustered' entry here the same way MB's when it lands.
-        'MG': {
-            'normal': (MGPipeline, 'readouts_vmm_normal'),
-        },
-        'He3': {
-            None: (R5560Pipeline, 'readouts_r5560'),
-        },
-        'SKADI': {
-            None: (SkadiPipeline, 'readouts_skadi'),
-        },
-    }
+    if detector_type == 'MB' and op_mode == 'normal':
+        pipeline_cls, readouts_container = MBPipeline, readout_source.readouts_vmm_normal
 
-    # bm_hardware_type (lowercased) -> (PipelineClass, readouts_attr)
-    _BM_REGISTRY = {
-        'ibm':     (IBMPipeline, 'readouts_ibm'),
-        'generic': (GenericBMPipeline, 'readouts_bm'),
-    }
+    elif detector_type == 'MB' and op_mode == 'clustered':
+        pipeline_cls, readouts_container = MBClusteredPipeline, readout_source.readouts_vmm_clustered
 
-    @classmethod
-    def build_detector_pipeline(cls, config: dict, reader, parameters) -> BasePipeline | None:
-        """Pulls detector_type (+ opMode, for VMM hardware) straight from `config`,
-        resolves it against the registry, pulls the matching readouts container off
-        `reader`, and instantiates the correct pipeline -- in one pass. Callers just
-        check the result and call .execute(); they never touch config themselves.
-        Fatal misconfiguration exits; a merely unpopulated readouts container
-        returns None with a warning."""
-        detector_type = config.get('detectorType')
-        print(f'{INFO}\nEvaluating hardware metrics: detector_type = "{detector_type}"...{RESET}')
+    elif detector_type == 'MG':
+        pipeline_cls, readouts_container = MGPipeline, readout_source.readouts_vmm_normal
 
-        modes = cls._DETECTOR_REGISTRY.get(detector_type)
-        if modes is None:
-            print(f'\n{ERR}FATAL ERROR: Configuration mismatch. detector_type "{detector_type}" '
-                  f'is completely unrecognized by the pipeline registry hardware definitions! Exit.{RESET}')
-            sys.exit(1)
+    elif detector_type == 'He3':
+        pipeline_cls, readouts_container = R5560Pipeline, readout_source.readouts_r5560
 
-        # Only VMM-based hardware (MB/MG) carries an 'opMode' config key.
-        is_vmm_hardware = None not in modes
-        op_mode = config.get('opMode', 'normal') if is_vmm_hardware else None
+    elif detector_type == 'SKADI':
+        pipeline_cls, readouts_container = SkadiPipeline, readout_source.readouts_skadi
 
-        entry = modes.get(op_mode)
-        if entry is None:
-            valid = ', '.join(repr(m) for m in modes)
-            print(f'\n{ERR}FATAL ERROR: Unrecognized/unsupported opMode "{op_mode}" for detector_type '
-                  f'"{detector_type}" (supported: {valid}). Exit.{RESET}')
-            sys.exit(1)
+    else:
+        print(f'\n{ERR}FATAL ERROR: Configuration mismatch. detector_type "{detector_type}" '
+              f'/ opMode "{op_mode}" is not recognized by the pipeline dispatcher. Exit.{RESET}')
+        sys.exit(1)
 
-        pipeline_cls, readouts_attr = entry
-        active_readouts = getattr(reader, readouts_attr, None)
-        if active_readouts is None:
-            print(f'{WARN}Target readout container "{readouts_attr}" for "{detector_type}" '
-                  f'was not populated during ingestion.{RESET}')
-            return None
+    return pipeline_cls(readouts_container, parameters, config)
 
-        return pipeline_cls(active_readouts, parameters, config)
 
-    @classmethod
-    def build_bm_pipeline(cls, config: dict, reader, parameters) -> BasePipeline | None:
-        """Pulls beam_monitor_present/bm_hardware_type straight from `config`, resolves
-        the type against the registry, pulls the matching readouts container off
-        `reader`, and instantiates the correct pipeline -- in one pass. Returns None
-        (no pipeline to run) whenever the beam monitor isn't flagged as present at all."""
-        if not config.get('beam_monitor_present', False):
-            return None
+def build_bm_pipeline(config: dict, readout_source, parameters) -> BeamMonitorPipeline | None:
+    """Picks the beam-monitor pipeline class + matching readouts container
+    for this config's bm_hardware_type. Returns None (no pipeline to run)
+    whenever the beam monitor isn't flagged as present at all, or its
+    hardware type isn't recognized.
+    """
+    if not config.get('beam_monitor_present', False):
+        return None
 
-        bm_hardware_type = config.get('bm_hardware_type', 'generic')
-        entry = cls._BM_REGISTRY.get(bm_hardware_type.lower())
-        if entry is None:
-            print(f'{WARN}WARNING: Beam monitor type "{bm_hardware_type}" is not recognized.{RESET}')
-            return None
+    bm_hardware_type = config.get('bm_hardware_type', 'generic').lower()
 
-        pipeline_cls, readouts_attr = entry
-        bm_readouts = getattr(reader, readouts_attr, None)
-        if bm_readouts is None:
-            print(f'{WARN}Beam Monitor flagged as active, but associated BM readouts '
-                  f'("{readouts_attr}") are empty.{RESET}')
-            return None
+    if bm_hardware_type == 'ibm':
+        pipeline_cls, readouts_container = IBMPipeline, readout_source.readouts_ibm
 
-        return pipeline_cls(bm_readouts, parameters, config)
+    elif bm_hardware_type == 'generic':
+        pipeline_cls, readouts_container = GenericBMPipeline, readout_source.readouts_bm
+
+    else:
+        print(f'{WARN}WARNING: Beam monitor type "{bm_hardware_type}" is not recognized.{RESET}')
+        return None
+
+    return pipeline_cls(readouts_container, parameters, config)

@@ -67,6 +67,15 @@ class BaseReader:
 
     Empty containers (no data routed to them) remain as zero-length arrays.
     """
+    _CONTAINER_NAMES = (
+            "readouts_vmm_normal",
+            "readouts_vmm_clustered",
+            "readouts_r5560",
+            "readouts_bm",
+            "readouts_ibm",
+            "readouts_skadi",
+        )
+    
     def __init__(
         self,
         parameters,
@@ -146,7 +155,6 @@ class BaseReader:
         self.heartbeats_all:  np.ndarray = None
         self.heartbeats_data: np.ndarray = None
         
-        
     # ------------------------------------------------------------------
     # Public entry point
     # ------------------------------------------------------------------
@@ -161,6 +169,7 @@ class BaseReader:
             — all general diagnostics run here, after reading is complete
           4. Sorting and cleaning the containers
           5. Report instrument IDs found
+          6. Returns a dictionary with all the containers
         """
         self._allocate_all_containers(self._prealloc_length)
         self._read_packets()
@@ -169,7 +178,8 @@ class BaseReader:
         self._run_warnings_and_checks()
         for c in self._all_containers():
             c.clean_and_sort(self._parameters)
-        
+        return dict(zip(self._CONTAINER_NAMES, self._all_containers()))
+            
     # ------------------------------------------------------------------
     # Private: container allocation
     # ------------------------------------------------------------------
@@ -893,7 +903,7 @@ class PcapngFileReader(BaseReader):
     def run(self) -> None:
         "Allocates memory then runs the main loop"
         self._scan_and_allocate()
-        super().run()
+        return super().run()
     # ------------------------------------------------------------------
     # Private: validation helpers
     # ------------------------------------------------------------------
