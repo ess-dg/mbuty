@@ -52,7 +52,7 @@ class MBUTYOrchestrator:
             self.config = json.load(f)
 
         self.detector_pipeline = None
-        self.bm_pipeline = None
+        self.bm_pipeline       = None
 
     def run_pipeline(self) -> None:
         """Executes data frame ingestion and routes targeted tracks via explicit type matching gates."""
@@ -118,8 +118,8 @@ class MBUTYOrchestrator:
         plt.draw() 
         plt.pause(0.1)
         plt.show(block=False)
-        input(f"{INFO}\nPress Enter to close all figures...{RESET}")
-        plt.close('all')
+        # input(f"{INFO}\nPress Enter to close all figures...{RESET}")
+        # plt.close('all')
         
         self.readouts_container = self.detector_pipeline.readouts_container
         self.hits_container     = self.detector_pipeline.hits_container
@@ -133,7 +133,7 @@ def _enable_all_plots(params) -> None:
     routine runs should set only the flags you actually want."""
     p, w, phs, mon = params.plotting, params.wavelength, params.pulseHeigthSpect, params.MONitor
 
-    p.plotChopperResets            = True
+    p.plotChopperResets            = False
     p.plotRawReadouts              = False
     p.plotReadoutsTimeStamps       = False
     p.plotADCvsCh                  = False
@@ -142,26 +142,40 @@ def _enable_all_plots(params) -> None:
     p.plotHitsTimeStamps           = False
     p.plotHitsTimeStampsVSChannels = False
 
-    p.plotToFDistr                 = False
+    p.plotToFDistr                 = True
     p.plotMultiplicity             = False
     p.plotTimeBetwEv               = False
 
-    phs.plotPHS                    = True
+    phs.plotPHS                    = False
     phs.plotPHScorrelation         = False
 
     # calculateLambda has to be True for plotXLambda/plotLambdaDistr to have
     # real wavelength data to plot -- it's what triggers the wavelength calc
     # in analyze(), not just a display toggle.
-    w.calculateLambda              = False
-    w.plotXLambda                  = False
-    w.plotLambdaDistr              = False
+    w.calculateLambda              = True
+    w.plotXLambda                  = True
+    w.plotLambdaDistr              = True
 
     # Only takes effect if a beam monitor stream is actually present in the file.
-    mon.plotMONtofPHS              = False
+    mon.plotMONtofPHS              = True
 
     # bareReadoutsCalculation off, or everything past readouts gets skipped.
     p.bareReadoutsCalculation      = False
 
+    mon.MONOnOff = True
+    mon.energyBins = 128
+    mon.maxEnerg   = 1000
+    
+    mon.MONDistance = 23000
+    
+    w.distance     = 32000
+    w.chopperPeriod = 0.12
+    
+    w.multipleFramePerReset = True
+    w.numOfBunchesPerPulse = 2
+    
+    w.lambdaMIN = 2.1
+    
 
 if __name__ == '__main__':
     import numpy as np 
@@ -181,7 +195,7 @@ if __name__ == '__main__':
     params.plotting.plottingInSectionsBlocks = 5
     params.dataReduction.timeWindow = 0.127e-6
     params.plotting.ToFrange        = 0.15
-    params.plotting.timeBetwEvBin = 1e-6
+    params.plotting.timeBetwEvBin   = 1e-6
     
     params.plotting.histogOutBounds = True
     
@@ -189,7 +203,7 @@ if __name__ == '__main__':
 
   
     
-    params.dataReduction.softThresholdType = 'userDefined'
+    params.dataReduction.softThresholdType = 'off'
     # params.dataReduction.softThArray = (500, 700)
     params.dataReduction.softThArray = {
         5: {'ch0': np.full(32, 1000.0)},   # cassette 1, wire thresholds only

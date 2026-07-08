@@ -473,11 +473,9 @@ class BaseAxisSet:
         
         self.ax_time_span =  Axis(-10e-6, 10e-6, 2001)
         
-        
-
     def build_specific_axes(self) -> None:
         """Override in subclasses to add detector-specific position axes."""
-        raise NotImplementedError
+        pass
 
     def rebuild_all(self) -> None:
         self._build_generic_axes()

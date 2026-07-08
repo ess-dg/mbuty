@@ -50,7 +50,7 @@ class BaseEventsPlotter(BasePlotter):
     def plot_multiplicity(self, *args, **kwargs): self._skip('plot_multiplicity')
     def plot_phs(self, *args, **kwargs): self._skip('plot_phs')
     def plot_phs_correlation(self, *args, **kwargs): self._skip('plot_phs_correlation')
-    def plot_instantaneous_rate(self, *args, **kwargs): self._skip('plot_instantaneous_rate')
+    def plot_time_between_events(self, *args, **kwargs): self._skip('plot_time_between_events')
     def plot_position_per_tube(self, *args, **kwargs): self._skip('plot_position_per_tube')
 
 # ============================================================================
@@ -831,9 +831,6 @@ class MonitorEventsPlotter(BasePlotter):
     instead.
     """
 
-    def __init__(self, container, axis_set, hist_out_of_bounds: bool = True):
-        super().__init__(container, hist_out_of_bounds)
-        self.axis_set = axis_set
 
     def plot_tof_phs_mon(self, fig_num=999):
         """ToF and pulse-height spectra for the monitor stream, side by side."""

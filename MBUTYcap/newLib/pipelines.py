@@ -96,6 +96,8 @@ class BasePipeline:
         self.readouts_container = readouts_container
         self.parameters = parameters
         self.config = config
+        
+        self.out_of_bounds = self.parameters.plotting.histogOutBounds
 
         # Filled in by analyze()
         self.hits_container = None
@@ -173,7 +175,7 @@ class BasePipeline:
             if phs.plotPHScorrelation:
                 self.event_plotter.plot_phs_correlation(unit_ids=unit_ids)
             if p.plotTimeBetwEv:
-                self.event_plotter.plot_instantaneous_rate(unit_ids=unit_ids)
+                self.event_plotter.plot_time_between_events(unit_ids=unit_ids)
 
     def plot_always(self):
         """Plots that are always show no matter the detector. 
@@ -259,21 +261,21 @@ class MBPipeline(BasePipeline):
         # Calculate abs units
         from newLib.abs_units_engine import MBAbsUnitsCalculator
         MBAbsUnitsCalculator(self.events_container, self.config, self.parameters).process_pipeline(remove_invalid_tofs=True)
-        #  Software thresholds
+        # Apply soft thresholds
         from newLib.threshold_engine import VMMThresholdEngine
         VMMThresholdEngine(self.events_container, self.config, self.parameters).process_pipeline()
         
     def build_plotters(self) -> None:
         from newLib.histograms import MBAxisSet
         axis_set = MBAxisSet(self.parameters, self.config)
-
+  
         from newLib.plotting_readouts import MBReadoutsPlotter
         from newLib.plotting_hits import MBHitsPlotter
         from newLib.plotting_events import MBEventsPlotter
 
-        self.readout_plotter = MBReadoutsPlotter(self.readouts_container, self.config, axis_set, hist_out_of_bounds=self.parameters.plotting.histogOutBounds)
-        self.hit_plotter     = MBHitsPlotter(self.hits_container, self.config, axis_set, hist_out_of_bounds=self.parameters.plotting.histogOutBounds)
-        self.event_plotter   = MBEventsPlotter(self.events_container, self.config, axis_set, hist_out_of_bounds=self.parameters.plotting.histogOutBounds)
+        self.readout_plotter = MBReadoutsPlotter(self.readouts_container, self.config, axis_set, hist_out_of_bounds=self.out_of_bounds)
+        self.hit_plotter     = MBHitsPlotter(self.hits_container, self.config, axis_set, hist_out_of_bounds=self.out_of_bounds)
+        self.event_plotter   = MBEventsPlotter(self.events_container, self.config, axis_set, hist_out_of_bounds=self.out_of_bounds)
 
 
 class MBClusteredPipeline(BasePipeline):
@@ -297,7 +299,7 @@ class MBClusteredPipeline(BasePipeline):
         # Calculate abs units
         from newLib.abs_units_engine import MBAbsUnitsCalculator
         MBAbsUnitsCalculator(self.events_container, self.config, self.parameters).process_pipeline(remove_invalid_tofs=True)
-        # Software thresholds
+        # Apply soft thresholds
         from newLib.threshold_engine import VMMThresholdEngine
         VMMThresholdEngine(self.events_container, self.config, self.parameters).process_pipeline()
 
@@ -311,9 +313,9 @@ class MBClusteredPipeline(BasePipeline):
         from newLib.plotting_hits import MBClusteredHitsPlotter
         from newLib.plotting_events import MBEventsPlotter
 
-        self.readout_plotter = MBReadoutsPlotter(self.readouts_container, topology, axis_set)
-        self.hit_plotter = MBClusteredHitsPlotter(self.hits_container, num_wires)
-        self.event_plotter = MBEventsPlotter(self.events_container, axis_set, self.config)
+        self.readout_plotter = MBReadoutsPlotter(self.readouts_container, self.config, axis_set, hist_out_of_bounds=self.out_of_bounds)
+        self.hit_plotter = MBClusteredHitsPlotter(self.hits_container, self.config, axis_set, hist_out_of_bounds=self.out_of_bounds)
+        self.event_plotter = MBEventsPlotter(self.events_container, self.config, axis_set, hist_out_of_bounds=self.out_of_bounds)
 
 
 class MGPipeline(BasePipeline):
@@ -333,7 +335,7 @@ class MGPipeline(BasePipeline):
         # Calculate abs units
         from newLib.abs_units_engine import MBAbsUnitsCalculator
         MBAbsUnitsCalculator(self.events_container, self.config, self.parameters).process_pipeline(remove_invalid_tofs=True)
-        #  Software thresholds
+        # Apply soft thresholds
         from newLib.threshold_engine import VMMThresholdEngine
         VMMThresholdEngine(self.events_container, self.config, self.parameters).process_pipeline()
 
@@ -346,21 +348,25 @@ class MGPipeline(BasePipeline):
         from newLib.plotting_hits import MGHitsPlotter
         from newLib.plotting_events import MGEventsPlotter
 
-        self.readout_plotter = MGReadoutsPlotter(self.readouts_container, topology, axis_set)
-        self.hit_plotter = MGHitsPlotter(self.hits_container)
-        self.event_plotter = MGEventsPlotter(self.events_container, axis_set, self.config)
+        self.readout_plotter = MGReadoutsPlotter(self.readouts_container, self.config, axis_set, hist_out_of_bounds=self.out_of_bounds)
+        self.hit_plotter = MGHitsPlotter(self.hits_container, self.config, axis_set, hist_out_of_bounds=self.out_of_bounds)
+        self.event_plotter = MGEventsPlotter(self.events_container, self.config, axis_set, hist_out_of_bounds=self.out_of_bounds)
 
 
 class R5560Pipeline(BasePipeline):
     """CAEN R5560 Helium-3 continuous gas tube detectors."""
 
     def analyze(self) -> None:
+        # Mapping
         from newLib.mapping_engine import He3Mapper
-        print(f'{INFO}Executing R5560 Helium-3 mapping and customized tube clustering...{RESET}')
         self.hits_container = He3Mapper.map(self.readouts_container, self.config)
-
+        # Clustering
         from newLib.clustering_engine import He3Clusterer
         self.events_container = He3Clusterer.cluster(self.hits_container, self.config)
+        # NOTE: no absolute units for this one
+        # Apply soft thresholds
+        from newLib.threshold_engine import TubeThresholdEngine
+        TubeThresholdEngine(self.events_container, self.config, self.parameters).process_pipeline()
 
     def build_plotters(self) -> None:
         axis_set = getattr(self.parameters, 'axis_set', None)
@@ -370,9 +376,10 @@ class R5560Pipeline(BasePipeline):
         from newLib.plotting_hits import R5560HitsPlotter
         from newLib.plotting_events import R5560EventsPlotter
 
-        self.readout_plotter = R5560ReadoutsPlotter(self.readouts_container, topology)
-        self.hit_plotter = R5560HitsPlotter(self.hits_container, axis_set)
-        self.event_plotter = R5560EventsPlotter(self.events_container, axis_set, self.config)
+        self.readout_plotter = R5560ReadoutsPlotter(self.readouts_container, self.config, axis_set, hist_out_of_bounds=self.out_of_bounds)
+        self.hit_plotter = R5560HitsPlotter(self.hits_container, self.config, axis_set, hist_out_of_bounds=self.out_of_bounds)
+        self.event_plotter = R5560EventsPlotter(self.events_container, self.config, axis_set, hist_out_of_bounds=self.out_of_bounds)
+  
 
     def plot_always(self):
         super().plot_always()
@@ -424,8 +431,10 @@ class BeamMonitorPipeline:
         raise NotImplementedError
 
     def build_plotter(self) -> None:
-        """Subclasses set self.event_plotter here -- construction only."""
-        raise NotImplementedError
+        from newLib.histograms import BaseAxisSet
+        self.axis_set = BaseAxisSet(self.parameters, self.config)
+        from newLib.plotting_events import MonitorEventsPlotter
+        self.event_plotter = MonitorEventsPlotter(self.events_container, self.config, self.axis_set)
 
     def plot(self) -> None:
         self.build_plotter()
@@ -451,8 +460,8 @@ class GenericBMPipeline(BeamMonitorPipeline):
     (monitor-specific: fixed distance, no depth correction) before plotting."""
 
     def analyze(self) -> None:
+        # Map directly into events
         from newLib.mapping_engine import BMMapper
-        print(f'{INFO}Executing Generic Beam Monitor mapping pass...{RESET}')
         self.events_container = BMMapper.map(self.readouts_container, self.config)
 
         print(f'{INFO}Calculating Beam Monitor ToF/wavelength...{RESET}')
@@ -460,11 +469,10 @@ class GenericBMPipeline(BeamMonitorPipeline):
         if self.parameters.wavelength.calculateLambda:
             from newLib.abs_units_engine import calculate_monitor_wavelength
             calculate_monitor_wavelength(self.events_container, self.parameters)
-
-    def build_plotter(self) -> None:
-        axis_set = getattr(self.parameters, 'axis_set', None)
-        from newLib.plotting_events import MonitorEventsPlotter
-        self.event_plotter = MonitorEventsPlotter(self.events_container, axis_set)
+            
+        # Apply monitor thresholds 
+        from newLib.threshold_engine import apply_monitor_threshold
+        apply_monitor_threshold(self.events_container, self.parameters.MONitor.MONThreshold)
 
 
 class IBMPipeline(BeamMonitorPipeline):
@@ -473,8 +481,8 @@ class IBMPipeline(BeamMonitorPipeline):
     monitor-wavelength pass runs before plotting."""
 
     def analyze(self) -> None:
+        # Map directly into events
         from newLib.mapping_engine import IBMMonitorMapper
-        print(f'{INFO}Executing Ionization Beam Monitor mapping pass...{RESET}')
         self.events_container = IBMMonitorMapper.map(self.readouts_container, self.config)
 
         print(f'{INFO}Calculating Beam Monitor ToF/wavelength...{RESET}')
@@ -482,11 +490,10 @@ class IBMPipeline(BeamMonitorPipeline):
         if self.parameters.wavelength.calculateLambda:
             from newLib.abs_units_engine import calculate_monitor_wavelength
             calculate_monitor_wavelength(self.events_container, self.parameters)
-
-    def build_plotter(self) -> None:
-        axis_set = getattr(self.parameters, 'axis_set', None)
-        from newLib.plotting_events import MonitorEventsPlotter
-        self.event_plotter = MonitorEventsPlotter(self.events_container, axis_set)
+            
+        # Apply monitor thresholds 
+        from newLib.threshold_engine import apply_monitor_threshold
+        apply_monitor_threshold(self.events_container, self.parameters.MONitor.MONThreshold)
 
 
 # =============================================================================
@@ -540,10 +547,10 @@ def build_bm_pipeline(config: dict, readout_source, parameters) -> BeamMonitorPi
     whenever the beam monitor isn't flagged as present at all, or its
     hardware type isn't recognized.
     """
-    if not config.get('beam_monitor_present', False):
+    if not config.get('monitor', False):
         return None
 
-    bm_hardware_type = config.get('bm_hardware_type', 'generic').lower()
+    bm_hardware_type = config.get('hardwareType', 'generic').lower()
 
     if bm_hardware_type == 'ibm':
         pipeline_cls, readouts_container = IBMPipeline, readout_source.readouts_ibm

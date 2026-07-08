@@ -315,3 +315,27 @@ class TubeThresholdEngine(BaseThresholdEngine):
 
         self.events.matrix['ID'][:self.events.fill_count][~keep] = -1
         self.events.remove_invalid()
+        
+# =============================================================================
+# Monitor threshold engine 
+# ============================================================================= 
+def apply_monitor_threshold(events, threshold: float) -> None:
+    """
+    Flat threshold for the beam monitor: pulseHeight0 <= threshold is
+    rejected. No units, no channels, no ThresholdTable — mirrors the
+    legacy `if MONThreshold > 0: belowTh = PHW <= MONThreshold` check,
+    just using the reject/remove_invalid path instead of removeData().
+    """
+    if threshold <= 0:
+        print(f"\t monitor threshold OFF ...")
+        return
+
+    print(f"\t {INFO}applying monitor software threshold ...{RESET}")
+
+    n = events.fill_count
+    if n == 0:
+        return
+
+    reject_mask = events.matrix['pulseHeight0'][:n] <= threshold
+    events.matrix['ID'][:n][reject_mask] = -1
+    events.remove_invalid()

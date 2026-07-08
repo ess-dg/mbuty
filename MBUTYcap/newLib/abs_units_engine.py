@@ -280,7 +280,7 @@ class R5560AbsUnitsCalculator(BaseAbsUnitsCalculator):
 
 def calculate_monitor_wavelength(monitor_events, parameters) -> None:
     """Wavelength for monitor events — fixed distance, no depth correction."""
-    print(f"{INFO}Calculati ng monitor wavelength ... {RESET}", end='')
+    print(f"{INFO}Calculating monitor wavelength ... {RESET}", end='')
 
     m          = monitor_events.matrix[:monitor_events.fill_count]
     tof_s      = m['ToF'].astype('float64') / 1e9
