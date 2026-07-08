@@ -13,15 +13,15 @@ _workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
 
-from newLib.colors import WARN, ERR, INFO, OK, RESET
+from lib.colors import WARN, ERR, INFO, OK, RESET
 
-from newLib.instrument_registry import (
+from lib.instrument_registry import (
     get_readout_spec,
     check_valid_data_stream,
     print_info_data_stream,
     match_data_stream_with_config,
 )
-from newLib.readout_containers import (
+from lib.readout_containers import (
     readoutsVMMnormal,
     readoutsVMMclustered,
     readoutsR5560,
@@ -30,7 +30,7 @@ from newLib.readout_containers import (
     readoutsSKADI,
 )
 
-from newLib.hardware_decoders import (
+from lib.hardware_decoders import (
     VMMNormalDecoder,
     VMMClusteredDecoder,
     R5560Decoder,

@@ -1,5 +1,13 @@
 import numpy as np
-from .instrument_registry import get_readout_spec
+import sys, os
+# =============================================================================
+# RUNTIME PATH BOOTSTRAP
+# =============================================================================
+_workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _workspace not in sys.path:
+    sys.path.insert(0, _workspace)
+    
+from lib.instrument_registry import get_readout_spec
 
 
 class BaseHardwareDecoder:

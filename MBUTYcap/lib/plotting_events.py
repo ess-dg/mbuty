@@ -21,9 +21,9 @@ import matplotlib.figure
 _workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
-from newLib.colors import WARN, RESET
-from newLib.histograms import Histogrammer
-from newLib.plotting_base import PlotGrid, BasePlotter, log_scale_norm, _safe_colorbar
+from lib.colors import WARN, RESET
+from lib.histograms import Histogrammer
+from lib.plotting_base import PlotGrid, BasePlotter, log_scale_norm, _safe_colorbar
 
 
 # ============================================================================

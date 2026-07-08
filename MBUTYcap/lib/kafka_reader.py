@@ -24,12 +24,12 @@ _workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
 
-from newLib.reader import BaseReader
-from newLib.libKafkaRawReadoutMessage import RawReadoutMessage
-import newLib.libKafkaRX as krx
-from newLib.colors import WARN, ERR, RESET
+from lib.reader import BaseReader
+from lib.libKafkaRawReadoutMessage import RawReadoutMessage
+import lib.libKafkaRX as krx
+from lib.colors import WARN, ERR, RESET
 
-from newLib.instrument_registry import (
+from lib.instrument_registry import (
     check_valid_data_stream,
     match_data_stream_with_config,
 )

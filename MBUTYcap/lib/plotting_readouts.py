@@ -16,8 +16,8 @@ import sys, os
 _workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
-from newLib.colors import WARN, RESET
-from newLib.plotting_base import PlotGrid, BasePlotter, log_scale_norm
+from lib.colors import WARN, RESET
+from lib.plotting_base import PlotGrid, BasePlotter, log_scale_norm
 
 
 # ============================================================================

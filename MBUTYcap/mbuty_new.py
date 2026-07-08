@@ -13,15 +13,15 @@ from collections import defaultdict
 from types import SimpleNamespace
 import matplotlib.pyplot as plt
 # Ingest new high-performance architecture modules
-from newLib.reader import PcapngFileReader
-from newLib.colors import INFO, OK, WARN, ERR, RESET
+from lib.reader import PcapngFileReader
+from lib.colors import INFO, OK, WARN, ERR, RESET
 
 # Ingest object-oriented pipeline tracks and their factory dispatchers
-from newLib.pipelines import build_detector_pipeline, build_bm_pipeline
+from lib.pipelines import build_detector_pipeline, build_bm_pipeline
 
 # Ingest legacy file resolver as an isolated asset
 from lib.libFileManagmentUtil import fileDialogue
-import newLib.libParameters as para
+import lib.libParameters as para
 
 # =============================================================================
 # Master Ingestion Orchestrator
@@ -59,7 +59,7 @@ class MBUTYOrchestrator:
         
         # 1. Pipeline Data Ingestion Pass (Network Stream vs Disk Storage)
         if self.parameters.acqMode == 'kafka':
-            from newLib.kafka_reader import KafkaReader
+            from lib.kafka_reader import KafkaReader
             reader = KafkaReader(
                 parameters = self.parameters,
                 config     = self.config,
@@ -118,8 +118,8 @@ class MBUTYOrchestrator:
         plt.draw() 
         plt.pause(0.1)
         plt.show(block=False)
-        # input(f"{INFO}\nPress Enter to close all figures...{RESET}")
-        # plt.close('all')
+        input(f"{INFO}\nPress Enter to close all figures...{RESET}")
+        plt.close('all')
         
         self.readouts_container = self.detector_pipeline.readouts_container
         self.hits_container     = self.detector_pipeline.hits_container
@@ -146,7 +146,7 @@ def _enable_all_plots(params) -> None:
     p.plotMultiplicity             = False
     p.plotTimeBetwEv               = False
 
-    phs.plotPHS                    = False
+    phs.plotPHS                    = True
     phs.plotPHScorrelation         = False
 
     # calculateLambda has to be True for plotXLambda/plotLambdaDistr to have
@@ -203,7 +203,9 @@ if __name__ == '__main__':
 
   
     
-    params.dataReduction.softThresholdType = 'off'
+    params.dataReduction.softThresholdType = 'fromFile'
+    params.fileManagement.thresholdFilePath = r'C:\Projects\dg_MultiBlade_MBUTY_original\MBUTYcap\config'
+    params.fileManagement.thresholdFileName = 'MB300L_thresholds.xlsx'
     # params.dataReduction.softThArray = (500, 700)
     params.dataReduction.softThArray = {
         5: {'ch0': np.full(32, 1000.0)},   # cassette 1, wire thresholds only

@@ -9,7 +9,7 @@ _workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
 
-from .colors import INFO, WARN, RESET
+from lib.colors import INFO, WARN, RESET
 
 # =============================================================================
 # Shared Physics Utility
@@ -108,9 +108,10 @@ class BaseAbsUnitsCalculator:
     def process_pipeline(self, remove_invalid_tofs: bool = False) -> None:
         """Convenience execution loop: triggers timing alignment, positions, then wavelength."""
         # 1. Delegate core timeline matching directly to the container method
-        
-        print(f"{INFO}Calculating neutron ToF/ToA ... {RESET}", end='')
         self.events.compute_and_filter_tof(remove_invalid=remove_invalid_tofs)
+        
+        if self.parameters.plotting.ToFGate:
+            self.events.trim_tof_range(self.parameters.plotting.ToFGateRange)
         
         # 2. Run geometric spatial conversions
         self.calculate_positions()

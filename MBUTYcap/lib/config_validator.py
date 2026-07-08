@@ -9,7 +9,7 @@ formerly embedded in `read_json_config` / `MONmap` / `DETparameters` /
 
 Scope: these functions validate the raw JSON `config: dict` BEFORE any data
 ingestion starts. They do NOT duplicate the post-read stream checks that
-already live in `newLib/instrument_registry.py`
+already live in `lib/instrument_registry.py`
 (`check_valid_data_stream`, `match_data_stream_with_config`, `check_bm_type`).
 
 Schema note: updated to match the current config generator / sample files
@@ -18,8 +18,8 @@ throughout (e.g. `detectorType`, `topology`, `ring`) rather than the legacy
 PascalCase keys (`DetectorType`, `Cassette2ElectronicsConfig`, `Ring`).
 
 All legacy warning/error text and exit behavior are preserved; coloring now
-goes through `newLib/colors.py` (WARN / ERR / INFO / OK / RESET) via f-strings
-instead of inline ANSI escapes, for consistency with the rest of newLib.
+goes through `lib/colors.py` (WARN / ERR / INFO / OK / RESET) via f-strings
+instead of inline ANSI escapes, for consistency with the rest of lib.
 """
 
 import sys
@@ -38,7 +38,7 @@ if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
     
     
-from newLib.colors import WARN, ERR, INFO, OK, RESET
+from lib.colors import WARN, ERR, INFO, OK, RESET
 
 
 # =============================================================================

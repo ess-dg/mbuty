@@ -12,7 +12,15 @@ import os
 import sys
 from dataclasses import dataclass, field
 import numpy as np
-from .colors import ERR, WARN, INFO, RESET
+
+# =============================================================================
+# RUNTIME PATH BOOTSTRAP
+# =============================================================================
+_workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _workspace not in sys.path:
+    sys.path.insert(0, _workspace)
+    
+from lib.colors import ERR, WARN, INFO, RESET
 
 # =============================================================================
 # 1. CALIBRATION DATA STRUCTURES

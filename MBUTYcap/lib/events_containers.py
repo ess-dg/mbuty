@@ -9,7 +9,7 @@ _workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
 
-from newLib.colors import INFO, RESET, WARN, ERR, OK
+from lib.colors import INFO, RESET, WARN, ERR, OK
 
 class events():
     """Base class for all events.
@@ -150,6 +150,7 @@ class events():
         """
         if self.fill_count == 0:
             return
+        print(f"{INFO}Calculating neutron ToF/ToA ... {RESET}", end='')
 
         # Isolate the active preallocated memory chunk
         m = self.matrix[:self.fill_count]

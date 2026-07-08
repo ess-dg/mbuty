@@ -73,7 +73,7 @@ _workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
 
-from newLib.colors import INFO, WARN, ERR, RESET
+from lib.colors import INFO, WARN, ERR, RESET
 
 def _chunk(seq: list, size: int) -> list:
     size = max(1, int(size))
@@ -252,26 +252,26 @@ class MBPipeline(BasePipeline):
             self.readouts_container.calibrate(self.parameters, self.config)
 
         # Mapping
-        from newLib.mapping_engine import MBMapper
+        from lib.mapping_engine import MBMapper
         self.hits_container = MBMapper.map(self.readouts_container, self.config)
         # Clustering 
-        from newLib.clustering_engine import VMMNormalClusterer
+        from lib.clustering_engine import VMMNormalClusterer
         time_window = getattr(self.parameters.dataReduction, 'timeWindow', 3e-6)
         self.events_container = VMMNormalClusterer.cluster(self.hits_container, self.config, time_window)
         # Calculate abs units
-        from newLib.abs_units_engine import MBAbsUnitsCalculator
+        from lib.abs_units_engine import MBAbsUnitsCalculator
         MBAbsUnitsCalculator(self.events_container, self.config, self.parameters).process_pipeline(remove_invalid_tofs=True)
         # Apply soft thresholds
-        from newLib.threshold_engine import VMMThresholdEngine
+        from lib.threshold_engine import VMMThresholdEngine
         VMMThresholdEngine(self.events_container, self.config, self.parameters).process_pipeline()
         
     def build_plotters(self) -> None:
-        from newLib.histograms import MBAxisSet
+        from lib.histograms import MBAxisSet
         axis_set = MBAxisSet(self.parameters, self.config)
   
-        from newLib.plotting_readouts import MBReadoutsPlotter
-        from newLib.plotting_hits import MBHitsPlotter
-        from newLib.plotting_events import MBEventsPlotter
+        from lib.plotting_readouts import MBReadoutsPlotter
+        from lib.plotting_hits import MBHitsPlotter
+        from lib.plotting_events import MBEventsPlotter
 
         self.readout_plotter = MBReadoutsPlotter(self.readouts_container, self.config, axis_set, hist_out_of_bounds=self.out_of_bounds)
         self.hit_plotter     = MBHitsPlotter(self.hits_container, self.config, axis_set, hist_out_of_bounds=self.out_of_bounds)
@@ -291,27 +291,27 @@ class MBClusteredPipeline(BasePipeline):
     def analyze(self) -> None:
         # No calibration for clustered pipeline go straight into 
         # Mapping
-        from newLib.mapping_engine import MBClustMapper
+        from lib.mapping_engine import MBClustMapper
         self.hits_container = MBClustMapper.map(self.readouts_container, self.config)
         # Clustering 
-        from newLib.clustering_engine import VMMClusteredClusterer
+        from lib.clustering_engine import VMMClusteredClusterer
         self.events_container = VMMClusteredClusterer.cluster(self.hits_container, self.config)
         # Calculate abs units
-        from newLib.abs_units_engine import MBAbsUnitsCalculator
+        from lib.abs_units_engine import MBAbsUnitsCalculator
         MBAbsUnitsCalculator(self.events_container, self.config, self.parameters).process_pipeline(remove_invalid_tofs=True)
         # Apply soft thresholds
-        from newLib.threshold_engine import VMMThresholdEngine
+        from lib.threshold_engine import VMMThresholdEngine
         VMMThresholdEngine(self.events_container, self.config, self.parameters).process_pipeline()
 
     def build_plotters(self) -> None:
-        from newLib.histograms import MBAxisSet
+        from lib.histograms import MBAxisSet
         axis_set = MBAxisSet(self.parameters, self.config)
         topology = self.config.get('topology', [])
         num_wires = int(self.config['wires'])
 
-        from newLib.plotting_readouts import MBReadoutsPlotter
-        from newLib.plotting_hits import MBClusteredHitsPlotter
-        from newLib.plotting_events import MBEventsPlotter
+        from lib.plotting_readouts import MBReadoutsPlotter
+        from lib.plotting_hits import MBClusteredHitsPlotter
+        from lib.plotting_events import MBEventsPlotter
 
         self.readout_plotter = MBReadoutsPlotter(self.readouts_container, self.config, axis_set, hist_out_of_bounds=self.out_of_bounds)
         self.hit_plotter = MBClusteredHitsPlotter(self.hits_container, self.config, axis_set, hist_out_of_bounds=self.out_of_bounds)
@@ -326,27 +326,27 @@ class MGPipeline(BasePipeline):
             # Calibrate readouts 
             self.readouts_container.calibrate(self.parameters, self.config)
         # Mapping
-        from newLib.mapping_engine import MGMapper
+        from lib.mapping_engine import MGMapper
         self.hits_container = MGMapper.map(self.readouts_container, self.config)
         # Clustering
-        from newLib.clustering_engine import VMMNormalClusterer
+        from lib.clustering_engine import VMMNormalClusterer
         time_window = getattr(self.parameters.dataReduction, 'timeWindow', 3e-6)
         self.events_container = VMMNormalClusterer.cluster(self.hits_container, self.config, time_window)
         # Calculate abs units
-        from newLib.abs_units_engine import MBAbsUnitsCalculator
+        from lib.abs_units_engine import MBAbsUnitsCalculator
         MBAbsUnitsCalculator(self.events_container, self.config, self.parameters).process_pipeline(remove_invalid_tofs=True)
         # Apply soft thresholds
-        from newLib.threshold_engine import VMMThresholdEngine
+        from lib.threshold_engine import VMMThresholdEngine
         VMMThresholdEngine(self.events_container, self.config, self.parameters).process_pipeline()
 
     def build_plotters(self) -> None:
-        from newLib.histograms import MGAxisSet
+        from lib.histograms import MGAxisSet
         axis_set = MGAxisSet(self.parameters)
         topology = self.config.get('topology', [])
 
-        from newLib.plotting_readouts import MGReadoutsPlotter
-        from newLib.plotting_hits import MGHitsPlotter
-        from newLib.plotting_events import MGEventsPlotter
+        from lib.plotting_readouts import MGReadoutsPlotter
+        from lib.plotting_hits import MGHitsPlotter
+        from lib.plotting_events import MGEventsPlotter
 
         self.readout_plotter = MGReadoutsPlotter(self.readouts_container, self.config, axis_set, hist_out_of_bounds=self.out_of_bounds)
         self.hit_plotter = MGHitsPlotter(self.hits_container, self.config, axis_set, hist_out_of_bounds=self.out_of_bounds)
@@ -358,23 +358,23 @@ class R5560Pipeline(BasePipeline):
 
     def analyze(self) -> None:
         # Mapping
-        from newLib.mapping_engine import He3Mapper
+        from lib.mapping_engine import He3Mapper
         self.hits_container = He3Mapper.map(self.readouts_container, self.config)
         # Clustering
-        from newLib.clustering_engine import He3Clusterer
+        from lib.clustering_engine import He3Clusterer
         self.events_container = He3Clusterer.cluster(self.hits_container, self.config)
         # NOTE: no absolute units for this one
         # Apply soft thresholds
-        from newLib.threshold_engine import TubeThresholdEngine
+        from lib.threshold_engine import TubeThresholdEngine
         TubeThresholdEngine(self.events_container, self.config, self.parameters).process_pipeline()
 
     def build_plotters(self) -> None:
         axis_set = getattr(self.parameters, 'axis_set', None)
         topology = self.config.get('topology', [])
 
-        from newLib.plotting_readouts import R5560ReadoutsPlotter
-        from newLib.plotting_hits import R5560HitsPlotter
-        from newLib.plotting_events import R5560EventsPlotter
+        from lib.plotting_readouts import R5560ReadoutsPlotter
+        from lib.plotting_hits import R5560HitsPlotter
+        from lib.plotting_events import R5560EventsPlotter
 
         self.readout_plotter = R5560ReadoutsPlotter(self.readouts_container, self.config, axis_set, hist_out_of_bounds=self.out_of_bounds)
         self.hit_plotter = R5560HitsPlotter(self.hits_container, self.config, axis_set, hist_out_of_bounds=self.out_of_bounds)
@@ -431,9 +431,9 @@ class BeamMonitorPipeline:
         raise NotImplementedError
 
     def build_plotter(self) -> None:
-        from newLib.histograms import BaseAxisSet
+        from lib.histograms import BaseAxisSet
         self.axis_set = BaseAxisSet(self.parameters, self.config)
-        from newLib.plotting_events import MonitorEventsPlotter
+        from lib.plotting_events import MonitorEventsPlotter
         self.event_plotter = MonitorEventsPlotter(self.events_container, self.config, self.axis_set)
 
     def plot(self) -> None:
@@ -461,17 +461,17 @@ class GenericBMPipeline(BeamMonitorPipeline):
 
     def analyze(self) -> None:
         # Map directly into events
-        from newLib.mapping_engine import BMMapper
+        from lib.mapping_engine import BMMapper
         self.events_container = BMMapper.map(self.readouts_container, self.config)
 
         print(f'{INFO}Calculating Beam Monitor ToF/wavelength...{RESET}')
         self.events_container.compute_and_filter_tof(remove_invalid=True)
         if self.parameters.wavelength.calculateLambda:
-            from newLib.abs_units_engine import calculate_monitor_wavelength
+            from lib.abs_units_engine import calculate_monitor_wavelength
             calculate_monitor_wavelength(self.events_container, self.parameters)
             
         # Apply monitor thresholds 
-        from newLib.threshold_engine import apply_monitor_threshold
+        from lib.threshold_engine import apply_monitor_threshold
         apply_monitor_threshold(self.events_container, self.parameters.MONitor.MONThreshold)
 
 
@@ -482,17 +482,17 @@ class IBMPipeline(BeamMonitorPipeline):
 
     def analyze(self) -> None:
         # Map directly into events
-        from newLib.mapping_engine import IBMMonitorMapper
+        from lib.mapping_engine import IBMMonitorMapper
         self.events_container = IBMMonitorMapper.map(self.readouts_container, self.config)
 
         print(f'{INFO}Calculating Beam Monitor ToF/wavelength...{RESET}')
         self.events_container.compute_and_filter_tof(remove_invalid=True)
         if self.parameters.wavelength.calculateLambda:
-            from newLib.abs_units_engine import calculate_monitor_wavelength
+            from lib.abs_units_engine import calculate_monitor_wavelength
             calculate_monitor_wavelength(self.events_container, self.parameters)
             
         # Apply monitor thresholds 
-        from newLib.threshold_engine import apply_monitor_threshold
+        from lib.threshold_engine import apply_monitor_threshold
         apply_monitor_threshold(self.events_container, self.parameters.MONitor.MONThreshold)
 
 

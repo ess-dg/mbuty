@@ -17,13 +17,11 @@ from PyQt5.QtWidgets import QFileDialog
 
 try:
 ####### if you run default
-    from lib import libMapping as maps
     from lib import libParameters as para
 
 
 except ImportError:
     ####### if you run in lib 
-    import libMapping as maps
     import libParameters as para
 
 ###############################################################################
@@ -252,29 +250,32 @@ class fileDialogue():
 ###############################################################################
 
 if __name__ == '__main__' :
-    
-    path = '/Users/francescopiscitelli/Desktop/dataPcapUtgard/'
-    
-    configFilePath  = '/Users/francescopiscitelli/Documents/PYTHON/MBUTYcap/config/'
-    configFileName  = "MB300_AMOR_config.json"
-    config = maps.read_json_config(configFilePath+configFileName)
+    import json
+    current_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__))) + os.sep
+    params = para.parameters(current_dir)
+
+    params.fileManagement.configFilePath = os.path.join(current_dir, 'config') + os.sep
+    params.fileManagement.configFileName = "AMOR.json"
+    params.fileManagement.fileName = "ESSmask2023.pcapng"
+    params.fileManagement.openMode = "fileName"
+    config_path = os.path.join(params.fileManagement.configFilePath, params.fileManagement.configFileName)
+    with open(config_path, 'r') as f:
+        config = json.load(f)
     
     currentPath = os.path.abspath(os.path.dirname(__file__))+'/'
     parameters  = para.parameters(currentPath)
 
-    parameters.loadConfigParameters(config)
-
-    parameters.fileManagement.filePath = path
+    parameters.fileManagement.filePath = current_dir +'data'
     
     # parameters.fileManagement.fileName = ['20211007_114629_duration_s_4_temp_00000.pcapng']
 
-    parameters.fileManagement.fileName = '20211007_114629_duration_s_4_temp_00000.pcapng'
+    parameters.fileManagement.fileName = '20260611_083055_pkts100_Test-full_00000.pcapng'
   
     parameters.fileManagement.openMode = 'sequence'
     
-    parameters.fileManagement.openMode = 'fileName'
-    parameters.fileManagement.openMode = 'window'
-    parameters.fileManagement.openMode = 'latest'
+    # parameters.fileManagement.openMode = 'fileName'
+    # parameters.fileManagement.openMode = 'window'
+    # parameters.fileManagement.openMode = 'latest'
     
     
     parameters.fileManagement.fileSerials = np.arange(0,5,1)

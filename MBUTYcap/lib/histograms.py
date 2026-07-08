@@ -27,11 +27,11 @@ _workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
 
-from newLib.colors import INFO, RESET, WARN, ERR, OK
+from lib.colors import INFO, RESET, WARN, ERR, OK
 
-from newLib.config_validator import validate_config, load_config
+from lib.config_validator import validate_config, load_config
 
-from newLib import libParameters as para
+from lib import libParameters as para
 
 
 # ============================================================================

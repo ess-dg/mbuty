@@ -8,9 +8,9 @@ _workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
     
-from newLib.events_containers import eventsVMMnormal, eventsVMMclustered, eventsR5560
+from lib.events_containers import eventsVMMnormal, eventsVMMclustered, eventsR5560
 
-from newLib.colors import WARN, ERR, INFO, OK, RESET
+from lib.colors import WARN, ERR, INFO, OK, RESET
 
 # =============================================================================
 # Wires and Strips Normal Clusterer (Multi-Blade & Multi-Grid)

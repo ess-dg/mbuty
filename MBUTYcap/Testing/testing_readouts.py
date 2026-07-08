@@ -21,7 +21,7 @@ _workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
     
-import lib.libReadPcapng as old_lib
+import oldLib.libReadPcapng as old_lib
 
 # from lib import libReadPcapng as old_lib
 

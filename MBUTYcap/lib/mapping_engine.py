@@ -48,14 +48,14 @@ _workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
 
-from newLib.colors import WARN, ERR, INFO, OK, RESET
-from newLib.hits_containers import (
+from lib.colors import WARN, ERR, INFO, OK, RESET
+from lib.hits_containers import (
     hitsVMMnormal,
     hitsVMMclustered,
     hitsR5560,
 )
 
-from newLib.events_containers import (
+from lib.events_containers import (
     eventsBM,
     eventsIBM,
 )
@@ -971,9 +971,9 @@ if __name__ == '__main__':
             self.fill_count = 4
             self.durations  = np.array([100], dtype='int64')
 
-    # Minimal colors shim so the harness runs without the full newLib install
+    # Minimal colors shim so the harness runs without the full lib install
     try:
-        from newLib.colors import WARN, ERR, INFO, OK, RESET
+        from lib.colors import WARN, ERR, INFO, OK, RESET
     except ImportError:
         WARN = ERR = INFO = OK = '\033[0m'
         RESET = '\033[0m'
