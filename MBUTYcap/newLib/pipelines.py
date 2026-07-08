@@ -74,7 +74,9 @@ if _workspace not in sys.path:
 
 from newLib.colors import INFO, WARN, ERR, RESET
 
-
+def _chunk(seq: list, size: int) -> list:
+    size = max(1, int(size))
+    return [seq[i:i + size] for i in range(0, len(seq), size)]
 # =============================================================================
 # Detector pipelines (MB / MB-clustered / MG / He3 / SKADI)
 # =============================================================================
@@ -111,11 +113,19 @@ class BasePipeline:
         here -- construction only, no plotting decisions."""
         raise NotImplementedError
 
-    def plot(self) -> None:
+    def plot(self, unit_ids=None) -> None:
         """The one and only place plotting parameters get read. A call to a
         given detector's plotter that isn't implemented just falls through
         to that plotter's inherited stub (prints a "not supported" notice,
-        does nothing) instead of needing to be listed or excluded here."""
+        does nothing) instead of needing to be listed or excluded here.
+
+        unit_ids, if given, scopes every per-cassette/per-tube panel plot
+        to that block (used by run_detector_pipeline() in mbuty_new.py for
+        plottingInSections). It is only ever passed to the per-unit panel
+        calls -- the whole-detector composite images (plot_xy, plot_tof_xy,
+        plot_x_lambda, plot_position_per_tube) never accepted a unit_ids
+        argument in the first place, so they're left unconditional here.
+        """
         self.build_plotters()
 
         p = self.parameters.plotting
@@ -123,57 +133,111 @@ class BasePipeline:
         phs = self.parameters.pulseHeigthSpect
 
         if self.readout_plotter is not None:
-            if getattr(p, 'plotChopperResets', False):
+            if p.plotChopperResets:
                 self.readout_plotter.plot_chopper_resets()
             if p.plotRawReadouts:
-                self.readout_plotter.plot_channels_raw()
+                self.readout_plotter.plot_channels_raw(unit_ids=unit_ids)
             if p.plotReadoutsTimeStamps:
-                self.readout_plotter.plot_timestamps()
+                self.readout_plotter.plot_timestamps(unit_ids=unit_ids)
             if p.plotADCvsCh:
-                self.readout_plotter.plot_adc_vs_channel()
+                self.readout_plotter.plot_adc_vs_channel(unit_ids=unit_ids)
 
         # Matches legacy: bareReadoutsCalculation stops at readouts, no
         # hits/events plots at all.
-        if getattr(p, 'bareReadoutsCalculation', False):
+        if p.bareReadoutsCalculation:
             return
 
         if self.hit_plotter is not None:
             if p.plotRawHits:
-                self.hit_plotter.plot_channels_raw()
+                self.hit_plotter.plot_channels_raw(unit_ids=unit_ids)
             if p.plotHitsTimeStamps:
-                self.hit_plotter.plot_timestamps()
+                self.hit_plotter.plot_timestamps(unit_ids=unit_ids)
             if p.plotHitsTimeStampsVSChannels:
-                self.hit_plotter.plot_timestamps_vs_channel()
+                self.hit_plotter.plot_timestamps_vs_channel(unit_ids=unit_ids)
 
         if self.event_plotter is not None:
-            # Unconditional -- matches legacy's plotXYToF, which always ran
-            # once bareReadoutsCalculation was off. plot_position_per_tube
-            # is R5560-only; it no-ops (via the base stub) everywhere else.
+            # Unconditional, whole-detector, no unit_ids -- matches legacy's
+            # plotXYToF, which always ran once bareReadoutsCalculation was
+            # off. plot_position_per_tube is R5560-only; it no-ops (via the
+            # base stub) everywhere else.
             self.event_plotter.plot_xy()
             self.event_plotter.plot_tof_xy()
             self.event_plotter.plot_position_per_tube()
 
             if p.plotToFDistr:
-                self.event_plotter.plot_tof()
+                self.event_plotter.plot_tof(unit_ids=unit_ids)
             if w.plotXLambda:
                 self.event_plotter.plot_x_lambda()
             if w.plotLambdaDistr:
-                self.event_plotter.plot_lambda()
+                self.event_plotter.plot_lambda(unit_ids=unit_ids)
             if p.plotMultiplicity:
-                self.event_plotter.plot_multiplicity()
+                self.event_plotter.plot_multiplicity(unit_ids=unit_ids)
             if phs.plotPHS:
-                self.event_plotter.plot_phs()
+                self.event_plotter.plot_phs(unit_ids=unit_ids)
             if phs.plotPHScorrelation:
-                self.event_plotter.plot_phs_correlation()
-            if p.plotInstRate:
-                self.event_plotter.plot_instantaneous_rate()
+                self.event_plotter.plot_phs_correlation(unit_ids=unit_ids)
+            if p.plotTimeBetwEv:
+                self.event_plotter.plot_instantaneous_rate(unit_ids=unit_ids)
 
-    def execute(self) -> None:
+    def plot_section(self, unit_ids) -> None:
+        """Plots a single section (one block of unit IDs), closing the
+        previous section's figures first. Shared by execute()'s CLI loop
+        and, later, a GUI's per-click handler."""
+        import matplotlib.pyplot as plt
+        plt.close('all')
+        self.plot(unit_ids=unit_ids)
+        plt.show(block=False)
+
+    def execute(self, run_from_gui: bool = False) -> None:
+        """Runs analyze() then either a single plot() pass or, when
+        parameters.plotting.plottingInSections is set, a per-block
+        sectioned pass -- mirrors legacy's plottingInSections behaviour,
+        including 'q' to quit early in CLI mode.
+
+        run_from_gui=True skips the console input()/sys.exit step-through:
+        every section still gets plotted, just without blocking on stdin.
+        Once a GUI exists it should drive sectioning itself (build_plotters()
+        + readout_plotter.topology_unit_ids() + plot_section() per click)
+        rather than calling this with run_from_gui=True; the flag is a
+        stopgap for the interim.
+        """
         if self.readouts_container.fill_count == 0:
             print(f"{WARN}{type(self).__name__}: readouts container is empty — skipping pipeline pass.{RESET}")
             return
+
         self.analyze()
-        self.plot()
+
+        if not self.parameters.plotting.plottingInSections:
+            self.plot()
+            return
+        # Note currently using topology_unit_ids() from the readouts plotter
+        # probably a better place to get these ids from would be to directly access the config topology
+        self.build_plotters()
+        if self.readout_plotter is None:
+            # Nothing to read a topology off (e.g. SKADI, not yet
+            # implemented) -- fall back to a single unsectioned pass.
+            self.plot()
+            return
+
+        unit_ids = self.readout_plotter.topology_unit_ids()
+        blocks = _chunk(unit_ids, self.parameters.plotting.plottingInSectionsBlocks)
+
+        print(f'{INFO}\nPlotting in {len(blocks)} section(s) of '
+              f'{self.parameters.plotting.plottingInSectionsBlocks} unit(s) each.{RESET}')
+
+        for i, block in enumerate(blocks):
+            print(f'{INFO}\n\tSection {i + 1}/{len(blocks)} -- unit IDs {block[0]} to {block[-1]}{RESET}')
+            self.plot_section(block)
+
+            if run_from_gui or i == len(blocks) - 1:
+                continue
+
+            import matplotlib.pyplot as plt
+            plt.pause(0.5)
+            answer = input('press (enter) to continue to the next section, or (q + enter) to quit: ')
+            if answer.strip().lower() == 'q':
+                plt.close('all')
+                sys.exit(0)
 
 
 class MBPipeline(BasePipeline):
@@ -181,22 +245,21 @@ class MBPipeline(BasePipeline):
 
     def analyze(self) -> None:
         if getattr(self.parameters.dataReduction, 'calibrateVMM_ADC_ONOFF', False):
-            print(f'{INFO}Running in-place vectorized VMM calibration pass...{RESET}')
+            # Calibrate readouts 
             self.readouts_container.calibrate(self.parameters, self.config)
 
+        # Mapping
         from newLib.mapping_engine import MBMapper
-        print(f'{INFO}Executing Multi-Blade mapping engine pass...{RESET}')
         self.hits_container = MBMapper.map(self.readouts_container, self.config)
-
+        # Clustering 
         from newLib.clustering_engine import VMMNormalClusterer
-        print(f'{INFO}Executing coincidence clustering engine pass...{RESET}')
         time_window = getattr(self.parameters.dataReduction, 'timeWindow', 3e-6)
         self.events_container = VMMNormalClusterer.cluster(self.hits_container, self.config, time_window)
-
+        # Calculate abs units
         from newLib.abs_units_engine import MBAbsUnitsCalculator
-        print(f'{INFO}Calculating absolute physical coordinates and spectroscopy vectors...{RESET}')
         MBAbsUnitsCalculator(self.events_container, self.config, self.parameters).process_pipeline(remove_invalid_tofs=True)
-
+        # ADD THE THRESHOLDS HERE ONCE DONE 
+        
     def build_plotters(self) -> None:
         from newLib.histograms import MBAxisSet
         axis_set = MBAxisSet(self.parameters, self.config)
@@ -223,17 +286,17 @@ class MBClusteredPipeline(BasePipeline):
     """
 
     def analyze(self) -> None:
+        # No calibration for clustered pipeline go straight into 
+        # Mapping
         from newLib.mapping_engine import MBClustMapper
-        print(f'{INFO}Executing hardware-clustered VMM mapping pass...{RESET}')
         self.hits_container = MBClustMapper.map(self.readouts_container, self.config)
-
+        # Clustering 
         from newLib.clustering_engine import VMMClusteredClusterer
-        print(f'{INFO}Absorbing hardware-clustered events (firmware passthrough)...{RESET}')
         self.events_container = VMMClusteredClusterer.cluster(self.hits_container, self.config)
-
+        # Calculate abs units
         from newLib.abs_units_engine import MBAbsUnitsCalculator
-        print(f'{INFO}Calculating absolute physical coordinates and spectroscopy vectors...{RESET}')
         MBAbsUnitsCalculator(self.events_container, self.config, self.parameters).process_pipeline(remove_invalid_tofs=True)
+        # ADD THE THRESHOLDS HERE ONCE DONE 
 
     def build_plotters(self) -> None:
         from newLib.histograms import MBAxisSet

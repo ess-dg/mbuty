@@ -187,8 +187,8 @@ class MBReadoutsPlotter(BaseReadoutsPlotter):
             else:
                 asic0 = m['asic'] == 0
                 asic1 = m['asic'] == 1
-                histoch0, _ = self.hist.hist2d(ax_e.centers, m['adc'][sel & asic0], self.xbins, m['channel'][sel & asic0])
-                histoch1, _ = self.hist.hist2d(ax_e.centers, m['adc'][sel & asic1], self.xbins, m['channel'][sel & asic1])
+                histoch0, _, _ = self.hist.hist2d(ax_e.centers, m['adc'][sel & asic0], self.xbins, m['channel'][sel & asic0])
+                histoch1, _, _ = self.hist.hist2d(ax_e.centers, m['adc'][sel & asic1], self.xbins, m['channel'][sel & asic1])
 
             plothtch.ax[0][k].imshow(histoch0, aspect='auto', norm=normColors, interpolation='none',
                                       extent=[ax_e.start, ax_e.stop, self.xbins[0], self.xbins[-1]], origin='lower', cmap='jet')

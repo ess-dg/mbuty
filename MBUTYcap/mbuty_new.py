@@ -13,7 +13,6 @@ from collections import defaultdict
 from types import SimpleNamespace
 # Ingest new high-performance architecture modules
 from newLib.reader import PcapngFileReader
-from newLib.kafka_reader import KafkaReader
 from newLib.colors import INFO, OK, WARN, ERR, RESET
 
 # Ingest object-oriented pipeline tracks and their factory dispatchers
@@ -22,7 +21,6 @@ from newLib.pipelines import build_detector_pipeline, build_bm_pipeline
 # Ingest legacy file resolver as an isolated asset
 from lib.libFileManagmentUtil import fileDialogue
 import newLib.libParameters as para
-
 
 # =============================================================================
 # Master Ingestion Orchestrator
@@ -57,6 +55,7 @@ class MBUTYOrchestrator:
 
         # 1. Pipeline Data Ingestion Pass (Network Stream vs Disk Storage)
         if self.parameters.acqMode == 'kafka':
+            from newLib.kafka_reader import KafkaReader
             reader = KafkaReader(
                 parameters = self.parameters,
                 config     = self.config,
@@ -67,8 +66,10 @@ class MBUTYOrchestrator:
             )
             reader.run()
         else:
+            print(self.parameters.fileManagement.fileName)
             file_resolver = fileDialogue(self.parameters)
             file_resolver.openFile()
+            print(file_resolver.fileName)
 
             if not file_resolver.fileName:
                 print(f'{ERR}Pipeline Aborted: No valid target files found.{RESET}')
@@ -101,13 +102,55 @@ class MBUTYOrchestrator:
         self.detector_pipeline = build_detector_pipeline(self.config, reader, self.parameters)
         if self.detector_pipeline:
             print(f'{OK}Executing verified pipeline reduction track for: {self.config.get("detectorType")}{RESET}')
-            self.detector_pipeline.execute()
+            self.detector_pipeline.execute(run_from_gui=self.run_from_gui)
 
         # 3. Conditionally Dispatch Beam Monitor Tracking Stream
         self.bm_pipeline = build_bm_pipeline(self.config, reader, self.parameters)
         if self.bm_pipeline:
             print(f'{OK}Executing verified pipeline track for Beam Monitor: {self.config.get("bm_hardware_type", "generic")}{RESET}')
             self.bm_pipeline.execute()
+
+        import matplotlib.pyplot as plt
+        plt.show(block=False)
+        input(f"{INFO}\nPress Enter to close all figures...{RESET}")
+        plt.close('all')
+
+
+def _enable_all_plots(params) -> None:
+    """Test-only helper: flips on every plotting flag BasePipeline.plot()
+    and BeamMonitorPipeline.plot() check, so a single test run exercises
+    every plot_* method across every plotter. Not meant for routine use --
+    routine runs should set only the flags you actually want."""
+    p, w, phs, mon = params.plotting, params.wavelength, params.pulseHeigthSpect, params.MONitor
+
+    p.plotChopperResets            = True
+    p.plotRawReadouts              = True
+    p.plotReadoutsTimeStamps       = True
+    p.plotADCvsCh                  = True
+
+    p.plotRawHits                  = True
+    p.plotHitsTimeStamps           = True
+    p.plotHitsTimeStampsVSChannels = True
+
+    p.plotToFDistr                 = True
+    p.plotMultiplicity             = True
+    p.plotTimeBetwEv               = True
+
+    phs.plotPHS                    = True
+    phs.plotPHScorrelation         = True
+
+    # calculateLambda has to be True for plotXLambda/plotLambdaDistr to have
+    # real wavelength data to plot -- it's what triggers the wavelength calc
+    # in analyze(), not just a display toggle.
+    w.calculateLambda              = True
+    w.plotXLambda                  = True
+    w.plotLambdaDistr              = True
+
+    # Only takes effect if a beam monitor stream is actually present in the file.
+    mon.plotMONtofPHS              = True
+
+    # bareReadoutsCalculation off, or everything past readouts gets skipped.
+    p.bareReadoutsCalculation      = False
 
 
 if __name__ == '__main__':
@@ -116,18 +159,21 @@ if __name__ == '__main__':
 
     params.fileManagement.configFilePath = os.path.join(current_dir, 'config') + os.sep
     params.fileManagement.configFileName = "AMOR.json"
+    params.fileManagement.fileName = "ESSmask2023.pcapng"
+    params.fileManagement.openMode = "fileName"
     params.acqMode = 'off'
     params.fileManagement.pcapLoadingMethod = 'allocate'
     params.dataReduction.calibrateVMM_ADC_ONOFF = True
     params.fileManagement.calibFilePath = os.path.join(current_dir, 'calib') + os.sep
     params.fileManagement.calibFileName = "AMOR_calib.json"
+    params.plotting.plottingInSections = False
+    params.plotting.plottingInSectionsBlocks = 5
+    params.plotting.ToFrange        = 0.15 
+    params.plotting.timeBetwEvBin = 100e-6
+    _enable_all_plots(params)
 
     # Run backend scientific computation track. Each pipeline's plot() runs
     # as part of execute(), as a side effect of analysis completing --
     # nothing else in this file decides what gets shown.
     pipeline_orchestrator = MBUTYOrchestrator(params)
     pipeline_orchestrator.run_pipeline()
-
-    import matplotlib.pyplot as plt
-    print(f"{INFO}\nPlots ready. Close the figure windows to continue...{RESET}")
-    plt.show()  # blocks until every open figure window is closed

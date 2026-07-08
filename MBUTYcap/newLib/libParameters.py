@@ -300,8 +300,8 @@ class plotting():
           self.plotHitsTimeStamps      = False
           self.plotHitsTimeStampsVSChannels   = False
 
-          self.plotInstRate    = False
-          self.instRateBin     = 1e-6  # s
+          self.plotTimeBetwEv    = False
+          self.timeBetwEvBin     = 1e-6  # s
           
           self.plotToFDistr    = False
            

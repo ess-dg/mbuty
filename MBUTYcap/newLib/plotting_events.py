@@ -152,7 +152,7 @@ class VMMEventsPlotter(BaseEventsPlotter):
         unit_ids = self.unit_ids() if unit_ids is None else unit_ids
         grid = PlotGrid(fig_num, 1, len(unit_ids))
         grid.fig.suptitle('Instantaneous Rate & Clustering Diagnostics')
-        ax_rate = self.axis_set.ax_inst_rate
+        ax_rate = self.axis_set.ax_time_between_ev
         m = self.matrix
         forced_hist = Histogrammer(out_of_bounds=False)
 
@@ -201,7 +201,7 @@ class VMMEventsPlotter(BaseEventsPlotter):
             myw  = self.hist.hist1d(xx, m['mult0'][sel])            # wires all
             mys  = self.hist.hist1d(xx, m['mult1'][sel])            # strips all
             mywc = self.hist.hist1d(xx, m['mult0'][sel & sel_2d])   # wires coinc
-            my2Dwc, _ = self.hist.hist2d(xx, m['mult0'][sel & sel_2d], xx, m['mult1'][sel & sel_2d])  # wires coinc with strips 2D
+            my2Dwc, _, _ = self.hist.hist2d(xx, m['mult0'][sel & sel_2d], xx, m['mult1'][sel & sel_2d])  # wires coinc with strips 2D
 
             if np.any(sel):
                 mywnorm    = myw / np.sum(myw[1:])
@@ -246,8 +246,8 @@ class VMMEventsPlotter(BaseEventsPlotter):
         grid.fig.suptitle('Pulse Heigth Spectra')
 
         ax_energy = self.axis_set.ax_energy
-        num_wires  = len(self.axis_set.ax_wires.centers)
-        num_strips = len(self.axis_set.ax_strips.centers)
+        num_wires     = self.config['wires']
+        num_strips    = self.config['strips']
         wire_axis  = np.linspace(0, num_wires - 1, num_wires)
         strip_axis = np.linspace(0, num_strips - 1, num_strips)
         m = self.matrix
@@ -259,9 +259,9 @@ class VMMEventsPlotter(BaseEventsPlotter):
             sel = self.select_unit(uid)
             sel_2d = m['coordinate1'] >= 0
 
-            phs_w,  _ = self.hist.hist2d(ax_energy.centers, m['pulseHeight0'][sel], wire_axis, wire_ch[sel])
-            phs_s,  _ = self.hist.hist2d(ax_energy.centers, m['pulseHeight1'][sel & sel_2d], strip_axis, strip_ch[sel & sel_2d])
-            phs_wc, _ = self.hist.hist2d(ax_energy.centers, m['pulseHeight0'][sel & sel_2d], wire_axis, wire_ch[sel & sel_2d])
+            phs_w,  _, _ = self.hist.hist2d(ax_energy.centers, m['pulseHeight0'][sel], wire_axis, wire_ch[sel])
+            phs_s,  _, _ = self.hist.hist2d(ax_energy.centers, m['pulseHeight1'][sel & sel_2d], strip_axis, strip_ch[sel & sel_2d])
+            phs_wc, _ , _= self.hist.hist2d(ax_energy.centers, m['pulseHeight0'][sel & sel_2d], wire_axis, wire_ch[sel & sel_2d])
 
             grid.ax[0][k].imshow(phs_w, aspect='auto', norm=norm_colors, interpolation='none',
                                   extent=[ax_energy.start, ax_energy.stop, wire_axis[0], wire_axis[-1]], origin='lower', cmap='jet')
@@ -302,7 +302,7 @@ class VMMEventsPlotter(BaseEventsPlotter):
             sel = self.select_unit(uid)
             sel_2d = m['coordinate1'] >= 0
 
-            phs_corr, _ = self.hist.hist2d(ax_energy.centers, m['pulseHeight0'][sel & sel_2d],
+            phs_corr, _, _ = self.hist.hist2d(ax_energy.centers, m['pulseHeight0'][sel & sel_2d],
                                             ax_energy.centers, m['pulseHeight1'][sel & sel_2d])
 
             grid.ax[0][k].imshow(phs_corr, aspect='auto', norm=norm_colors, interpolation='none',
@@ -325,7 +325,7 @@ class VMMEventsPlotter(BaseEventsPlotter):
         else:
             ax_wires, wire_values, ylabel = self.axis_set.ax_wires_mm, m['absCoordinate0'], 'Wire coord. (mm)'
 
-        h, _ = self.hist.hist2d(ax_lambda.centers, m['wavelength'][self.selc], ax_wires.centers, wire_values[self.selc])
+        h, _, _ = self.hist.hist2d(ax_lambda.centers, m['wavelength'][self.selc], ax_wires.centers, wire_values[self.selc])
 
         if isinstance(fig_num, matplotlib.figure.Figure):
             fig = fig_num
@@ -350,7 +350,8 @@ class MBEventsPlotter(VMMEventsPlotter):
 
     def _get_wire_channel(self, global_wire_coord: np.ndarray) -> np.ndarray:
         """Wrap a global wire coordinate into this cassette's local wire-channel range."""
-        return np.mod(global_wire_coord, len(self.axis_set.ax_wires.centers))
+        num_wires = self.config['wires'] 
+        return np.mod(global_wire_coord, num_wires)
 
     def plot_xy(self, log_scale: bool = False, abs_units: bool = False, orientation: str = 'vertical', fig_num=101):
         """Generates the main detector image (wire vs strip) and its 1D projection panel."""

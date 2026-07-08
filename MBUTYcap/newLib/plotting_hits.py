@@ -69,12 +69,19 @@ class VMMNormalHitsPlotter(BaseHitsPlotter):
 
         for k, uid in enumerate(unit_ids):
             sel = self.select_unit(uid)
-            is_wire  = m['plane'] == 0
-            is_strip = m['plane'] == 1
+            base_ts = m['timeStamp'][sel]
+            is_wire  = m['plane'][sel] == 0
+            is_strip = m['plane'][sel] == 1
 
-            ts_wire  = m['timeStamp'][sel & is_wire]
-            ts_strip = m['timeStamp'][sel & is_strip]
+            # Replicate legacy multiplication mask strategy
+            ts_wire_raw  = base_ts * is_wire
+            ts_strip_raw = base_ts * is_strip
 
+            # Mask out zero placeholders to preserve coordinate sequence tracking
+            ts_wire  = np.ma.masked_where(ts_wire_raw == 0, ts_wire_raw)
+            ts_strip = np.ma.masked_where(ts_strip_raw == 0, ts_strip_raw)
+
+            # Both X-axes now span the exact total length of events in this unit
             xx0 = np.arange(0, len(ts_wire), 1)
             xx1 = np.arange(0, len(ts_strip), 1)
 
