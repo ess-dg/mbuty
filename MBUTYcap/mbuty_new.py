@@ -154,6 +154,7 @@ def _enable_all_plots(params) -> None:
 
 
 if __name__ == '__main__':
+    import numpy as np
     current_dir = os.path.abspath(os.path.dirname(__file__)) + os.sep
     params = para.parameters(current_dir)
 
@@ -172,8 +173,28 @@ if __name__ == '__main__':
     params.plotting.timeBetwEvBin = 100e-6
     _enable_all_plots(params)
 
+    params.dataReduction.softThresholdType = 'userDefined'
+    params.dataReduction.softThArray = {
+        1: {'ch0': np.full(32, 5000.0)},   # cassette 1, wire thresholds only
+        2: {'ch0': np.full(32, 5000.0), 'ch1': np.full(64, 2000.0)},
+    }
     # Run backend scientific computation track. Each pipeline's plot() runs
     # as part of execute(), as a side effect of analysis completing --
     # nothing else in this file decides what gets shown.
     pipeline_orchestrator = MBUTYOrchestrator(params)
     pipeline_orchestrator.run_pipeline()
+
+
+# Need to set this somewhere!!!
+# n_wires  = int(config['wires'])
+# n_strips = int(config['strips'])
+# unit_ids = [e['ID'] for e in config['topology']]
+
+# parameters.dataReduction.softThresholdType = 'userDefined'
+# parameters.dataReduction.softThArray = {
+#     uid: {
+#         'ch0': np.full(n_wires,  700.0),
+#         'ch1': np.full(n_strips, 1000.0),
+#     }
+#     for uid in unit_ids
+# }

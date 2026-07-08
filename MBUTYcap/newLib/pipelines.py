@@ -156,13 +156,8 @@ class BasePipeline:
                 self.hit_plotter.plot_timestamps_vs_channel(unit_ids=unit_ids)
 
         if self.event_plotter is not None:
-            # Unconditional, whole-detector, no unit_ids -- matches legacy's
-            # plotXYToF, which always ran once bareReadoutsCalculation was
-            # off. plot_position_per_tube is R5560-only; it no-ops (via the
-            # base stub) everywhere else.
-            self.event_plotter.plot_xy()
-            self.event_plotter.plot_tof_xy()
-            self.event_plotter.plot_position_per_tube()
+            # Each detector defines the plots that are always shown for that detector
+            self.plot_always()
 
             if p.plotToFDistr:
                 self.event_plotter.plot_tof(unit_ids=unit_ids)
@@ -178,6 +173,12 @@ class BasePipeline:
                 self.event_plotter.plot_phs_correlation(unit_ids=unit_ids)
             if p.plotTimeBetwEv:
                 self.event_plotter.plot_instantaneous_rate(unit_ids=unit_ids)
+
+    def plot_always(self):
+        """Plots that are always show no matter the detector. 
+        Subclasses can overwrite this function and add more plots"""
+        self.event_plotter.plot_xy()
+        self.event_plotter.plot_tof_xy()
 
     def plot_section(self, unit_ids) -> None:
         """Plots a single section (one block of unit IDs), closing the
@@ -258,7 +259,9 @@ class MBPipeline(BasePipeline):
         # Calculate abs units
         from newLib.abs_units_engine import MBAbsUnitsCalculator
         MBAbsUnitsCalculator(self.events_container, self.config, self.parameters).process_pipeline(remove_invalid_tofs=True)
-        # ADD THE THRESHOLDS HERE ONCE DONE 
+        #  Software thresholds
+        from newLib.threshold_engine import VMMThresholdEngine
+        VMMThresholdEngine(self.events_container, self.config, self.parameters).process_pipeline()
         
     def build_plotters(self) -> None:
         from newLib.histograms import MBAxisSet
@@ -296,7 +299,9 @@ class MBClusteredPipeline(BasePipeline):
         # Calculate abs units
         from newLib.abs_units_engine import MBAbsUnitsCalculator
         MBAbsUnitsCalculator(self.events_container, self.config, self.parameters).process_pipeline(remove_invalid_tofs=True)
-        # ADD THE THRESHOLDS HERE ONCE DONE 
+        # Software thresholds
+        from newLib.threshold_engine import VMMThresholdEngine
+        VMMThresholdEngine(self.events_container, self.config, self.parameters).process_pipeline()
 
     def build_plotters(self) -> None:
         from newLib.histograms import MBAxisSet
@@ -318,21 +323,21 @@ class MGPipeline(BasePipeline):
 
     def analyze(self) -> None:
         if getattr(self.parameters.dataReduction, 'calibrateVMM_ADC_ONOFF', False):
-            print(f'{INFO}Running in-place vectorized VMM calibration pass...{RESET}')
+            # Calibrate readouts 
             self.readouts_container.calibrate(self.parameters, self.config)
-
+        # Mapping
         from newLib.mapping_engine import MGMapper
-        print(f'{INFO}Executing Multi-Grid mapping engine pass...{RESET}')
         self.hits_container = MGMapper.map(self.readouts_container, self.config)
-
+        # Clustering
         from newLib.clustering_engine import VMMNormalClusterer
-        print(f'{INFO}Executing coincidence clustering engine pass...{RESET}')
         time_window = getattr(self.parameters.dataReduction, 'timeWindow', 3e-6)
         self.events_container = VMMNormalClusterer.cluster(self.hits_container, self.config, time_window)
-
+        # Calculate abs units
         from newLib.abs_units_engine import MBAbsUnitsCalculator
-        print(f'{INFO}Calculating absolute physical coordinates and spectroscopy vectors...{RESET}')
         MBAbsUnitsCalculator(self.events_container, self.config, self.parameters).process_pipeline(remove_invalid_tofs=True)
+        #  Software thresholds
+        from newLib.threshold_engine import VMMThresholdEngine
+        VMMThresholdEngine(self.events_container, self.config, self.parameters).process_pipeline()
 
     def build_plotters(self) -> None:
         from newLib.histograms import MGAxisSet
@@ -371,6 +376,9 @@ class R5560Pipeline(BasePipeline):
         self.hit_plotter = R5560HitsPlotter(self.hits_container, axis_set)
         self.event_plotter = R5560EventsPlotter(self.events_container, axis_set, self.config)
 
+    def plot_always(self):
+        super().plot_always()
+        self.event_plotter.plot_position_per_tube()
 
 class SkadiPipeline(BasePipeline):
     """SKADI detector layout streams -- not yet implemented."""
