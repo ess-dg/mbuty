@@ -37,11 +37,6 @@ class BaseEventsPlotter(BasePlotter):
     dictionary (needed for layout math and "not supported" messages).
     """
 
-    def __init__(self, container, axis_set, config, hist_out_of_bounds: bool = True):
-        super().__init__(container, hist_out_of_bounds)
-        self.axis_set = axis_set
-        self.config = config
-
     def select_unit(self, unit_id):
         """Boolean row mask for rows belonging to this unit ID (cassette/tube)."""
         return self.matrix['ID'] == unit_id
@@ -70,17 +65,20 @@ class VMMEventsPlotter(BaseEventsPlotter):
     see module docstring).
     """
 
-    def __init__(self, container, axis_set, config, coincidence_ws_onoff: bool = True, hist_out_of_bounds: bool = True):
-        super().__init__(container, axis_set, config, hist_out_of_bounds)
+    def __init__(self, container, config, axis_set, coincidence_ws_onoff: bool = True, hist_out_of_bounds: bool = True):
+        super().__init__(container,  config, axis_set, hist_out_of_bounds)
         self.coincidence_ws_onoff = coincidence_ws_onoff
 
         if not self.is_empty:
             if coincidence_ws_onoff:
                 print('\t building histograms ... coincidence W/S ON for ToF and Lambda ...')
-                self.selc = self.matrix['coordinate1'] >= 0
+                coord1_valid = (self.matrix['coordinate1'].astype(float) >= 0)
+                coord0_valid = (self.matrix['coordinate0'].astype(float) >= 0)
+                self.selc = coord1_valid & coord0_valid
+
             else:
-                print('\t building histograms ... coincidence W/S OFF for ToF and Lambda ...')
-                self.selc = np.ones(len(self.matrix), dtype=bool)
+                print('\t building histograms ... coincidence W/S OFF for ToF and Lambda ...') 
+                self.selc = (self.matrix['coordinate0'] >= 0)
 
     def _get_wire_channel(self, global_wire_coord: np.ndarray) -> np.ndarray:
         """
@@ -97,7 +95,7 @@ class VMMEventsPlotter(BaseEventsPlotter):
             return
         unit_ids = self.unit_ids() if unit_ids is None else unit_ids
         grid = PlotGrid(fig_num, 1, len(unit_ids))
-        grid.fig.suptitle('ToF distr per cassette')
+        grid.fig.suptitle('ToF distr per unit')
         ax_tof = self.axis_set.ax_tof
         m = self.matrix
 
@@ -141,7 +139,7 @@ class VMMEventsPlotter(BaseEventsPlotter):
                 grid.ax[0][k].set_ylabel('counts')
             grid.ax[0][k].legend(loc='upper right', shadow=False, fontsize='large')
 
-    def plot_instantaneous_rate(self, unit_ids=None, fig_num=209):
+    def plot_time_between_events(self, unit_ids=None, fig_num=209):
         """
         Delta-time between consecutive events and internal cluster time spans, per unit.
         Always linear-binned: legacy hardcodes out_of_bounds=False here
@@ -150,9 +148,10 @@ class VMMEventsPlotter(BaseEventsPlotter):
         if self.is_empty:
             return
         unit_ids = self.unit_ids() if unit_ids is None else unit_ids
-        grid = PlotGrid(fig_num, 1, len(unit_ids))
-        grid.fig.suptitle('Instantaneous Rate & Clustering Diagnostics')
+        grid = PlotGrid(fig_num, 2, len(unit_ids), sharex= False)
+        grid.fig.suptitle('Time between events and cluster time span')
         ax_rate = self.axis_set.ax_time_between_ev
+        ax_span = self.axis_set.ax_time_span
         m = self.matrix
         forced_hist = Histogrammer(out_of_bounds=False)
 
@@ -168,17 +167,34 @@ class VMMEventsPlotter(BaseEventsPlotter):
             inter_cluster_times = m['timeBetweenEvents'][valid_delta] / 1e9 # convert ns to seconds for axis centers matching
 
             hist_rate = forced_hist.hist1d(ax_rate.centers, inter_cluster_times)
-            grid.ax[0][k].step(ax_rate.centers * 1e6, hist_rate, 'b', where='mid', label='Inter-cluster delta')
+            grid.ax[0][k].step(ax_rate.centers * 1e6, hist_rate, 'b', where='mid', label='time delta bet ev')
+            
+            hist_rate_zoomed = forced_hist.hist1d(ax_span.centers, inter_cluster_times)
 
             # Overlay cluster time span if dealing with eventsVMMnormal
             if has_cluster_span:
                 cluster_spans = m['clusterTimeSpan'][sel] / 1e9 # convert ns to seconds
-                hist_span = forced_hist.hist1d(ax_rate.centers, cluster_spans)
-                grid.ax[0][k].step(ax_rate.centers * 1e6, hist_span, 'r', where='mid', label='Cluster TimeSpan')
-
-            grid.ax[0][k].set_xlabel('delta time / span (us)')
+                hist_span = forced_hist.hist1d(ax_span.centers, cluster_spans)
+                grid.ax[1][k].step(ax_span.centers * 1e6, hist_span, 'r', where='mid', label='cluster time span')
+                grid.ax[1][k].step(ax_span.centers * 1e6, hist_rate_zoomed, 'b', where='mid', label='time delta bet ev')
+                
+            # print(ax_rate.centers)
+            
+            grid.ax[0][k].set_yscale('log')
+            grid.ax[1][k].set_yscale('log')
+            
+            # grid.ax[0][k].set_xscale('symlog', linthresh=1)
+            grid.ax[1][k].set_xscale('symlog', linthresh=1)
+            # grid.ax[0][k].set_xlim(ax_rate.start * 1e6, ax_rate.stop * 1e6)
+            # grid.ax[1][k].set_xlim(ax_span.start * 1e6, ax_span.stop * 1e6)
+            
+            grid.ax[0][k].set_xlabel('delta time (us)')
+            
+            grid.ax[1][k].set_xlabel('delta time / span (us)')
+            
             grid.ax[0][k].set_title(f'ID {uid}')
             grid.ax[0][k].legend(loc='upper right', shadow=False, fontsize='medium')
+            grid.ax[1][k].legend(loc='upper right', shadow=False, fontsize='medium')
             if k == 0:
                 grid.ax[0][k].set_ylabel('num of events')
 
@@ -374,7 +390,7 @@ class MBEventsPlotter(VMMEventsPlotter):
             ax_strips.centers, strip_values[self.selc],
             self.axis_set.ax_tof.centers, m['ToF'][self.selc] / 1e9,
         )
-        h_proj_all = self.hist.hist1d(ax_wires.centers, wire_values)   
+        h_proj_all = self.hist.hist1d(ax_wires.centers, wire_values[m['coordinate0']>=0])   
         h_proj_2d  = np.sum(h2d, axis=0)
         
         if orientation == 'vertical':
@@ -432,6 +448,7 @@ class MBEventsPlotter(VMMEventsPlotter):
             self.axis_set.ax_strips.centers, m['coordinate1'][self.selc],
             ax_tof.centers, m['ToF'][self.selc] / 1e9,
         )
+    
 
         if isinstance(fig_num, matplotlib.figure.Figure):
             fig_tof = fig_num
@@ -486,7 +503,7 @@ class MGEventsPlotter(VMMEventsPlotter):
             ax_strips.centers, m['coordinate1'][self.selc],
             ax_tof.centers, m['ToF'][self.selc] / 1e9,
         )
-        h_proj_all = self.hist.hist1d(ax_wires.centers, m['coordinate0'])   
+        h_proj_all = self.hist.hist1d(ax_wires.centers, m['coordinate0'][m['coordinate0']>=0])  
         h_proj_2d  = np.sum(h2d, axis=0)
 
         if isinstance(fig_num, matplotlib.figure.Figure):
@@ -620,7 +637,7 @@ class R5560EventsPlotter(BaseEventsPlotter):
 
             grid.ax[0][k].step(ax_tof.centers * 1e3, hist_tt, 'b', where='mid')
             grid.ax[0][k].set_xlabel('ToF (ms)')
-            grid.ax[0][k].set_title(f'Tube D {uid}')  # NOTE: "Tube D" typo preserved verbatim from legacy
+            grid.ax[0][k].set_title(f'Tube ID {uid}')  # NOTE: "Tube D" typo preserved verbatim from legacy
             if k == 0:
                 grid.ax[0][k].set_ylabel('counts')
 
@@ -644,14 +661,14 @@ class R5560EventsPlotter(BaseEventsPlotter):
             if k == 0:
                 grid.ax[0][k].set_ylabel('counts')
 
-    def plot_instantaneous_rate(self, unit_ids=None, fig_num=209):
+    def plot_time_between_events(self, unit_ids=None, fig_num=209):
         """Delta-time between consecutive events, per tube. Always linear-binned (out_of_bounds forced off, matching legacy)."""
         if self.is_empty:
             return
         unit_ids = self.unit_ids() if unit_ids is None else unit_ids
         grid = PlotGrid(fig_num, 1, len(unit_ids))
         grid.fig.suptitle('Instantaneous Rate')
-        ax_rate = self.axis_set.ax_inst_rate
+        ax_rate = self.axis_set.ax_time_between_ev
         m = self.matrix
         forced_hist = Histogrammer(out_of_bounds=False)
 

@@ -11,6 +11,7 @@ import sys
 import json
 from collections import defaultdict
 from types import SimpleNamespace
+import matplotlib.pyplot as plt
 # Ingest new high-performance architecture modules
 from newLib.reader import PcapngFileReader
 from newLib.colors import INFO, OK, WARN, ERR, RESET
@@ -32,6 +33,9 @@ class MBUTYOrchestrator:
     Path resolution -> Ingestion -> Guarded Multi-Key Routing -> Execution.
     """
     def __init__(self, parameters, run_from_gui: bool = False):
+        
+        plt.close('all')
+        
         self.parameters = parameters
         self.run_from_gui = run_from_gui
 
@@ -52,7 +56,7 @@ class MBUTYOrchestrator:
 
     def run_pipeline(self) -> None:
         """Executes data frame ingestion and routes targeted tracks via explicit type matching gates."""
-
+        
         # 1. Pipeline Data Ingestion Pass (Network Stream vs Disk Storage)
         if self.parameters.acqMode == 'kafka':
             from newLib.kafka_reader import KafkaReader
@@ -110,10 +114,16 @@ class MBUTYOrchestrator:
             print(f'{OK}Executing verified pipeline track for Beam Monitor: {self.config.get("bm_hardware_type", "generic")}{RESET}')
             self.bm_pipeline.execute()
 
-        import matplotlib.pyplot as plt
+        
+        plt.draw() 
+        plt.pause(0.1)
         plt.show(block=False)
         input(f"{INFO}\nPress Enter to close all figures...{RESET}")
         plt.close('all')
+        
+        self.readouts_container = self.detector_pipeline.readouts_container
+        self.hits_container     = self.detector_pipeline.hits_container
+        self.events_container   = self.detector_pipeline.events_container
 
 
 def _enable_all_plots(params) -> None:
@@ -124,37 +134,37 @@ def _enable_all_plots(params) -> None:
     p, w, phs, mon = params.plotting, params.wavelength, params.pulseHeigthSpect, params.MONitor
 
     p.plotChopperResets            = True
-    p.plotRawReadouts              = True
-    p.plotReadoutsTimeStamps       = True
-    p.plotADCvsCh                  = True
+    p.plotRawReadouts              = False
+    p.plotReadoutsTimeStamps       = False
+    p.plotADCvsCh                  = False
 
-    p.plotRawHits                  = True
-    p.plotHitsTimeStamps           = True
-    p.plotHitsTimeStampsVSChannels = True
+    p.plotRawHits                  = False
+    p.plotHitsTimeStamps           = False
+    p.plotHitsTimeStampsVSChannels = False
 
-    p.plotToFDistr                 = True
-    p.plotMultiplicity             = True
-    p.plotTimeBetwEv               = True
+    p.plotToFDistr                 = False
+    p.plotMultiplicity             = False
+    p.plotTimeBetwEv               = False
 
     phs.plotPHS                    = True
-    phs.plotPHScorrelation         = True
+    phs.plotPHScorrelation         = False
 
     # calculateLambda has to be True for plotXLambda/plotLambdaDistr to have
     # real wavelength data to plot -- it's what triggers the wavelength calc
     # in analyze(), not just a display toggle.
-    w.calculateLambda              = True
-    w.plotXLambda                  = True
-    w.plotLambdaDistr              = True
+    w.calculateLambda              = False
+    w.plotXLambda                  = False
+    w.plotLambdaDistr              = False
 
     # Only takes effect if a beam monitor stream is actually present in the file.
-    mon.plotMONtofPHS              = True
+    mon.plotMONtofPHS              = False
 
     # bareReadoutsCalculation off, or everything past readouts gets skipped.
     p.bareReadoutsCalculation      = False
 
 
 if __name__ == '__main__':
-    import numpy as np
+    import numpy as np 
     current_dir = os.path.abspath(os.path.dirname(__file__)) + os.sep
     params = para.parameters(current_dir)
 
@@ -164,25 +174,40 @@ if __name__ == '__main__':
     params.fileManagement.openMode = "fileName"
     params.acqMode = 'off'
     params.fileManagement.pcapLoadingMethod = 'allocate'
-    params.dataReduction.calibrateVMM_ADC_ONOFF = True
+    params.dataReduction.calibrateVMM_ADC_ONOFF = False
     params.fileManagement.calibFilePath = os.path.join(current_dir, 'calib') + os.sep
     params.fileManagement.calibFileName = "AMOR_calib.json"
     params.plotting.plottingInSections = False
     params.plotting.plottingInSectionsBlocks = 5
-    params.plotting.ToFrange        = 0.15 
-    params.plotting.timeBetwEvBin = 100e-6
+    params.dataReduction.timeWindow = 0.127e-6
+    params.plotting.ToFrange        = 0.15
+    params.plotting.timeBetwEvBin = 1e-6
+    
+    params.plotting.histogOutBounds = True
+    
     _enable_all_plots(params)
 
+  
+    
     params.dataReduction.softThresholdType = 'userDefined'
+    # params.dataReduction.softThArray = (500, 700)
     params.dataReduction.softThArray = {
-        1: {'ch0': np.full(32, 5000.0)},   # cassette 1, wire thresholds only
-        2: {'ch0': np.full(32, 5000.0), 'ch1': np.full(64, 2000.0)},
+        5: {'ch0': np.full(32, 1000.0)},   # cassette 1, wire thresholds only
+        6: {'ch0': np.full(32, 500.0), 'ch1': np.full(64, 700.0)},
     }
     # Run backend scientific computation track. Each pipeline's plot() runs
     # as part of execute(), as a side effect of analysis completing --
     # nothing else in this file decides what gets shown.
     pipeline_orchestrator = MBUTYOrchestrator(params)
     pipeline_orchestrator.run_pipeline()
+    
+    readouts = pipeline_orchestrator.readouts_container
+    readoutsArray = readouts.get_data_frame()
+    hits = pipeline_orchestrator.hits_container
+    hitsArray = hits.get_data_frame()
+    events = pipeline_orchestrator.events_container
+    eventsArray = events.get_data_frame()
+    
 
 
 # Need to set this somewhere!!!

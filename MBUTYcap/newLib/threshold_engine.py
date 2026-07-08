@@ -123,6 +123,22 @@ class ThresholdTable:
                 for channel_type, arr in val.items():
                     table[(int(key), str(channel_type))] = np.asarray(arr, dtype='float64')
         return cls(table)
+    
+    @classmethod
+    def from_constants(cls, values: tuple, unit_ids: list) -> 'ThresholdTable':
+        """
+        Build from a flat (ch0_value, ch1_value) pair, same bound for every
+        unit_id. Pass None for a plane you don't want gated, e.g. (700, None)
+        thresholds ch0 only, leaves ch1 ungated.
+        """
+        ch0_value, ch1_value = values
+        table = {}
+        for uid in unit_ids:
+            if ch0_value is not None:
+                table[(int(uid), 'ch0')] = np.array([float(ch0_value)])
+            if ch1_value is not None:
+                table[(int(uid), 'ch1')] = np.array([float(ch1_value)])
+        return cls(table)
 
     @classmethod
     def empty(cls) -> 'ThresholdTable':
@@ -169,6 +185,10 @@ class BaseThresholdEngine:
         elif mode == 'userDefined':
             print(f"\t {INFO}loading user-defined thresholds ...{RESET}")
             self.table = ThresholdTable.from_arrays(self.parameters.dataReduction.softThArray)
+            
+        elif mode == 'constants':
+            print(f"\t {INFO}loading constant thresholds ...{RESET}")
+            self.table = ThresholdTable.from_constants(self.parameters.dataReduction.softThArray, self.unit_ids)
 
         else:
             print(f"\t {ERR}ERROR: unknown softThresholdType '{mode}' -> software thresholds switched OFF{RESET}")

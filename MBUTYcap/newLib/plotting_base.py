@@ -31,39 +31,39 @@ class PlotGrid:
     """Thin wrapper around plt.subplots producing a guaranteed-2D axis grid."""
 
     def __init__(self, fig_num, n_rows, n_cols=1, fig_size=(12, 12), sharex='col', sharey='row', **kwargs):
-        import matplotlib.figure
+        # import matplotlib.figure
 
-        # If running inside a GUI context, populate the injected canvas figure directly
-        if isinstance(fig_num, matplotlib.figure.Figure):
-            self.fig = fig_num
-            axes = self.fig.subplots(
-                nrows=n_rows, ncols=n_cols,
-                sharex=sharex, sharey=sharey, **kwargs
-            )
-        # Fallback to standard PyPlot state manager if running a standalone script track
-        else:
-            self.fig, axes = plt.subplots(
+        # # If running inside a GUI context, populate the injected canvas figure directly
+        # if isinstance(fig_num, matplotlib.figure.Figure):
+        #     self.fig = fig_num
+        #     axes = self.fig.subplots(
+        #         nrows=n_rows, ncols=n_cols,
+        #         sharex=sharex, sharey=sharey, **kwargs
+        #     )
+        # # Fallback to standard PyPlot state manager if running a standalone script track
+        # else:
+        self.fig, axes = plt.subplots(
                 num=fig_num, figsize=fig_size, nrows=n_rows, ncols=n_cols,
                 sharex=sharex, sharey=sharey, **kwargs,
-            )
+        )
 
         self.ax = np.atleast_2d(axes).reshape(n_rows, n_cols)
 
-    def unshare_row(self, row_idx):
-        """
-        Detach every axis in `row_idx` from the shared y-axis group so it can
-        carry its own independent y-scale (e.g. a taller PHS-sum panel below
-        rows of channel-resolved 2D images that must stay locked together).
-        """
-        for ax in self.ax[row_idx]:
-            try:
-                ax.get_shared_y_axes().disconnect(ax)
-            except AttributeError:
-                # Fallback for older versions if needed
-                if hasattr(ax, '_shared_axes') and 'y' in ax._shared_axes:
-                    ax._shared_axes['y'].remove(ax)
-            ax.yaxis.set_tick_params(labelleft=True)
-            ax.autoscale(enable=True, axis='y')
+    # def unshare_row(self, row_idx):
+    #     """
+    #     Detach every axis in `row_idx` from the shared y-axis group so it can
+    #     carry its own independent y-scale (e.g. a taller PHS-sum panel below
+    #     rows of channel-resolved 2D images that must stay locked together).
+    #     """
+    #     for ax in self.ax[row_idx]:
+    #         try:
+    #             ax.get_shared_y_axes().disconnect(ax)
+    #         except AttributeError:
+    #             # Fallback for older versions if needed
+    #             if hasattr(ax, '_shared_axes') and 'y' in ax._shared_axes:
+    #                 ax._shared_axes['y'].remove(ax)
+    #         ax.yaxis.set_tick_params(labelleft=True)
+    #         ax.autoscale(enable=True, axis='y')
 
 
 def log_scale_norm(log_scale: bool):
@@ -92,8 +92,10 @@ class BasePlotter:
     of the legacy checkXxxClass() pattern.
     """
 
-    def __init__(self, container, hist_out_of_bounds: bool = True):
+    def __init__(self, container, config, axis_set, hist_out_of_bounds: bool = True):
         self.container = container
+        self.config    = config
+        self.axis_set  = axis_set
         self.hist = Histogrammer(hist_out_of_bounds)
         self.is_empty = container.fill_count == 0
 

@@ -64,6 +64,7 @@ never pays for imports it doesn't use.
 """
 import os
 import sys
+import matplotlib.pyplot as plt
 
 # =============================================================================
 # RUNTIME PATH BOOTSTRAP
@@ -184,7 +185,6 @@ class BasePipeline:
         """Plots a single section (one block of unit IDs), closing the
         previous section's figures first. Shared by execute()'s CLI loop
         and, later, a GUI's per-click handler."""
-        import matplotlib.pyplot as plt
         plt.close('all')
         self.plot(unit_ids=unit_ids)
         plt.show(block=False)
@@ -266,16 +266,14 @@ class MBPipeline(BasePipeline):
     def build_plotters(self) -> None:
         from newLib.histograms import MBAxisSet
         axis_set = MBAxisSet(self.parameters, self.config)
-        topology = self.config.get('topology', [])
-        num_wires = int(self.config['wires'])
 
         from newLib.plotting_readouts import MBReadoutsPlotter
         from newLib.plotting_hits import MBHitsPlotter
         from newLib.plotting_events import MBEventsPlotter
 
-        self.readout_plotter = MBReadoutsPlotter(self.readouts_container, topology, axis_set)
-        self.hit_plotter = MBHitsPlotter(self.hits_container, num_wires)
-        self.event_plotter = MBEventsPlotter(self.events_container, axis_set, self.config)
+        self.readout_plotter = MBReadoutsPlotter(self.readouts_container, self.config, axis_set, hist_out_of_bounds=self.parameters.plotting.histogOutBounds)
+        self.hit_plotter     = MBHitsPlotter(self.hits_container, self.config, axis_set, hist_out_of_bounds=self.parameters.plotting.histogOutBounds)
+        self.event_plotter   = MBEventsPlotter(self.events_container, self.config, axis_set, hist_out_of_bounds=self.parameters.plotting.histogOutBounds)
 
 
 class MBClusteredPipeline(BasePipeline):

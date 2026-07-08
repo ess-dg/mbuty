@@ -34,10 +34,11 @@ class BaseReadoutsPlotter(BasePlotter):
     being duplicated in each branch.
     """
 
-    def __init__(self, container, topology: list, hist_out_of_bounds: bool = True):
-        super().__init__(container, hist_out_of_bounds)
-        self.topology = topology
-        self._topo_by_id = self._index_topology_by_id(topology)
+    def __init__(self, container, config, axis_set, hist_out_of_bounds: bool = True):
+        super().__init__(container, config, axis_set, hist_out_of_bounds)
+
+        self.topology    = config.get('topology', [])
+        self._topo_by_id = self._index_topology_by_id(self.topology)
 
     @staticmethod
     def _index_topology_by_id(topology: list) -> dict:
@@ -83,11 +84,13 @@ class BaseReadoutsPlotter(BasePlotter):
 class MBReadoutsPlotter(BaseReadoutsPlotter):
     """Raw ASIC-level diagnostics for readoutsVMMnormal / readoutsVMMclustered (Multi-Blade)."""
 
-    def __init__(self, container, topology: list, axis_set=None, n_channels: int = 64, hist_out_of_bounds: bool = True):
-        super().__init__(container, topology, hist_out_of_bounds)
-        self.axis_set = axis_set
-        self.n_channels = n_channels
-        self.xbins = np.linspace(0, n_channels - 1, n_channels)
+    def __init__(self, container, config, axis_set=None, hist_out_of_bounds: bool = True):
+        super().__init__(container, config, axis_set, hist_out_of_bounds)
+   
+        # number of channels in one VMM asic 
+        self.n_channels = 64
+        
+        self.xbins = np.linspace(0, self.n_channels - 1, self.n_channels)
         self.is_clustered = self._has_field('channel0')
 
     def select_hybrid_from_unit_id(self, unit_id):
@@ -216,11 +219,13 @@ class MGReadoutsPlotter(BaseReadoutsPlotter):
     hybridSID). Clustered mode is not supported on MG hardware.
     """
 
-    def __init__(self, container, topology: list, axis_set=None, n_channels: int = 64, hist_out_of_bounds: bool = True):
-        super().__init__(container, topology, hist_out_of_bounds)
-        self.axis_set = axis_set
-        self.n_channels = n_channels
-        self.xbins = np.linspace(0, n_channels - 1, n_channels)
+    def __init__(self, container, config, axis_set=None, hist_out_of_bounds: bool = True):
+        super().__init__(container, config, axis_set, hist_out_of_bounds)
+   
+        # number of channels in one VMM asic 
+        self.n_channels = 64
+        
+        self.xbins = np.linspace(0, self.n_channels - 1, self.n_channels)
         self.is_clustered = self._has_field('channel0')
 
     def select_hybrid_from_unit_id(self, unit_id):

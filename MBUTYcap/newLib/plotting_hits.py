@@ -50,10 +50,11 @@ class VMMNormalHitsPlotter(BaseHitsPlotter):
     split needed, no MG equivalent).
     """
 
-    def __init__(self, container, num_wires: int, hist_out_of_bounds: bool = True):
-        super().__init__(container, hist_out_of_bounds)
-        self.num_wires = num_wires
-
+    def __init__(self, container, config, axis_set, hist_out_of_bounds: bool = True):
+        super().__init__(container, config, axis_set, hist_out_of_bounds)
+        self.num_wires = self.config.get('wires')
+        self.wbins = np.linspace(0, self.num_wires - 1, self.num_wires)
+ 
     def _local_wire_index(self, global_index: np.ndarray) -> np.ndarray:
         """Un-offset a global wire coordinate back to this unit's local 0..num_wires-1 range."""
         return np.mod(global_index, self.num_wires)
@@ -133,9 +134,12 @@ class VMMNormalHitsPlotter(BaseHitsPlotter):
 class MBHitsPlotter(VMMNormalHitsPlotter):
     """Mapped-channel occupancy for hitsVMMnormal (Multi-Blade)."""
 
-    def __init__(self, container, num_wires: int, n_channels: int = 64, hist_out_of_bounds: bool = True):
-        super().__init__(container, num_wires, hist_out_of_bounds)
-        self.xbins = np.linspace(0, n_channels - 1, n_channels)
+    def __init__(self, container, config, axis_set, hist_out_of_bounds: bool = True):
+        super().__init__(container, config, axis_set, hist_out_of_bounds)
+
+        self.num_strips = self.config.get('strips')
+        self.sbins = np.linspace(0, self.num_strips - 1, self.num_strips)
+
 
     def plot_channels_raw(self, unit_ids=None, fig_num=1003):
         """Mapped wire/strip channel occupancy per unit."""
@@ -153,11 +157,11 @@ class MBHitsPlotter(VMMNormalHitsPlotter):
             wire_idx  = self._local_wire_index(m['index'][sel & is_wire])
             strip_idx = m['index'][sel & is_strip]
 
-            histow = self.hist.hist1d(self.xbins, wire_idx)
-            histos = self.hist.hist1d(self.xbins, strip_idx)
+            histow = self.hist.hist1d(self.wbins, wire_idx)
+            histos = self.hist.hist1d(self.sbins, strip_idx)
 
-            ploth.ax[0][k].bar(self.xbins, histow, 0.8, color='r')
-            ploth.ax[1][k].bar(self.xbins, histos, 0.8, color='b')
+            ploth.ax[0][k].bar(self.wbins, histow, 0.8, color='r')
+            ploth.ax[1][k].bar(self.sbins, histos, 0.8, color='b')
             ploth.ax[0][k].set_xlabel('hit wire ch no.')
             ploth.ax[1][k].set_xlabel('hit strip ch no.')
             ploth.ax[0][k].set_title(f'ID {uid}')
@@ -170,11 +174,11 @@ class MBHitsPlotter(VMMNormalHitsPlotter):
 class MGHitsPlotter(VMMNormalHitsPlotter):
     """Mapped-channel occupancy for Multi-Grid hits."""
 
-    def __init__(self, container, num_wires: int, num_grids: int, hist_out_of_bounds: bool = True):
-        super().__init__(container, num_wires, hist_out_of_bounds)
-        self.num_grids = num_grids
-        self.wbins = np.linspace(0, num_wires - 1, num_wires)
-        self.gbins = np.linspace(0, num_grids - 1, num_grids)
+    def __init__(self, container, config, axis_set, hist_out_of_bounds: bool = True):
+        super().__init__(container, config, axis_set, hist_out_of_bounds)
+
+        self.num_grids = self.config.get('grids')
+        self.gbins = np.linspace(0, self.num_grids - 1, self.num_grids)
 
     def plot_channels_raw(self, unit_ids=None, fig_num=1003):
         """Mapped wire/grid channel occupancy per unit."""
@@ -221,12 +225,16 @@ class MBClusteredHitsPlotter(BaseHitsPlotter):
     np.mod call -- which is a better trade than reaching for shared
     inheritance/mixins for a single call site.
     """
-
-    def __init__(self, container, num_wires: int, n_channels: int = 64, hist_out_of_bounds: bool = True):
-        super().__init__(container, hist_out_of_bounds)
-        self.num_wires = num_wires
-        self.xbins = np.linspace(0, n_channels - 1, n_channels)
-
+        
+    def __init__(self, container, config, axis_set, hist_out_of_bounds: bool = True):
+        super().__init__(container, config, axis_set, hist_out_of_bounds)
+        
+        self.num_wires = self.config.get('wires')
+        self.wbins = np.linspace(0, self.num_wires - 1, self.num_wires)
+        self.num_strips = self.config.get('strips')
+        self.sbins = np.linspace(0, self.num_strips - 1, self.num_strips)
+        
+        
     def _local_wire_index(self, global_index: np.ndarray) -> np.ndarray:
         return np.mod(global_index, self.num_wires)
 
@@ -243,11 +251,11 @@ class MBClusteredHitsPlotter(BaseHitsPlotter):
             wire_idx  = self._local_wire_index(m['index0'][sel])
             strip_idx = m['index1'][sel]
 
-            histow = self.hist.hist1d(self.xbins, wire_idx)
-            histos = self.hist.hist1d(self.xbins, strip_idx)
+            histow = self.hist.hist1d(self.wbins, wire_idx)
+            histos = self.hist.hist1d(self.sbins, strip_idx)
 
-            ploth.ax[0][k].bar(self.xbins, histow, 0.8, color='r')
-            ploth.ax[1][k].bar(self.xbins, histos, 0.8, color='b')
+            ploth.ax[0][k].bar(self.wbins, histow, 0.8, color='r')
+            ploth.ax[1][k].bar(self.sbins, histos, 0.8, color='b')
             ploth.ax[0][k].set_xlabel('hit wire ch no.')
             ploth.ax[1][k].set_xlabel('hit strip ch no.')
             ploth.ax[0][k].set_title(f'ID {uid}')
@@ -263,15 +271,15 @@ class MBClusteredHitsPlotter(BaseHitsPlotter):
         for k, uid in enumerate(unit_ids):
             sel = self.select_unit(uid)
             ts_wire  = m['timeStamp'][sel]
-            ts_strip = m['timeStamp'][sel]
+            # ts_strip = m['timeStamp'][sel]
 
             xx0 = np.arange(0, len(ts_wire), 1)
-            xx1 = np.arange(0, len(ts_strip), 1)
+            # xx1 = np.arange(0, len(ts_strip), 1)
 
             if len(ts_wire) > 0:
                 plotht.ax[0][k].scatter(xx0, ts_wire, 0.8, color='r', marker='+')
-            if len(ts_strip) > 0:
-                plotht.ax[0][k].scatter(xx1, ts_strip, 0.8, color='b', marker='+')
+            # if len(ts_strip) > 0:
+            #     plotht.ax[0][k].scatter(xx1, ts_strip, 0.8, color='b', marker='+')
 
             plotht.ax[0][k].set_xlabel('trigger no.')
             plotht.ax[0][k].set_ylabel('time (ns)')
@@ -317,9 +325,9 @@ class R5560HitsPlotter(BaseHitsPlotter):
     even though the content is different, matching legacy's own naming.
     """
 
-    def __init__(self, container, axis_set=None, hist_out_of_bounds: bool = True):
-        super().__init__(container, hist_out_of_bounds)
-        self.axis_set = axis_set
+    # def __init__(self, container, config, axis_set=None, hist_out_of_bounds: bool = True):
+    #     super().__init__(container, config, axis_set, hist_out_of_bounds)
+    #     self.axis_set = axis_set
 
     def plot_channels_raw(self, unit_ids=None, fig_num=1003):
         """Pulse-height correlation (ampA vs ampB) per tube. Always linear scale (matches legacy: logScale was never actually wired up here)."""

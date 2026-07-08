@@ -57,7 +57,51 @@ class Axis:
         self.steps = self.steps if steps is None else steps
         self.centers = np.linspace(self.start, self.stop, self.steps)
         return self
+                                                        
+class LogAxis:
+    """
+    A single binned axis. `centers` holds the bin-center coordinates used
+    both for histogram index calculation (Histogrammer) and for plot extents.
+    """
 
+    def __init__(self, start: float, stop: float, steps: int, lin_thresh: float = 1.0):
+        self.start = start
+        self.stop  = stop
+        self.steps = steps
+        self.lin_thresh = lin_thresh
+        self.centers = self._calculate_symlog_centers()
+
+    def _calculate_symlog_centers(self) -> np.ndarray:
+        # Helper functions to convert to/from symlog space
+        def forward_symlog(x, thresh):
+            return np.sign(x) * np.log10(1.0 + np.abs(x) / thresh)
+
+        def inverse_symlog(y, thresh):
+            return np.sign(y) * thresh * (10.0**(np.abs(y)) - 1.0)
+
+        # Force steps to be an odd number so 0.0 lands exactly on a central index
+        half_steps = self.steps // 2
+        
+        # Calculate the log coordinate for the outer positive bound
+        y_max = forward_symlog(self.stop, self.lin_thresh)
+        
+        # Linearly space the exponents from 0 to y_max
+        y_pos = np.linspace(0, y_max, half_steps + 1)
+        
+        # Transform back to physical coordinates
+        pos_side = inverse_symlog(y_pos, self.lin_thresh)
+        
+        # Mirror the positive side to create an exact symmetrical layout
+        # pos_side[0] is exactly 0.0, so we skip it on the negative side to avoid duplicates
+        neg_side = -pos_side[1:][::-1]
+        
+        # Concatenate them: [negative values, 0.0, positive values]
+        centers = np.concatenate([neg_side, [0.0], pos_side[1:]])
+        
+        # Update self.steps to reflect the actual size (which will be 2 * half_steps + 1)
+        self.steps = len(centers)
+        
+        return centers
 
 # ============================================================================
 # Histogramming engine (fully vectorized)
@@ -420,11 +464,16 @@ class BaseAxisSet:
         self.ax_lambda     = Axis(p.wavelength.lambdaRange[0], p.wavelength.lambdaRange[1], p.wavelength.lambdaBins)
 
 
-
         start = -p.plotting.ToFrange
         stop  =  p.plotting.ToFrange
         steps = round((stop - start) / p.plotting.timeBetwEvBin)
         self.ax_time_between_ev = Axis(start, stop, steps)
+        
+        # self.ax_time_span = LogAxis(-5e-6, 5e-6, 1024, lin_thresh = 1e-9)
+        
+        self.ax_time_span =  Axis(-10e-6, 10e-6, 2001)
+        
+        
 
     def build_specific_axes(self) -> None:
         """Override in subclasses to add detector-specific position axes."""
@@ -624,7 +673,16 @@ if __name__ == '__main__':
     
     
     
+    start =  -100e-3
+    stop  =  100e-3
+    # steps = round((stop - start) / p.plotting.timeBetwEvBin)
     
+    steps = 1024
+
+    
+    ax_time_between_ev = LogAxis(start, stop, steps, lin_thresh=1e-10)
+    
+    cee = ax_time_between_ev.centers
     
     
     
