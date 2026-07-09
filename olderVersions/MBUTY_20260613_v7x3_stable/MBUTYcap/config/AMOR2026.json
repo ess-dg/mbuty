@@ -1,0 +1,115 @@
+{
+    "DetectorName": "AMOR2026",
+    "DetectorType": "MB",
+    "InstrumentName" : "AMOR",
+    "operationMode": "normal",
+    "cassettes": 14,
+    "orientation": "horizontal",
+    "Cassette2ElectronicsConfig": [
+        {
+            "ID": 0,
+            "Ring": 0,
+            "Fen": 0,
+            "Hybrid": 0
+        },
+        {
+            "ID": 1,
+            "Ring": 0,
+            "Fen": 0,
+            "Hybrid": 1
+        },
+        {
+            "ID": 2,
+            "Ring": 0,
+            "Fen": 0,
+            "Hybrid": 2
+        },
+        {
+            "ID": 3,
+            "Ring": 0,
+            "Fen": 0,
+            "Hybrid": 3
+        },
+        {
+            "ID": 4,
+            "Ring": 0,
+            "Fen": 0,
+            "Hybrid": 4
+        },
+        {
+            "ID": 5,
+            "Ring": 1,
+            "Fen": 0,
+            "Hybrid": 0
+        },
+        {
+            "ID": 6,
+            "Ring": 1,
+            "Fen": 0,
+            "Hybrid": 1
+        },
+        {
+            "ID": 7,
+            "Ring": 1,
+            "Fen": 0,
+            "Hybrid": 2
+        },
+        {
+            "ID": 8,
+            "Ring": 1,
+            "Fen": 0,
+            "Hybrid": 3
+        },
+        {
+            "ID": 9,
+            "Ring": 1,
+            "Fen": 0,
+            "Hybrid": 4
+        },
+        {
+            "ID": 10,
+            "Ring": 2,
+            "Fen": 0,
+            "Hybrid": 0
+        },
+        {
+            "ID": 11,
+            "Ring": 2,
+            "Fen": 0,
+            "Hybrid": 1
+        },
+        {
+            "ID": 12,
+            "Ring": 2,
+            "Fen": 0,
+            "Hybrid": 2
+        },
+        {
+            "ID": 13,
+            "Ring": 2,
+            "Fen": 0,
+            "Hybrid": 3
+        }
+    ],
+    "ChannelMapping": [
+        {
+            "WireASIC": 1,
+            "StripASIC": 0
+        }
+    ],
+    "wires": 32,
+    "strips": 64,
+    "wirePitch_mm": 4,
+    "stripPitch_mm": 4,
+    "bladesInclination_deg": 5.1,
+    "offset1stWires_mm": 10.5,
+    "Monitor": [
+        {
+            "ID": 99,
+            "hardwareType": "IBM",
+            "connectionType": "RING",
+            "Ring": 11,
+            "Channel": 0
+        }
+    ]
+}

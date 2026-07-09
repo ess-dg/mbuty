@@ -1,0 +1,162 @@
+
+INSTALLATION NOTES and PACKAGES 
+
+MBUTY 8.0
+--------------------------------------------------
+What is in this version:
+
+libReader for CAEN R5560, SKADI and VMM
+
+Plots and analysis for VMM MG (TREX) and MB (ESTIA, FREIA, TBL) detectors and for He3 tubes (TBL, MIRACLES, CSPEC, BIFROST  and VESPA)
+Beam Monitors are also included, both generic and IBMs.
+ 
+
+--------------------------------------------------
+--------------------------------------------------
+INSTALLATION:
+
+the repository is cloned via git as git clone https://gitlab.esss.lu.se/detectorgroup/multiblade/mbuty.git
+
+MBUTY.py is the backend and runs from spyder or terminal:
+
+>> python MBUTY.py
+
+settings are at the bottom of the file. 
+
+MBUTY_GUI.py is the GUI and can be started from terminal as: >> pyhton MBUTY_GUI.py 
+
+For installing the GUI with a desktop ICON in Linux/Mac OS or Windows execute in a terminal:
+>> python install_gui.py
+
+To install in the application folder change the path in install_gui.py
+
+_______
+NOTE: if you run the icon app and it crashes it might be you do not have all packages required. To get a feedback on what is happening run from terminal as >> pyhton MBUTY_GUI.py so you get the terminal output to read. 
+
+--------------------------------------------------
+--------------------------------------------------
+MBUTYdump or MBUY_GUI or the back-end MBUTY allows to record pcap files directly and run analysis. Options pcap local and pcap local overwrite. 
+
+_______
+NOTE 1:
+
+TO RECORD PCAPS TSHARK is needed! 
+NOTE: sometimes even if Wireshark is installed shark is not, so run:
+
+>> sudo apt update
+>> sudo apt install tshark
+
+it should go in /usr/bin/ or usr/sbin/
+
+_______
+NOTE 2: 
+
+If you do not have the rights to record pcaps from a specific interface, e.g. ens2np0 you must grant rights by doing: 
+
+>> sudo dpkg-reconfigure wireshark-common
+
+Then this is prompted in the terminal, reply yes. 
+Should non-superusers be able to capture packets? [yes/no] yes
+
+Then type:
+>> sudo usermod -aG wireshark $USER
+
+And 
+>> newgrp wireshark
+
+Now you should be able to record pcaps. 
+
+_______
+NOTE 3: 
+
+MBUTY can be installed in either in the computer that records pcaps and analysis can be performed directly or in a local computer while the files are recorded in a different remote computer. MBUTY installed in your local machine can fetch the data from the remote machine via rsync run in the background (option pcap sync). 
+
+IMPORTANT for the rsync transfer to work the local machine must have granted ssh access to the remote computer. 
+This is done by ssh-copy-id.
+
+If you haven't created an SSH key pair yet, run this on your local machine:
+>> ssh-keygen -t ed25519
+
+Press Enter to accept the defaults.
+This creates a private key (keep this secret) and a public key (ending in .pub).
+
+To "copy" your identity to the remote server, use the following syntax:
+>> ssh-copy-id username@remote_host
+
+To test it, from terminal try to ssh to the remote computer from your local machine:
+>> ssh username@remote_host
+
+--------------------------------------------------
+--------------------------------------------------
+PACKAGES
+
+PYTHON of course is required and extra PACKAGES needed:
+NOTE: MBUTY checks for those packages and raises an error and ask to install them. 
+
+Install placing package in anaconda 
+Python >=3.9 
+>> pip install python-pcapng
+
+NOTE: must be the python installation you use to run the scripts, e.g. >> /opt/anaconda3/bin/python -m pip install python-pcapng 
+
+For Kafka streamer is needed:
+
+>> pip install flatbuffers
+>> pip install configargparse
+>> pip install confluent_kafka
+
+if you dont'use kafka you can skip those three above. 
+
+Other packages (included in anaconda):
+    pkg_resources
+    pillow
+    matplotlib
+    pandas
+    PyQt5
+    h5py
+
+The GUI uses tkinter so no Qt needed. 
+
+--------------------------------------------------
+--------------------------------------------------
+NOTES after installation: 
+
+-----
+If sudo is needed:
+
+In /lib/libTerminal.py -> class dumpToPcapngutil -> function dump 
+
+Comment/uncomment 
+
+# command1 = 'sudo ' + os.path.join(self.pathToTshark,'tshark')+' -i '+str(self.interface) + ' -f "udp"'
+command1 = os.path.join(self.pathToTshark,'tshark')+' -i '+str(self.interface) + ' -f "udp"'
+
+-----
+The drop-down window to select the files in the GUI change the file display default:
+
+In /GUI/multi_select_dropdown.py -> class MultiSelectDropDown -> init 
+
+# make this true to sort filenames Z to A, instead false means A -> Z 
+self.rev = False
+
+-----
+
+For changing default values in the GUI when it opens -> change values in GUI/gui_config.py
+
+-----
+
+This is probably obsolete now, and it works as is. Kept here just in case. 
+
+MBUTY checks your packages isntalled and prompt a measage if they are not found. 
+
+For some OS you need to change the method:
+In /lib/libParameters.py -> class checkPackageInstallation -> function init
+
+# self.installed = {pkg.key for pkg in pkg_resources.working_set}
+self.installed = {dist.name for dist in importlib.metadata.distributions()}
+
+And import
+# import pkg_resources
+import importlib.metadata
+
+--------------------------------------------------

@@ -1,0 +1,38 @@
+{
+    "DetectorName": "test1",
+    "DetectorType": "He3",
+    "operationMode": "normal",
+    "cassettes": 3,
+    "orientation": "vertical",
+    "Cassette2ElectronicsConfig": [
+        {
+            "ID": 0,
+            "Ring": 0,
+            "Fen": 0,
+            "Tube": 0
+        },
+        {
+            "ID": 1,
+            "Ring": 0,
+            "Fen": 0,
+            "Tube": 1
+        },
+        {
+            "ID": 2,
+            "Ring": 0,
+            "Fen": 0,
+            "Tube": 2
+        }
+    ],
+    "positionBins": 256,
+    "tubesPerRow": 8,
+    "tubeLength": 150,
+    "Monitor": [
+        {
+            "ID": 99,
+            "type": "RING",
+            "Ring": 11,
+            "Channel": 0
+        }
+    ]
+}
