@@ -1,8 +1,16 @@
 import numpy as np
 import time
-from .calibration import load_calibration_map
-from .colors import WARN, RESET, INFO
 import pandas as pd 
+import os
+import sys
+# =============================================================================
+_workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _workspace not in sys.path:
+    sys.path.insert(0, _workspace)
+
+from lib.calibration import load_calibration_map
+from lib.colors import WARN, RESET, INFO
+# =============================================================================
 
 class readouts():
     """

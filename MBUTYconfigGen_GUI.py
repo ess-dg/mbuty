@@ -21,7 +21,7 @@ import json
 from GUI import LineNumberedText
 from GUI.gui_utils import create_gui_widget, update_widget_fonts, setup_dynamic_file_options
 from GUI import base_constants as const
-from newLib.libConfigGenerator import generateDefaultDetConfig
+from lib.config_generator import generateDefaultDetConfig
 
 # --- Configuration for the Config Creator GUI ---
 # Determine the current script's directory for default paths

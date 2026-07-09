@@ -11,6 +11,7 @@ if _workspace not in sys.path:
 
 from lib.colors import INFO, RESET, WARN, ERR, OK
 
+# =============================================================================
 class events():
     """Base class for all events.
         R5560 uses the base class

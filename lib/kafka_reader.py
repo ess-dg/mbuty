@@ -25,8 +25,8 @@ if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
 
 from lib.reader import BaseReader
-from lib.libKafkaRawReadoutMessage import RawReadoutMessage
-import lib.libKafkaRX as krx
+from lib.kafka_raw_readout_message import RawReadoutMessage
+import lib.kafka_rx as krx
 from lib.colors import WARN, ERR, RESET
 
 from lib.instrument_registry import (

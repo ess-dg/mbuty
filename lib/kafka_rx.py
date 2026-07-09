@@ -1,17 +1,18 @@
 import time
+import os
+import sys
 import configargparse as argparse
 
 from confluent_kafka import Consumer, TopicPartition
- 
 
-try:
-####### if you run default
-    from lib import libKafkaRawReadoutMessage as rawmsg
+# =============================================================================
+# RUNTIME PATH BOOTSTRAP
+# =============================================================================
+_workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _workspace not in sys.path:
+    sys.path.insert(0, _workspace)
 
-except ImportError:
-    ####### if you run in lib 
-    import libKafkaRawReadoutMessage as rawmsg
-    
+from lib import kafka_raw_readout_message as rawmsg
 
 ###############################################################################
 ############################################################################### 

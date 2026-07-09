@@ -11,8 +11,16 @@ is in plain functions.
 """
 
 import sys
+import os
 import numpy as np
-from .colors import WARN, ERR, RESET
+
+# =============================================================================
+_workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _workspace not in sys.path:
+    sys.path.insert(0, _workspace)
+    
+
+from lib.colors import WARN, ERR, RESET
 
 # =============================================================================
 # Registry

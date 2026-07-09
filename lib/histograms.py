@@ -29,9 +29,6 @@ if _workspace not in sys.path:
 
 from lib.colors import INFO, RESET, WARN, ERR, OK
 
-from lib.config_validator import validate_config, load_config
-
-from lib import parameters as para
 
 
 # ============================================================================
@@ -611,6 +608,11 @@ if __name__ == '__main__':
     
     path = '/Users/francescopiscitelli/git_repos/mbuty/MBUTYcap/'
     
+    # from lib.config_validator import validate_config, load_config
+
+    # from lib import parameters as para
+
+
     # confPath    = path + 'config/'
     
     # confFileName  = "AMOR2.json"

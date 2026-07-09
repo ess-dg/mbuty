@@ -9,7 +9,7 @@ Created on Thu Jun 19 13:07:17 2025
 
 import os 
 
-from oldLib.libConfigGenerator import generateDefaultDetConfig, checkIfExists
+from lib.config_generator import generateDefaultDetConfig, checkIfExists
 
 ###############################################################################
 ###############################################################################

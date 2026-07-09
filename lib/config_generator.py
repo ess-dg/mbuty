@@ -10,7 +10,7 @@ import json
 import os
 import sys
 import time 
-import numpy as np 
+# import numpy as np 
 
 import ipaddress
 
@@ -20,9 +20,7 @@ if _workspace not in sys.path:
     
 from lib.config_validator import match_instrument_and_detector
 
-from lib.colors import WARN, ERR, INFO, OK, RESET
-
-
+# from lib.colors import WARN, ERR, INFO, OK, RESET
 
 
 ###############################################################################

@@ -13,31 +13,28 @@ Created on Tue Sep 28 14:24:18 2021
 ###############################################################################
 
 import argparse
-# import os
-# import sys
+import os
+import sys
 # from datetime import datetime
 # import subprocess
 
-from lib import libTerminal as ta
+_workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _workspace not in sys.path:
+    sys.path.insert(0, _workspace)
+from lib.terminal import dumpToPcapng as dump
 
 ############################################################################### 
 ###############################################################################
 
-class dumpToFile():
-    
-     def __init__(self, pathToTshark, interface='en0', destPath='./', fileName='temp', typeOfCapture='packets', quantity=100, numOfFiles=1, delay=0):
+def dumpToFile(pathToTshark, interface='en0', destPath='./', fileName='temp', typeOfCapture='packets', quantity=100, numOfFiles=1, delay=0):
          
-         rec = ta.dumpToPcapngUtil(pathToTshark, interface, destPath, fileName)
-         
-         sta = ta.acquisitionStatus(destPath)  
-         sta.set_RecStatus()
-         
-         status = rec.dump(typeOfCapture,quantity,numOfFiles,delay,fileNameOnly=False)
-         if status == 0: 
-              sta.set_FinStatus()
-         else:
-              sta.set_RecStatus()
-      
+         _, status = dump(interface=interface, destPath=destPath, 
+                          fileName=fileName,typeOfCapture=typeOfCapture,
+                          extraArgs=quantity,numOfFiles=numOfFiles,
+                          delay=delay,pathToTshark=pathToTshark,fileNameOnly=False
+                          )
+
+ 
 
 ###############################################################################
 ###############################################################################        

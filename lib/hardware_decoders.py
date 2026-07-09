@@ -9,6 +9,7 @@ if _workspace not in sys.path:
     
 from lib.instrument_registry import get_readout_spec
 
+# =============================================================================
 
 class BaseHardwareDecoder:
     """

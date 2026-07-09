@@ -277,13 +277,40 @@ class parameters():
         self.kafkaSettings = kafkaSettings()
         
         self.timeSettings   = timeSettings()
+        
+    def validate(self):
+        """
+        Validates and normalizes parameter combinations, forcing dependent
+        flags and printing info about any overrides before the pipeline runs.
+        """
+        self._validateWavelengthDependencies()
+        self._validateHistNotification()
+        self._set_acqMode()
+        # future checks go here
+
+    def _validateWavelengthDependencies(self):
+        if self.fileManagement.saveReducedFileONOFF and not self.wavelength.calculateLambda:
+            self.wavelength.calculateLambda = True
+            print('\nLambda calculation turned ON to save reduced DATA')
+
+        if not self.wavelength.calculateLambda:
+            self.wavelength.plotXLambda = False
+            self.wavelength.plotLambdaDistr = False
+
+    def _validateHistNotification(self):
+        if self.plotting.plottingInBlocks and self.plotting.histogOutBounds:
+            print('\n\t histogram outBounds param set as True (Events out of bounds stored in first and last bin) -> overridden with False since plottingInSections is True')
+            self.plotting.histogOutBounds = False
+
+        elif self.plotting.histogOutBounds:
+            print('\n\t histogram outBounds param set as True (Events out of bounds stored in first and last bin)')
+        else:
+            print('\n\t histogram outBounds param set as False (Events out of bounds not stored in any bin)')
             
  
       
-    def set_acqMode(self,acqMode=None):
-     
-            self.acqMode = acqMode     # pcap-sync, pcap-local, pcap-local-overwrite, kafka
-            
+    def _set_acqMode(self):
+                    
             if self.acqMode == 'pcap-sync':
                 
                 print('Acquisition mode: {} - Sync turned ON to retrieve data from remote computer'.format(self.acqMode))

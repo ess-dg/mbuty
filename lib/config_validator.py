@@ -40,7 +40,6 @@ if _workspace not in sys.path:
     
 from lib.colors import WARN, ERR, INFO, OK, RESET
 
-
 # =============================================================================
 # BASIC FILE LOADING CHECKS - (common file name errors e.g double extension)
 # =============================================================================

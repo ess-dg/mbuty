@@ -1,8 +1,12 @@
-import os
+import os, sys
 import numpy as np
 import pandas as pd
 
-from .colors import INFO, WARN, ERR, RESET
+_workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _workspace not in sys.path:
+    sys.path.insert(0, _workspace)
+
+from lib.colors import INFO, WARN, ERR, RESET
 
 # =============================================================================
 # Software (pulse-height) threshold engine.
