@@ -20,15 +20,14 @@ class dumpSettings():
         # self.auto = False
         
         self.interface = 'p4p1'
-        
-        self.destTestData  = os.path.join(currentPath,'data')
-        
+                
         self.typeOfCapture = 'packets'
         
         self.quantity   = 500
         
-        self.numOfFiles = 1
-        self.delay      = 0
+        # Not used for now
+        # self.numOfFiles = 1
+        # self.delay      = 0
         
         self.fileName   = 'testData'
         
@@ -318,18 +317,11 @@ class parameters():
             elif self.acqMode == 'pcap-local':
                 
                 print('Acquisition mode: {} -  Sync turned OFF since you selected pcap-local mode'.format(self.acqMode))
-                
-                self.dumpSettings.destTestData = self.fileManagement.filePath
-                
+                                                
                 self.dumpSettings.fileName     = self.fileManagement.fileNameSave
-                
-                self.dumpSettings.numOfFiles = 1
-                self.dumpSettings.delay      = 0
-                
                 self.dumpSettings.fileNameOnly = False
             
-                self.fileManagement.openMode = 'latest'  
-                self.fileManagement.filePath =  self.dumpSettings.destTestData
+                self.fileManagement.openMode = 'fileName'  
                 # self.fileManagement.fileName =  [self.dumpSettings.fileName]
 
     
@@ -338,18 +330,13 @@ class parameters():
                 
                 print('Acquisition mode: {} - Sync turned OFF since you selected pcap-local-overwrite mode'.format(self.acqMode))
                 
-                self.dumpSettings.destTestData = os.path.join(self.fileManagement.currentPath , 'data')
+                self.fileManagement.filePath =  os.path.join(self.fileManagement.currentPath , 'data')
                 
                 self.dumpSettings.fileName     = 'testData'
-                
-                self.dumpSettings.numOfFiles = 1
-                self.dumpSettings.delay      = 0
                 
                 self.dumpSettings.fileNameOnly = True
             
                 self.fileManagement.openMode = 'fileName'  
-                self.fileManagement.filePath =  self.dumpSettings.destTestData
-                self.fileManagement.fileName =  [self.dumpSettings.fileName]
                 
  
             elif self.acqMode == 'kafka':

@@ -176,66 +176,50 @@ def syncData(sourcePath, destPath): # Removed 'verbose' parameter
 
 def pcapConverter(pcapFile_PathAndFileName_IN,pathToTshark='/usr/sbin/'):
 
-    pathToTshark, flagTS = verifyTsharkInstallation(pathToTshark)
-    
-    flag         = None
-        
-    fileName_OUT = ''
-        
-        
-    if os.path.isfile(pcapFile_PathAndFileName_IN) is True:
-        
-       temp1 = os.path.split(pcapFile_PathAndFileName_IN)
-       pcapFilePath    = temp1[0]+'/'
-       pcapFileNameExt = temp1[1]
-       
-       temp2 = os.path.splitext(pcapFileNameExt)
-       pcapFileName = temp2[0]
-       pcapFileExt  = temp2[1]
+    pathToTshark = verifyTsharkInstallation(pathToTshark)
 
-       if pcapFileExt == '.pcap':
-           
-           flag = False
-           
-           print('pcap file selected')
-           
-           fileName_OUT = pcapFileName + '_convertedToPcapng.pcapng'
-           
-           # check if already converted 
-           if os.path.isfile(pcapFilePath+fileName_OUT) is False:
-               
-               pcapngFile_PathAndFileName_OUT = pcapFilePath+fileName_OUT
-             
-               if flagTS is True:
-                    print(' -> converting pcap to pcapng ...')
-                    
-                    # Build the command as a list of independent arguments
-                    cmd = [pathToTshark + 'tshark', '-F', 'pcapng', '-r', pcapFile_PathAndFileName_IN, '-w', pcapngFile_PathAndFileName_OUT]
-                    
-                    # Run it safely without shell-parsing issues
-                    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    status = result.returncode
-                
-                    if status == 0: 
-                        print(' conversion completed!')
-                    else:
-                        print('\033[1;31mERROR ... \n\033[1;37m')
-               
-           else:
-               print(' -> converted file already exists.')
-        
-       elif pcapFileExt == '.pcapng':
-           
-           flag = True
-           
-           pcapngFile_PathAndFileName_OUT = pcapFile_PathAndFileName_IN
-           
-    else:
-        
+    if os.path.isfile(pcapFile_PathAndFileName_IN) is True:
+
         temp1 = os.path.split(pcapFile_PathAndFileName_IN)
         pcapFilePath    = temp1[0]+'/'
         pcapFileNameExt = temp1[1]
-        
+
+        temp2 = os.path.splitext(pcapFileNameExt)
+        pcapFileName = temp2[0]
+        pcapFileExt  = temp2[1]
+
+        if pcapFileExt == '.pcap':
+
+            print('pcap file selected')
+
+            fileName_OUT = pcapFileName + '_convertedToPcapng.pcapng'
+
+            # check if already converted 
+            if os.path.isfile(pcapFilePath+fileName_OUT) is False:
+                pcapngFile_PathAndFileName_OUT = pcapFilePath+fileName_OUT
+                print(' -> converting pcap to pcapng ...')
+                # Build the command as a list of independent arguments
+                cmd = [pathToTshark + 'tshark', '-F', 'pcapng', '-r', pcapFile_PathAndFileName_IN, '-w', pcapngFile_PathAndFileName_OUT]
+                # Run it safely without shell-parsing issues
+                result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                status = result.returncode
+                if status == 0: 
+                    print(' conversion completed!')
+                else:
+                    print('\033[1;31mERROR ... \n\033[1;37m')
+            else:
+                print(' -> converted file already exists.')
+
+        elif pcapFileExt == '.pcapng':
+
+            pcapngFile_PathAndFileName_OUT = pcapFile_PathAndFileName_IN
+
+    else:
+
+        temp1 = os.path.split(pcapFile_PathAndFileName_IN)
+        pcapFilePath    = temp1[0]+'/'
+        pcapFileNameExt = temp1[1]
+
         print('\n \033[1;31m---> File: ' + pcapFileNameExt + ' DOES NOT EXIST \033[1;37m')
         print('\n ---> in folder: ' + pcapFilePath + ' \n')
         print('\n NOTE: file name must contain extension, e.g. *.pcapng\n')
@@ -244,7 +228,7 @@ def pcapConverter(pcapFile_PathAndFileName_IN,pathToTshark='/usr/sbin/'):
         time.sleep(2)
         sys.exit()
 
-    return pcapngFile_PathAndFileName_OUT, flag
+    return pcapngFile_PathAndFileName_OUT
           
          
 ############################################################################### 
@@ -299,24 +283,20 @@ def verifyTsharkInstallation(initial_pathToTshark):
                         # cont = cont + 1 
   
             if flag is False:  
-                
-                flag = False
                 print('\n \033[1;31mFile Tshark not found in your system, either set right path to Thark in parameters or install it.\033[1;37m\n')
                 print('... exiting.')
                 time.sleep(2)
                 sys.exit()
  
-        return verified_pathToTshark, flag 
+        return verified_pathToTshark
     
 ############################################################################### 
     
 def dumpToPcapng(interface='en0', destPath='./', fileName='temp',typeOfCapture='packets',extraArgs=100,numOfFiles=1,delay=0,pathToTshark='/usr/sbin/',fileNameOnly=False,):
             
-            pathToTshark, flagTS = verifyTsharkInstallation(pathToTshark)
+            pathToTshark= verifyTsharkInstallation(pathToTshark)
             
-            if flagTS is True:
-                # checks if path exist if not asks for creation
-                checkPathCreate(destPath)
+            checkPathCreate(destPath)
     
             # delay in seconds 
             delay = int(round(delay)) 
@@ -419,7 +399,7 @@ def dumpToPcapng(interface='en0', destPath='./', fileName='temp',typeOfCapture='
             else:
                 print(' \033[1;31mERROR ... \n\033[1;37m')
                      
-            return fileFullAndPath, allStatus
+            return destPath, fileFull
          
                  
 ###############################################################################

@@ -51,10 +51,6 @@ class MBUTYOrchestrator:
         
         ### check version ###
         checks.checkPythonVersion()
-        # # check packages installation 
-        # check = para.checkPackageInstallation()
-        # check.checkPackagePcap()
-        
         
         config_path = os.path.join(
             self.parameters.fileManagement.configFilePath,
@@ -67,26 +63,22 @@ class MBUTYOrchestrator:
         self.bm_pipeline       = None
         
         ###############################################################################
-        ###############################################################################
-        # if self.parameters.acqMode  == 'pcap-local-overwrite'  or self.parameters.acqMode  == 'pcap-local':
-            
-        #     rec = ta.dumpToPcapngUtil(self.parameters.fileManagement.pathToTshark, self.parameters.dumpSettings.interface, \
-        #     self.parameters.dumpSettings.destTestData, self.parameters.dumpSettings.fileName)
-        
-        #     # sta = ta.acquisitionStatus(self.parameters.dumpSettings.destTestData)  
-        #     # sta.set_RecStatus()
-            
-        #     status = rec.dump(self.parameters.dumpSettings.typeOfCapture,self.parameters.dumpSettings.quantity,self.parameters.dumpSettings.numOfFiles,\
-        #     self.parameters.dumpSettings.delay,self.parameters.dumpSettings.fileNameOnly)
-        #     # if status == 0: 
-        #     #      sta.set_FinStatus()
-        #     # else:
-        #     #      sta.set_RecStatus()
-        
-        # ### sync the data folder from remote computer to local folder 
-        # elif not self.runFromGui and self.parameters.acqMode == 'pcap-sync':
-        #     transferData = ta.transferDataUtil()
-        #     transferData.syncData(self.parameters.fileManagement.sourcePath, self.parameters.fileManagement.destPath)   
+        if self.parameters.acqMode  == 'pcap-local-overwrite'  or self.parameters.acqMode  == 'pcap-local':
+            from lib.terminal import dumpToPcapng
+            _ , file_name = dumpToPcapng(self.parameters.dumpSettings.interface,
+                                         self.parameters.fileManagement.filePath,
+                                         self.parameters.dumpSettings.fileName,
+                                         self.parameters.dumpSettings.typeOfCapture,
+                                         self.parameters.dumpSettings.quantity,
+                                         1, 0, 
+                                         self.parameters.fileManagement.pathToTshark,
+                                         self.parameters.dumpSettings.fileNameOnly)
+            self.parameters.fileManagement.fileName = [file_name]
+         
+        # sync the data folder from remote computer to local folder 
+        elif not self.runFromGui and self.parameters.acqMode == 'pcap-sync':
+            from lib.terminal import syncData
+            syncData(self.parameters.fileManagement.sourcePath, self.parameters.fileManagement.destPath)   
         
 
     def run_pipeline(self) -> None:
@@ -108,6 +100,9 @@ class MBUTYOrchestrator:
             )
             reader.run()
         else:
+            # check pcapng packages are installed, exit if not
+            checks.checkPackagePcap()
+            
             file_resolver = fileDialogue(self.parameters)
             file_resolver.openFile()
 

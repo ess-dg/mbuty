@@ -245,7 +245,6 @@ class fileDialogue():
     
 ###############################################################################
 ###############################################################################
-
 if __name__ == '__main__' :
     import json
     current_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__))) + os.sep
