@@ -154,6 +154,8 @@ class dataReduction():
           self.softThArray = np.zeros((0))
           
           self.calibrateVMM_ADC_ONOFF = False
+          
+          self.calibrateVMM_TDC_ONOFF = False
 
 class pulseHeigthSpect():
     def __init__(self):

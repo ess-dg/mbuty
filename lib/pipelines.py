@@ -65,6 +65,7 @@ never pays for imports it doesn't use.
 import os
 import sys
 import matplotlib.pyplot as plt
+import numpy as np 
 
 # =============================================================================
 # RUNTIME PATH BOOTSTRAP
@@ -215,7 +216,10 @@ class BasePipeline:
         """
         topology = self.config.get('topology', [])
         unit_ids = [entry['ID'] for entry in topology]
-
+        
+        # sort here to have plots sorted by ID ascending otherwise as they are in config file 
+        unit_ids     = np.sort(unit_ids)
+        
         if not self.parameters.plotting.plottingInSections:
             self.make_plots(unit_ids)
             return
@@ -242,6 +246,7 @@ class BasePipeline:
 class MBPipeline(BasePipeline):
     """Multi-Blade hardware, normal mode."""
     def analyze(self) -> None:
+        
         self.check_empty()
         if getattr(self.parameters.dataReduction, 'calibrateVMM_ADC_ONOFF', False):
             # Calibrate readouts 

@@ -127,17 +127,28 @@ class MBUTYOrchestrator():
                     parameters = self.parameters,
                     config     = self.config
                 )
-                for name, container in reader.run().items():
+                
+                readout_containers = reader.run()
+                for name, container in readout_containers.items():
                     container_lists[name].append(container)
-                # save containers, ovewrite reader in each pass
-
+                    # save containers, ovewrite reader in each pass
+                
+             
+            # for name, containers in container_lists.items():
+            #     if len(containers) > 1:
+            #         print(f"DEBUG BEFORE MERGE ({name}): {[c.instrumentIDs for c in containers]}")    
+            
             merged = { # merge the lists of saved containers if you had multiple files
                 name: containers[0] if len(containers) == 1 else type(containers[0]).merge(containers)
                 for name, containers in container_lists.items()
             }
+            
+            # # Print AFTER the merge but BEFORE SimpleNamespace
+            # for name, obj in merged.items():
+            #     print(f"DEBUG AFTER MERGE ({name}): {getattr(obj, 'instrumentIDs', 'No Attribute')}")
+
             reader = SimpleNamespace(**merged)
-
-
+   
         # NOTE --- split this into analyze then plot!!!!
         # 2. Detector Pipeline Track Instantiation & Execution Pass via Factory
     
@@ -158,8 +169,8 @@ class MBUTYOrchestrator():
         plt.draw() 
         plt.pause(0.1)
         plt.show(block=False)
-        input(f"{INFO}\nPress Enter to close all figures...{RESET}")
-        plt.close('all')
+        # input(f"{INFO}\nPress Enter to close all figures...{RESET}")
+        # plt.close('all')
         
         self.readouts_container = self.detector_pipeline.readouts_container
         self.hits_container     = self.detector_pipeline.hits_container
@@ -249,7 +260,7 @@ if __name__ == '__main__':
     ###############################################################################
     ### read json and create parameters for plotting and analisys ###
 
-    configFileName  = "AMOR2.json"
+    configFileName  = "AMOR.json"
     
     # configFileName  = "MGtestVessels.json"
     
@@ -339,7 +350,7 @@ if __name__ == '__main__':
    
     ### folder and file to open (file can be a list of files)
 
-    parameters.fileManagement.fileName = ['ESSmask2023.pcapng']
+    parameters.fileManagement.fileName = ['ESSmask2023_30pkts.pcapng','MGtestVess.pcapng']
     
     # parameters.fileManagement.fileName = ['ESSmask2023_1000pkts.pcapng','ESSmask2023_1000pkts_2.pcapng']
     # parameters.fileManagement.fileName = ['miracles_trig2.pcapng']
@@ -366,7 +377,7 @@ if __name__ == '__main__':
     ###############
     ### type of pcap file loading, prealloc of memeory with allocate or quick, allocate is more rigorous, quick estimates the memory and it is faster 
     parameters.fileManagement.pcapLoadingMethod = 'allocate'
-    # parameters.fileManagement.pcapLoadingMethod = 'quick'
+    parameters.fileManagement.pcapLoadingMethod = 'quick'
 
     ###############
     ### path to calibration file
@@ -398,15 +409,17 @@ if __name__ == '__main__':
     ### ANALISYS PARAMETERS:
     #################################
 
-    ### calibration VMM ADC
+    ### calibration VMM ADC TDC
     parameters.dataReduction.calibrateVMM_ADC_ONOFF = False
+    
+    parameters.dataReduction.calibrateVMM_TDC_ONOFF = False
 
     ### sorting readouts by time stamp, if OFF they are as in RMM stream
-    parameters.timeSettings.sortReadoutsByTimeStampsONOFF = False
+    parameters.timeSettings.sortReadoutsByTimeStampsONOFF = True
 
     ### time stamp is time HI + time LO or if fine corrected with TDC 
     parameters.timeSettings.timeResolutionType = 'fine'
-    # parameters.VMMsettings.timeResolutionType = 'coarse'
+    # parameters.timeSettings.timeResolutionType = 'coarse'
 
     ### timeWindow to search for clusters, timeWindow is max time between events in candidate cluster 
     ### and timeWindow/2 is the recursive time distance between adjacent hits
@@ -491,8 +504,8 @@ if __name__ == '__main__':
 
     ###############     
     ### plotting in sections of cassettes to ease the visualization if True and in blocks of ...  
-    parameters.plottingInSections       = False 
-    parameters.plottingInSectionsBlocks = 5
+    parameters.plotting.plottingInSections       = False 
+    parameters.plotting.plottingInSectionsBlocks = 5
 
     ###############     
     ### show stat during clustering, option  'globalStat'  stat for all cassettes together, 
@@ -541,6 +554,7 @@ if __name__ == '__main__':
     parameters.plotting.plotIMGlog   = False
 
     ### ON/OFF, if  Tof  and Lambdaplot needs to include only events with strip present (2D) is True otherwise all events also without strip set to False
+    
     parameters.plotting.coincidenceWS_ONOFF = True
 
     ### ON/OFF, if  invalid ToFs Tofare included in the plots or removed from events 

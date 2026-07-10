@@ -176,8 +176,10 @@ class readouts():
 
         master.fill_count = total_size
 
-        duration_arrays = [c.durations for c in container_list if len(c.durations) > 0]
+        duration_arrays  = [c.durations for c in container_list if len(c.durations) > 0]
         master.durations = np.concatenate(duration_arrays) if duration_arrays else np.zeros(0, dtype='int64')
+
+        master.instrumentIDs = set.union(*(c.instrumentIDs for c in container_list))
 
         return master
     
@@ -299,7 +301,7 @@ class readoutsVMMnormal(readoutsVMM):
 
         calib_path = getattr(getattr(parameters, 'fileManagement', None), 'calibFilePath', '')
         calib_name = getattr(getattr(parameters, 'fileManagement', None), 'calibFileName', '')
-        calib_map  = load_calibration_map(calib_path + calib_name, config)
+        calib_map  = load_calibration_map(calib_path + calib_name, config, parameters)
 
         if adc_calib_on:
             self._calibrate_adc(calib_map)

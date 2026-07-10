@@ -76,7 +76,7 @@ def _parse_hybrid_id(hybrid_id_text: str) -> tuple[int, int, int]:
 # 3. JSON FILE INGESTION LAYER
 # =============================================================================
 
-def load_calibration_map(calib_file_path: str, config: dict) -> dict[tuple[int, int, int], VMMCalibrationEntry]:
+def load_calibration_map(calib_file_path: str, config: dict, parameters) -> dict[tuple[int, int, int], VMMCalibrationEntry]:
     """
     Load VMM3A ADC calibrations from a JSON file into a (ring, fen, hybrid) lookup map.
     Missing entries fallback to identity defaults (slope 1, offset 0) via helper.
@@ -159,11 +159,14 @@ def load_calibration_map(calib_file_path: str, config: dict) -> dict[tuple[int, 
 
     # Post-check for all-zero calibrations
     for (ring, fen, hybrid), entry in final_map.items():
-        if np.allclose(entry.vmm0_adc_offset, 0.0) and np.allclose(entry.vmm1_adc_offset, 0.0):
-            print(f'\t {WARN}WARNING: ADC calibration all zeros for Ring {ring}, Fen {fen}, Hybrid {hybrid}{RESET}')
         
-        if np.allclose(entry.vmm0_tdc_offset, 0.0) and np.allclose(entry.vmm1_tdc_offset, 0.0):
-            print(f'\t {WARN}WARNING: TDC calibration all zeros for Ring {ring}, Fen {fen}, Hybrid {hybrid}{RESET}')
+        if parameters.dataReduction.calibrateVMM_ADC_ONOFF: 
+            if np.allclose(entry.vmm0_adc_offset, 0.0) and np.allclose(entry.vmm1_adc_offset, 0.0):
+                print(f'\t {WARN}WARNING: ADC calibration all zeros for Ring {ring}, Fen {fen}, Hybrid {hybrid}{RESET}')
+            
+        if parameters.dataReduction.calibrateVMM_TDC_ONOFF: 
+            if np.allclose(entry.vmm0_tdc_offset, 0.0) and np.allclose(entry.vmm1_tdc_offset, 0.0):
+                print(f'\t {WARN}WARNING: TDC calibration all zeros for Ring {ring}, Fen {fen}, Hybrid {hybrid}{RESET}')
 
     return final_map
 

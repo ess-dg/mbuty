@@ -1,0 +1,39 @@
+{
+    "detectorName": "clustered",
+    "detectorType": "MB",
+    "instrumentName": "AMOR",
+    "units": 14,
+    "orientation": "horizontal",
+    "operationMode": "clustered",
+    "topology": [
+        {
+            "ID": 5,
+            "ring": 0,
+            "fen": 2,
+            "hybrid": 0,
+            "serial": ""
+        },
+        {
+            "ID": 6,
+            "ring": 1,
+            "fen": 0,
+            "hybrid": 1,
+            "serial": ""
+        }
+    ],
+    "wires": 32,
+    "strips": 64,
+    "wirePitch_mm": 4,
+    "stripPitch_mm": 4,
+    "bladesInclination_deg": 5.1,
+    "offset1stWires_mm": 10.5,
+    "monitor": [
+        {
+            "ID": 99,
+            "hardwareType": "generic",
+            "connectionType": "ring",
+            "ring": 11,
+            "channel": 1
+        }
+    ]
+}

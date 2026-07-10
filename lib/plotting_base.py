@@ -99,14 +99,8 @@ class BasePlotter:
         self.axis_set   = axis_set
         self.hist       = Histogrammer(parameters.plotting.histogOutBounds)
         self.is_empty   = container.fill_count == 0
-        
-        
-        # sort here to have plots sorted by ID ascending otherwise as they are in config file 
-        self.unit_ids     = np.sort(unit_ids)
-        # self.unit_ids   = unit_ids
-        
-        
-
+        self.unit_ids   = unit_ids
+ 
         if self.is_empty:
             print(f'\t{WARN}WARNING: {type(container).__name__} is empty -> skipping plots{RESET}')
 

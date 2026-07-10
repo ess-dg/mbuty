@@ -1258,7 +1258,7 @@ if __name__ == '__main__':
     parameters = SimpleNamespace(
         acqMode       = 'pcap',
         clockTicks    = SimpleNamespace(NSperClockTick = 11.356860963629653),
-        VMMsettings   = SimpleNamespace(timeResolutionType = 'coarse'),
+        timeSettings   = SimpleNamespace(timeResolutionType = 'coarse'),
         fileManagement= SimpleNamespace(pcapLoadingMethod  = 'allocate'),
     )
 
