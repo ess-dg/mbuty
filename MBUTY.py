@@ -61,9 +61,13 @@ class MBUTYOrchestrator():
             self.parameters.fileManagement.configFilePath,
             self.parameters.fileManagement.configFileName
         )
-        with open(config_path, 'r') as f:
-            self.config = json.load(f)
-
+        try:
+            with open(config_path, 'r') as f:
+                self.config = json.load(f)
+        except FileNotFoundError:
+                print(f"{ERR}Error: Configuration file not found at '{config_path}'{RESET}")
+                sys.exit()
+                
         validate_config(self.config)
         
         self.detector_pipeline = None
@@ -143,18 +147,20 @@ class MBUTYOrchestrator():
    
         # NOTE --- split this into analyze then plot!!!!
         # 2. Detector Pipeline Track Instantiation & Execution Pass via Factory
-    
+
         self.parameters.validateWavelengthDependencies()
         self.detector_pipeline = build_detector_pipeline(self.config, reader, self.parameters)
         if self.detector_pipeline:
-            self.detector_pipeline.analyze()
+            if not self.parameters.plotting.bareReadoutsCalculation:
+                self.detector_pipeline.analyze()
             if not self.run_from_gui:
                 self.detector_pipeline.plot()
 
         # 3. Conditionally Dispatch Beam Monitor Tracking Stream
         self.bm_pipeline = build_bm_pipeline(self.config, reader, self.parameters)
         if self.bm_pipeline and self.parameters.MONitor.MONOnOff:
-            self.bm_pipeline.analyze()
+            if not self.parameters.plotting.bareReadoutsCalculation:
+                self.bm_pipeline.analyze()
             if not self.run_from_gui:
                 self.bm_pipeline.plot()
         
@@ -163,8 +169,8 @@ class MBUTYOrchestrator():
         plt.draw() 
         plt.pause(0.1)
         plt.show(block=False)
-        input(f"{INFO}\nPress Enter to close all figures...{RESET}")
-        plt.close('all')
+        # input(f"{INFO}\nPress Enter to close all figures...{RESET}")
+        # plt.close('all')
         
         self.timing.lap()
         
@@ -261,8 +267,10 @@ if __name__ == '__main__':
     ### read json and create parameters for plotting and analisys ###
 
     configFileName  = "AMOR2.json"
+    configFileName  = "clustered.json"
     
-    # configFileName  = "MGtestVessels.json"
+    
+    configFileName  = "MGtestVessels2col.json"
     
     # configFileName  = "MGEMMA_2det.json"
     
@@ -271,7 +279,7 @@ if __name__ == '__main__':
     # configFileName  = "ESTIA.json"
     
     # configFileName  = "MIRACLES24.json"
-    configFileName  = "CSPEC.json"
+    # configFileName  = "CSPEC.json"
     # configFileName  = "MIRACLES2.json"
 
     # configFileName  = "ESTIA_sect0.json"
@@ -352,12 +360,15 @@ if __name__ == '__main__':
 
     parameters.fileManagement.fileName = ['ESSmask2023_30pkts.pcapng', 'CSPEC1.pcapng']
     
-    parameters.fileManagement.fileName = ['ESSmask2023_1000pkts.pcapng','ESSmask2023_1000pkts_2.pcapng']
     # parameters.fileManagement.fileName = ['miracles_trig2.pcapng']
     # parameters.fileManagement.fileName = ['MG_2EMMAprototypes.pcapng']
     # parameters.fileManagement.fileName = ['miracles_source_mask_red.pcapng']
     # parameters.fileManagement.fileName = ['CSPEC1.pcapng']
     # parameters.fileManagement.fileName = ['20260602_103110_duration_s_300_muons_00000.pcapng']
+    
+    parameters.fileManagement.fileName = ['sampleData_ClusteredMode.pcapng']
+    
+    parameters.fileManagement.fileName = ['MGtestVess.pcapng']
     
     parameters.fileManagement.fileSerials = [6,2,4,9]
     # OR
@@ -398,7 +409,7 @@ if __name__ == '__main__':
     ### save a hdf file with clusters (reduced file)
 
     ### ON/OFF
-    parameters.fileManagement.saveReducedFileONOFF = True   
+    parameters.fileManagement.saveReducedFileONOFF = False   
     parameters.fileManagement.saveReducedPath = parameters.fileManagement.currentPath+'reduced/'
 
     parameters.fileManagement.reducedNameMainFolder  = 'entry1'
@@ -452,12 +463,12 @@ if __name__ == '__main__':
     parameters.wavelength.distance  = 32000
 
     ##ON/OFF
-    parameters.wavelength.calculateLambda = False
+    parameters.wavelength.calculateLambda = True
 
     ### ON/OFF plot X vs Lambda 2D plot
-    parameters.wavelength.plotXLambda     = False
+    parameters.wavelength.plotXLambda     = True
     ### ON/OFF integrated over single cassettes
-    parameters.wavelength.plotLambdaDistr = False
+    parameters.wavelength.plotLambdaDistr = True
 
     parameters.wavelength.lambdaBins  = 128
     parameters.wavelength.lambdaRange = [1, 16]   #A
@@ -500,7 +511,7 @@ if __name__ == '__main__':
 
     ###############
     # with True disables clustering and mapping for speed reasons, analisys stops at readouts 
-    parameters.plotting.bareReadoutsCalculation = False
+    parameters.plotting.bareReadoutsCalculation = True
 
     ###############     
     ### plotting in sections of cassettes to ease the visualization if True and in blocks of ...  
@@ -526,7 +537,7 @@ if __name__ == '__main__':
     parameters.plotting.plotHitsTimeStampsVSChannels = True
 
     ###############
-    ### Instantaneous Rate
+    ### time between events 
     parameters.plotting.plotTimeBetwEv    = True
     parameters.plotting.timeBetwEvBin     = 1e-6  # s
     
@@ -570,10 +581,10 @@ if __name__ == '__main__':
     parameters.pulseHeigthSpect.plotPHS = True
 
     ### plot PHS in log scale 
-    parameters.pulseHeigthSpect.plotPHSlog = False
+    parameters.pulseHeigthSpect.plotPHSlog = True
 
     parameters.pulseHeigthSpect.energyBins = 256
-    parameters.pulseHeigthSpect.maxEnerg   = 1700
+    parameters.pulseHeigthSpect.maxEnerg   = 2000
 
     ### plot the PHS correaltion wires vs strips
     parameters.pulseHeigthSpect.plotPHScorrelation = True
@@ -586,16 +597,22 @@ if __name__ == '__main__':
     pipeline_orchestrator = MBUTYOrchestrator(parameters)
     pipeline_orchestrator.run_pipeline()
     
+    config = pipeline_orchestrator.config
+    
     readouts = pipeline_orchestrator.readouts_container
     readoutsArray = readouts.get_data_frame()
-    hits = pipeline_orchestrator.hits_container
-    hitsArray = hits.get_data_frame()
+    hits   = pipeline_orchestrator.hits_container
     events = pipeline_orchestrator.events_container
-    eventsArray = events.get_data_frame()
     
-    config = pipeline_orchestrator.config
-
+    if parameters.plotting.bareReadoutsCalculation is False:
+        hitsArray   = hits.get_data_frame()
+        eventsArray = events.get_data_frame()
+    
+    
+         # NOTE
     # add containerf for BM 
+
+
 
     
 #     ###############################################################################

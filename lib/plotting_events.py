@@ -191,8 +191,15 @@ class VMMEventsPlotter(BaseEventsPlotter):
             grid.ax[1][k].set_xlabel('delta time / span (us)')
             
             grid.ax[0][k].set_title(f'ID {uid}')
-            grid.ax[0][k].legend(loc='upper right', shadow=False, fontsize='medium')
-            grid.ax[1][k].legend(loc='upper right', shadow=False, fontsize='medium')
+            # Check and apply legend for row 0
+            handles0, labels0 = grid.ax[0][k].get_legend_handles_labels()
+            if labels0:
+                grid.ax[0][k].legend(loc='upper right', shadow=False, fontsize='medium')
+            
+            # Check and apply legend for row 1
+            handles1, labels1 = grid.ax[1][k].get_legend_handles_labels()
+            if labels1:
+                grid.ax[1][k].legend(loc='upper right', shadow=False, fontsize='medium')
             if k == 0:
                 grid.ax[0][k].set_ylabel('num of events')
 
@@ -218,11 +225,19 @@ class VMMEventsPlotter(BaseEventsPlotter):
             my2Dwc, _, _ = self.hist.hist2d(xx, m['mult0'][sel & sel_2d], xx, m['mult1'][sel & sel_2d])  # wires coinc with strips 2D
 
             if np.any(sel):
-                mywnorm    = myw / np.sum(myw[1:])
-                mysnorm    = mys / np.sum(mys[1:])
-                mysnormall = mys / np.sum(mys)
-                mywcnorm   = mywc / np.sum(mywc[1:])
-                my2Dwcnorm = my2Dwc / np.sum(my2Dwc)
+                # Calculate sums first to guard against 0
+                sum_myw_slice   = np.sum(myw[1:])
+                sum_mys_slice   = np.sum(mys[1:])
+                sum_mys_all     = np.sum(mys)
+                sum_mywc_slice  = np.sum(mywc[1:])
+                sum_my2Dwc_all  = np.sum(my2Dwc)
+                
+                # Divide if sum > 0, otherwise fill with zeros
+                mywnorm    = myw / sum_myw_slice if sum_myw_slice > 0 else np.zeros(len(xx))
+                mysnorm    = mys / sum_mys_slice if sum_mys_slice > 0 else np.zeros(len(xx))
+                mysnormall = mys / sum_mys_all if sum_mys_all > 0 else np.zeros(len(xx))
+                mywcnorm   = mywc / sum_mywc_slice if sum_mywc_slice > 0 else np.zeros(len(xx))
+                my2Dwcnorm = my2Dwc / sum_my2Dwc_all if sum_my2Dwc_all > 0 else np.zeros((len(xx), len(xx)))
             else:
                 mywnorm    = np.zeros(len(xx))
                 mysnorm    = np.zeros(len(xx))
@@ -246,7 +261,7 @@ class VMMEventsPlotter(BaseEventsPlotter):
             )
             grid.ax[1][k].set_xlabel('multiplicity wires')
             if k == 0:
-                grid.ax[1][k].set_ylabel('multiplicity strips')
+                grid.ax[1][k].set_ylabel('multiplicity strips/grids')
             grid.fig.colorbar(pos1, ax=grid.ax[1][k])
 
     def plot_phs(self, fig_num=601):
@@ -260,7 +275,8 @@ class VMMEventsPlotter(BaseEventsPlotter):
 
         ax_energy = self.axis_set.ax_energy
         num_wires     = self.config['wires']
-        num_strips    = self.config['strips']
+        num_strips    = self.config.get('strips', self.config.get('grids', None))
+            
         wire_axis  = np.linspace(0, num_wires - 1, num_wires)
         strip_axis = np.linspace(0, num_strips - 1, num_strips)
         m = self.matrix
@@ -286,28 +302,28 @@ class VMMEventsPlotter(BaseEventsPlotter):
             grid.ax[0][k].set_title(f'ID {uid}')
             if k == 0:
                 grid.ax[0][k].set_ylabel('wires ch. no.')
-                grid.ax[1][k].set_ylabel('strips ch. no.')
+                grid.ax[1][k].set_ylabel('strips/grids ch. no.')
                 grid.ax[2][k].set_ylabel('wires coinc. ch. no.')
 
             phs_gw, phs_gs, phs_gwc = np.sum(phs_w, axis=0), np.sum(phs_s, axis=0), np.sum(phs_wc, axis=0)
 
             grid.ax[3][k].step(ax_energy.centers, phs_gw, 'r', where='mid', label='w')
             grid.ax[3][k].step(ax_energy.centers, phs_gs, 'b', where='mid', label='s')
-            grid.ax[3][k].step(ax_energy.centers, phs_gwc, 'k', where='mid', label='w/s')
+            grid.ax[3][k].step(ax_energy.centers, phs_gwc, 'k', where='mid', label='w/s or w/g')
             grid.ax[3][k].set_xlabel('pulse height (a.u.)')
             grid.ax[3][k].legend(loc='upper right', shadow=False, fontsize='large')
             if k == 0:
                 grid.ax[3][k].set_ylabel('counts')
 
     def plot_phs_correlation(self, fig_num=602):
-        """Wire vs strip pulse-height correlation for 2D-coincidence events, per unit."""
+        """Wire vs strip/grids pulse-height correlation for 2D-coincidence events, per unit."""
         if self.is_empty:
             return
 
         norm_colors = log_scale_norm(self.parameters.pulseHeigthSpect.plotPHSlog)
 
         grid = PlotGrid(fig_num, 1, len(self.unit_ids), fig_size=(12, 6))
-        grid.fig.suptitle('Pulse Heigth Spectrum - Correlation W/S')
+        grid.fig.suptitle('Pulse Heigth Spectrum - Correlation W/S or W/G')
         ax_energy = self.axis_set.ax_energy
         m = self.matrix
 
@@ -323,7 +339,7 @@ class VMMEventsPlotter(BaseEventsPlotter):
             grid.ax[0][k].set_title(f'ID {uid}')
             grid.ax[0][k].set_xlabel('pulse height wires (a.u.)')
             if k == 0:
-                grid.ax[0][k].set_ylabel('pulse height strips (a.u.)')
+                grid.ax[0][k].set_ylabel('pulse height strips/grids (a.u.)')
 
     def plot_x_lambda(self, fig_num=103):
         """2D wavelength vs wire-position image across all units combined, raw channel or absolute-mm coordinates. Respects the global coincidence mask."""
@@ -502,16 +518,16 @@ class MGEventsPlotter(VMMEventsPlotter):
         
 
         norm_colors = log_scale_norm(log_scale)
-        num_cassettes = self.config['units']
+        num_units = self.config['units']
         num_wires     = self.config['wires']
         num_strips    = self.config['grids']
         wires_per_row = self.config['wiresPerRow']
-        ax_wires, ax_strips, ax_tof = self.axis_set.ax_wires, self.axis_set.ax_strips, self.axis_set.ax_tof
+        ax_wires, ax_grids, ax_tof = self.axis_set.ax_wires, self.axis_set.ax_grids, self.axis_set.ax_tof
         m = self.matrix
 
         h2d, _, _ = self.hist.hist_xyz(
             ax_wires.centers, m['coordinate0'][self.selc],
-            ax_strips.centers, m['coordinate1'][self.selc],
+            ax_grids.centers, m['coordinate1'][self.selc],
             ax_tof.centers, m['ToF'][self.selc] / 1e9,
         )
         h_proj_all = self.hist.hist1d(ax_wires.centers, m['coordinate0'][m['coordinate0']>=0])  
@@ -525,15 +541,15 @@ class MGEventsPlotter(VMMEventsPlotter):
 
         if orientation == 'vertical':
             pos1 = ax22[0][0].imshow(h2d, aspect='auto', norm=norm_colors, interpolation='none',
-                                      extent=[ax_wires.start - 0.5, ax_wires.stop + 0.5, ax_strips.start - 0.5, ax_strips.stop + 0.5],
+                                      extent=[ax_wires.start - 0.5, ax_wires.stop + 0.5, ax_grids.start - 0.5, ax_grids.stop + 0.5],
                                       origin='lower', cmap='viridis')
             _safe_colorbar(fig2d, pos1, ax22[0][0], 'XY', orientation='horizontal', fraction=0.07, anchor=(1.0, 0.0))
             ax22[0][0].set_xlabel('Wire ch.')
             ax22[0][0].set_ylabel('Grid ch.')
 
-            for k in np.arange(0, num_cassettes * num_wires, wires_per_row):
+            for k in np.arange(0, num_units * num_wires, wires_per_row):
                 ax22[0][0].plot([k - 0.5, k - 0.5], [-0.5, num_strips - 0.5], 'r', linewidth=1)
-            for k in range(1, num_cassettes):
+            for k in range(1, num_units):
                 ax22[0][0].plot([k * num_wires - 0.5, k * num_wires - 0.5],
                                  [-0.5, num_strips - 1 + 0.5], color='m', linewidth=1)
             ax22[0][0].set_xlim(ax_wires.centers[0], ax_wires.centers[-1])
@@ -559,24 +575,24 @@ class MGEventsPlotter(VMMEventsPlotter):
             time.sleep(2)
 
         rows_per_col = int(num_wires / wires_per_row)
-        steps = num_cassettes * rows_per_col
+        steps = num_units * rows_per_col
         stop = steps - 1
         rows_axis = np.linspace(0, stop, steps)
 
         h2d_proj_win, _, _ = default_hist.hist_xyz(
             rows_axis, wire_ch_for_x,
-            ax_strips.centers, m['coordinate1'][self.selc],
+            ax_grids.centers, m['coordinate1'][self.selc],
             ax_tof.centers, m['ToF'][self.selc] / 1e9,
         )
 
         pos10 = ax22[0][1].imshow(h2d_proj_win, aspect='auto', norm=norm_colors, interpolation='none',
-                                   extent=[-0.5, stop + 0.5, ax_strips.start - 0.5, ax_strips.stop + 0.5], origin='lower', cmap='viridis')
+                                   extent=[-0.5, stop + 0.5, ax_grids.start - 0.5, ax_grids.stop + 0.5], origin='lower', cmap='viridis')
         _safe_colorbar(fig2d, pos10, ax22[0][1], 'XY', orientation='horizontal', fraction=0.07, anchor=(1.0, 0.0))
         ax22[0][1].set_xlabel('Row no.')
         ax22[0][1].set_ylabel('Grid ch.')
         ax22[0][1].set_xlim(ax_wires.centers[0] / wires_per_row - 0.5, ax_wires.centers[-1] / wires_per_row - 0.5)
 
-        for k in range(1, num_cassettes):
+        for k in range(1, num_units):
             ax22[0][1].plot([k * rows_per_col - 0.5, k * rows_per_col - 0.5],
                              [-0.5, num_strips - 1 + 0.5], color='m', linewidth=1)
 
@@ -605,12 +621,12 @@ class MGEventsPlotter(VMMEventsPlotter):
    
         norm_colors = log_scale_norm(log_scale)
 
-        ax_wires, ax_strips, ax_tof = self.axis_set.ax_wires, self.axis_set.ax_strips, self.axis_set.ax_tof
+        ax_wires, ax_grids, ax_tof = self.axis_set.ax_wires, self.axis_set.ax_grids, self.axis_set.ax_tof
         m = self.matrix
 
         _, _, h_tof = self.hist.hist_xyz(
             ax_wires.centers, m['coordinate0'][self.selc],
-            ax_strips.centers, m['coordinate1'][self.selc],
+            ax_grids.centers, m['coordinate1'][self.selc],
             ax_tof.centers, m['ToF'][self.selc] / 1e9,
         )
 
@@ -684,7 +700,7 @@ class R5560EventsPlotter(BaseEventsPlotter):
             return
     
         grid = PlotGrid(fig_num, 1, len(self.unit_ids))
-        grid.fig.suptitle('Instantaneous Rate')
+        grid.fig.suptitle('Time between events')
         ax_rate = self.axis_set.ax_time_between_ev
         m = self.matrix
         forced_hist = Histogrammer(out_of_bounds=False)
@@ -798,18 +814,21 @@ class R5560EventsPlotter(BaseEventsPlotter):
         m = self.matrix
 
         if not abs_units:
-            ax_wires, wire_values, pos_label = self.axis_set.ax_wires, m['coordinate0'], 'Position (a.u.)'
+            ax_length, pos0_values, pos0_label = self.axis_set.ax_length, m['coordinate0'], 'Along tube position (a.u.)'
+            # ax_tubes, pos1_values, pos1_label = self.axis_set.ax_tubes, m['coordinate1'], 'Tube ID (a.u.)'
+            
         else:
-            ax_wires, wire_values, pos_label = self.axis_set.ax_wires_mm, m['absCoordinate0'], 'Position (mm)'
-
+            ax_length, pos0_values, pos0_label = self.axis_set.ax_length_mm, m['absCoordinate0'], 'Along tube position (mm)'
+            # ax_tubes, pos1_values, pos1_label = self.axis_set.ax_tubes_mm, m['absCoordinate1'], 'Tube Position (mm)'
+           
         grid1d = PlotGrid(fig_num, 1, len(self.unit_ids))
 
         for k, uid in enumerate(self.unit_ids):
             sel = self.select_unit(uid)
-            h1d = self.hist.hist1d(ax_wires.centers, wire_values[sel])
+            h1d = self.hist.hist1d(ax_length.centers, pos0_values[sel])
 
-            grid1d.ax[0][k].step(ax_wires.centers, h1d, 'k', where='mid')
-            grid1d.ax[0][k].set_xlabel(pos_label)
+            grid1d.ax[0][k].step(ax_length.centers, h1d, 'k', where='mid')
+            grid1d.ax[0][k].set_xlabel(pos0_label)
             grid1d.ax[0][k].set_title(f'Tube ID {uid}')
             if log_scale:
                 grid1d.ax[0][k].set_yscale('log')

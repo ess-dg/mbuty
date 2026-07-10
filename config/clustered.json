@@ -1,8 +1,8 @@
 {
-    "detectorName": "clustered",
+    "detectorName": "clusteredd",
     "detectorType": "MB",
-    "instrumentName": "AMOR",
-    "units": 14,
+    "instrumentName": "ESTIA",
+    "units": 4,
     "orientation": "horizontal",
     "operationMode": "clustered",
     "topology": [
@@ -15,11 +15,25 @@
         },
         {
             "ID": 6,
-            "ring": 1,
-            "fen": 0,
+            "ring": 0,
+            "fen": 2,
             "hybrid": 1,
             "serial": ""
-        }
+        },
+                {
+                    "ID": 7,
+                    "ring": 0,
+                    "fen": 2,
+                    "hybrid": 2,
+                    "serial": ""
+                },
+                {
+                    "ID": 8,
+                    "ring": 0,
+                    "fen": 2,
+                    "hybrid": 3,
+                    "serial": ""
+                }
     ],
     "wires": 32,
     "strips": 64,

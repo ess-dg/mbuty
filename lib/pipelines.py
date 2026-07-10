@@ -273,12 +273,15 @@ class MBPipeline(BasePipeline):
         axis_set = MBAxisSet(self.parameters, self.config)
   
         from lib.plotting_readouts import MBReadoutsPlotter
-        from lib.plotting_hits import MBHitsPlotter
-        from lib.plotting_events import MBEventsPlotter
-
         self.readout_plotter = MBReadoutsPlotter(self.readouts_container, self.parameters, self.config, axis_set, unit_ids)
-        self.hit_plotter     = MBHitsPlotter(self.hits_container, self.parameters,self.config, axis_set,unit_ids)
-        self.event_plotter   = MBEventsPlotter(self.events_container, self.parameters,self.config, axis_set, unit_ids)
+
+        if self.hits_container is not None: 
+            from lib.plotting_hits import MBHitsPlotter
+            self.hit_plotter     = MBHitsPlotter(self.hits_container, self.parameters,self.config, axis_set,unit_ids)
+        
+        if self.events_container is not None: 
+            from lib.plotting_events import MBEventsPlotter
+            self.event_plotter   = MBEventsPlotter(self.events_container, self.parameters,self.config, axis_set, unit_ids)
 
 
 class MBClusteredPipeline(BasePipeline):
@@ -311,16 +314,16 @@ class MBClusteredPipeline(BasePipeline):
     def build_plotters(self, unit_ids) -> None:
         from lib.histograms import MBAxisSet
         axis_set = MBAxisSet(self.parameters, self.config)
-        # topology = self.config.get('topology', [])
-        # num_wires = int(self.config['wires'])
 
         from lib.plotting_readouts import MBReadoutsPlotter
-        from lib.plotting_hits import MBClusteredHitsPlotter
-        from lib.plotting_events import MBEventsPlotter
-
         self.readout_plotter = MBReadoutsPlotter(self.readouts_container, self.parameters,self.config, axis_set, unit_ids)
-        self.hit_plotter = MBClusteredHitsPlotter(self.hits_container, self.parameters,self.config, axis_set, unit_ids)
-        self.event_plotter = MBEventsPlotter(self.events_container, self.parameters,self.config, axis_set, unit_ids)
+
+        if self.hits_container is not None:
+            from lib.plotting_hits import MBClusteredHitsPlotter
+            self.hit_plotter = MBClusteredHitsPlotter(self.hits_container, self.parameters,self.config, axis_set, unit_ids)
+        if self.events_container is not None:
+            from lib.plotting_events import MBEventsPlotter
+            self.event_plotter = MBEventsPlotter(self.events_container, self.parameters,self.config, axis_set, unit_ids)
 
 
 class MGPipeline(BasePipeline):
@@ -340,24 +343,25 @@ class MGPipeline(BasePipeline):
         time_window = getattr(self.parameters.dataReduction, 'timeWindow', 0.2e-6)
         self.events_container = VMMNormalClusterer.cluster(self.hits_container, self.config, time_window)
         # Calculate abs units
-        from lib.abs_units_engine import MBAbsUnitsCalculator
-        MBAbsUnitsCalculator(self.events_container, self.config, self.parameters).process_pipeline(remove_invalid_tofs=self.parameters.plotting.removeInvalidToFs)
+        from lib.abs_units_engine import MGAbsUnitsCalculator
+        MGAbsUnitsCalculator(self.events_container, self.config, self.parameters).process_pipeline(remove_invalid_tofs=self.parameters.plotting.removeInvalidToFs)
         # Apply soft thresholds
         from lib.threshold_engine import VMMThresholdEngine
         VMMThresholdEngine(self.events_container, self.config, self.parameters).process_pipeline()
 
     def build_plotters(self,unit_ids) -> None:
         from lib.histograms import MGAxisSet
-        axis_set = MGAxisSet(self.parameters)
-        # topology = self.config.get('topology', [])
+        axis_set = MGAxisSet(self.parameters, self.config)
 
         from lib.plotting_readouts import MGReadoutsPlotter
-        from lib.plotting_hits import MGHitsPlotter
-        from lib.plotting_events import MGEventsPlotter
-
         self.readout_plotter = MGReadoutsPlotter(self.readouts_container, self.parameters,self.config, axis_set, unit_ids)
-        self.hit_plotter = MGHitsPlotter(self.hits_container, self.parameters,self.config, axis_set, unit_ids)
-        self.event_plotter = MGEventsPlotter(self.events_container, self.parameters,self.config, axis_set,unit_ids)
+
+        if self.hits_container is not None:
+            from lib.plotting_hits import MGHitsPlotter
+            self.hit_plotter = MGHitsPlotter(self.hits_container, self.parameters,self.config, axis_set, unit_ids)
+        if self.events_container is not None:
+            from lib.plotting_events import MGEventsPlotter
+            self.event_plotter = MGEventsPlotter(self.events_container, self.parameters,self.config, axis_set,unit_ids)
 
 
 class R5560Pipeline(BasePipeline):
@@ -371,7 +375,7 @@ class R5560Pipeline(BasePipeline):
         self.hits_container = He3Mapper.map(self.readouts_container, self.config)
         # Clustering
         from lib.clustering_engine import R5560Clusterer
-        time_window = getattr(self.parameters.dataReduction, 'timeWindow', 3e-6)
+        time_window = getattr(self.parameters.dataReduction, 'timeWindow', 1e-6)
         self.events_container = R5560Clusterer.cluster(self.hits_container, self.config, time_window)
         # absolute units 
         from lib.abs_units_engine import R5560AbsUnitsCalculator
@@ -381,20 +385,19 @@ class R5560Pipeline(BasePipeline):
         TubeThresholdEngine(self.events_container, self.config, self.parameters).process_pipeline()
 
     def build_plotters(self,unit_ids) -> None:
-        
         from lib.histograms import R5560AxisSet
-        # axis_set = getattr(self.parameters, 'axis_set', None)
-        # topology = self.config.get('topology', [])
-        
         axis_set = R5560AxisSet(self.parameters, self.config)
 
         from lib.plotting_readouts import R5560ReadoutsPlotter
-        from lib.plotting_hits import R5560HitsPlotter
-        from lib.plotting_events import R5560EventsPlotter
-
         self.readout_plotter = R5560ReadoutsPlotter(self.readouts_container, self.parameters,self.config, axis_set,unit_ids)
-        self.hit_plotter = R5560HitsPlotter(self.hits_container, self.parameters,self.config, axis_set,unit_ids)
-        self.event_plotter = R5560EventsPlotter(self.events_container, self.parameters,self.config, axis_set,unit_ids)
+
+        if self.hits_container is not None:
+            from lib.plotting_hits import R5560HitsPlotter
+            self.hit_plotter = R5560HitsPlotter(self.hits_container, self.parameters,self.config, axis_set,unit_ids)
+
+        if self.events_container is not None:
+            from lib.plotting_events import R5560EventsPlotter
+            self.event_plotter = R5560EventsPlotter(self.events_container, self.parameters,self.config, axis_set,unit_ids)
   
 
     def plot_always(self):
@@ -449,17 +452,17 @@ class BeamMonitorPipeline:
     def build_plotter(self) -> None:
         from lib.histograms import BaseAxisSet
         self.axis_set = BaseAxisSet(self.parameters, self.config)
-        from lib.plotting_events import MonitorEventsPlotter
-        self.event_plotter = MonitorEventsPlotter(self.events_container, self.parameters, self.config, self.axis_set, [])
+        if self.events_container is not None:
+            from lib.plotting_events import MonitorEventsPlotter
+            self.event_plotter = MonitorEventsPlotter(self.events_container, self.parameters, self.config, self.axis_set, [])
 
     def plot(self) -> None:
         self.build_plotter()
-
-        mon = self.parameters.MONitor
-        if getattr(mon, 'plotMONtofPHS', False):
-            self.event_plotter.plot_tof_phs_mon()
-            if self.parameters.wavelength.plotLambdaDistr:
-                self.event_plotter.plot_lambda_mon()
+        if self.event_plotter is not None:
+            if self.parameters.MONitor.plotMONtofPHS:
+                self.event_plotter.plot_tof_phs_mon()
+                if self.parameters.wavelength.plotLambdaDistr:
+                    self.event_plotter.plot_lambda_mon()
                 
     def check_empty(self):
         if self.readouts_container.fill_count == 0:
@@ -536,7 +539,7 @@ def build_detector_pipeline(config: dict, readout_source, parameters) -> BasePip
     look at op_mode at all.
     """
     detector_type = config.get('detectorType')
-    op_mode = config.get('opMode', 'normal')
+    op_mode = config.get('operationMode', 'normal')
     
     if detector_type == 'MB' and op_mode == 'normal':
         pipeline_cls, readouts_container = MBPipeline, readout_source.readouts_vmm_normal

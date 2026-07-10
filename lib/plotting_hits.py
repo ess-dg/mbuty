@@ -66,7 +66,7 @@ class VMMNormalHitsPlotter(BaseHitsPlotter):
             return
         
         plotht = PlotGrid(fig_num, 1, len(self.unit_ids))
-        plotht.fig.suptitle('Hits - W and S time stamps')
+        plotht.fig.suptitle('Hits - W and S/G time stamps')
         m = self.matrix
 
         for k, uid in enumerate(self.unit_ids):
@@ -102,7 +102,7 @@ class VMMNormalHitsPlotter(BaseHitsPlotter):
         if self.is_empty:
             return
         plothtvs = PlotGrid(fig_num, 1, len(self.unit_ids))
-        plothtvs.fig.suptitle('Hits - W and S VS time stamps')
+        plothtvs.fig.suptitle('Hits - W and S/G VS time stamps')
         m = self.matrix
 
         for k, uid in enumerate(self.unit_ids):
@@ -122,7 +122,7 @@ class VMMNormalHitsPlotter(BaseHitsPlotter):
                 plothtvs.ax[0][k].scatter(StripCh, ts_strip, 0.8, color='b', marker='+')
 
             plothtvs.ax[0][k].set_ylabel('time (ns)')
-            plothtvs.ax[0][k].set_xlabel('W or S channel (after mapping)')
+            plothtvs.ax[0][k].set_xlabel('W or S/G channel (after mapping)')
             plothtvs.ax[0][k].set_title(f'ID {uid}')
             plothtvs.ax[0][k].grid(axis='both', alpha=0.75)
 
@@ -341,7 +341,7 @@ class R5560HitsPlotter(BaseHitsPlotter):
         for k, uid in enumerate(self.unit_ids):
             sel = self.select_unit(uid)
 
-            PHScorr, _ = self.hist.hist2d(ax_e.centers, m['ampA'][sel], ax_e.centers, m['ampB'][sel])
+            PHScorr, _, _ = self.hist.hist2d(ax_e.centers, m['ampA'][sel], ax_e.centers, m['ampB'][sel])
 
             plotPHScorr.ax[0][k].imshow(PHScorr, aspect='auto', norm=None, interpolation='none',
                                          extent=[ax_e.start, ax_e.stop, ax_e.start, ax_e.stop], origin='lower', cmap='jet')

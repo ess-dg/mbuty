@@ -463,7 +463,10 @@ class eventsBM(events):
         super().__init__(size, subclass_fields)
         
     def print_stats(self) -> None:
-        print(f'{OK}\t MON events: {self.fill_count}{RESET}')
+        if self.fill_count == 0:
+            print(f'{OK}\t No monitor events found{RESET}')
+        else:
+            print(f'{OK}\t MON events: {self.fill_count}{RESET}') 
 
 
 
@@ -509,9 +512,11 @@ class eventsIBM(events):
         self.fill_count: int = 0
         self.durations = np.zeros(0, dtype='int64')
  
-        
     def print_stats(self) -> None:
-        print(f'{OK}\t MON events: {self.fill_count}{RESET}')        
+        if self.fill_count == 0:
+            print(f'{OK}\t NO monitor events found{RESET}')
+        else:
+            print(f'{OK}\t MON events: {self.fill_count}{RESET}')     
 
 ###############################################################################
 class eventsSKADI(events):

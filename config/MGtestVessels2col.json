@@ -22,7 +22,7 @@
         }
     ],
     "wires": 120,
-    "grids": 12,
+    "grids": 88,
     "wirePitchX_mm": 22,
     "wirePitchZ_mm": 10,
     "gridPitchY_mm": 25,

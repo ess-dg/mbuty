@@ -182,8 +182,8 @@ class MBReadoutsPlotter(BaseReadoutsPlotter):
 
             if self.is_clustered:
                 # readoutsVMMclustered has adc0/channel0, not bare 'adc'/'channel' fields.
-                histoch0, _ = self.hist.hist2d(ax_e.centers, m['adc0'][sel], self.xbins, m['channel0'][sel])
-                histoch1, _ = self.hist.hist2d(ax_e.centers, m['adc1'][sel], self.xbins, m['channel1'][sel])
+                histoch0, _, _ = self.hist.hist2d(ax_e.centers, m['adc0'][sel], self.xbins, m['channel0'][sel])
+                histoch1, _, _ = self.hist.hist2d(ax_e.centers, m['adc1'][sel], self.xbins, m['channel1'][sel])
             else:
                 asic0 = m['asic'] == 0
                 asic1 = m['asic'] == 1
@@ -345,10 +345,10 @@ class MGReadoutsPlotter(BaseReadoutsPlotter):
 
             asic0 = m['asic'] == 0
             asic1 = m['asic'] == 1
-            histoch0, _ = self.hist.hist2d(ax_e.centers, m['adc'][selW & asic0], self.xbins, m['channel'][selW & asic0])
-            histoch1, _ = self.hist.hist2d(ax_e.centers, m['adc'][selW & asic1], self.xbins, m['channel'][selW & asic1])
-            histoch2, _ = self.hist.hist2d(ax_e.centers, m['adc'][selG & asic0], self.xbins, m['channel'][selG & asic0])
-            histoch3, _ = self.hist.hist2d(ax_e.centers, m['adc'][selG & asic1], self.xbins, m['channel'][selG & asic1])
+            histoch0, _, _ = self.hist.hist2d(ax_e.centers, m['adc'][selW & asic0], self.xbins, m['channel'][selW & asic0])
+            histoch1, _, _ = self.hist.hist2d(ax_e.centers, m['adc'][selW & asic1], self.xbins, m['channel'][selW & asic1])
+            histoch2, _, _ = self.hist.hist2d(ax_e.centers, m['adc'][selG & asic0], self.xbins, m['channel'][selG & asic0])
+            histoch3, _, _ = self.hist.hist2d(ax_e.centers, m['adc'][selG & asic1], self.xbins, m['channel'][selG & asic1])
 
             plothtch.ax[0][k].imshow(histoch0, aspect='auto', norm=norm_colors, interpolation='none',
                                       extent=[ax_e.start, ax_e.stop, self.xbins[0], self.xbins[-1]], origin='lower', cmap='jet')
