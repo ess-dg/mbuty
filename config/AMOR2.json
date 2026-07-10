@@ -2,7 +2,7 @@
     "detectorName": "AMOR2",
     "detectorType": "MB",
     "instrumentName": "AMOR",
-    "units": 14,
+    "units": 2,
     "orientation": "horizontal",
     "operationMode": "normal",
     "topology": [

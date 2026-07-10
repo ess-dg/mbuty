@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 from lib.reader import PcapngFileReader
 from lib.colors import INFO, OK, WARN, ERR, RESET
 import lib.checks_and_helpers as checks
-
+from lib.config_validator import validate_config
 # Ingest object-oriented pipeline tracks and their factory dispatchers
 from lib.pipelines import build_detector_pipeline, build_bm_pipeline
 
@@ -63,6 +63,8 @@ class MBUTYOrchestrator():
         with open(config_path, 'r') as f:
             self.config = json.load(f)
 
+        validate_config(self.config)
+        
         self.detector_pipeline = None
         self.bm_pipeline       = None
         
@@ -142,7 +144,6 @@ class MBUTYOrchestrator():
         self.parameters.validateWavelengthDependencies()
         self.detector_pipeline = build_detector_pipeline(self.config, reader, self.parameters)
         if self.detector_pipeline:
-            print(f'{OK}Executing verified pipeline reduction track for: {self.config.get("detectorType")}{RESET}')
             self.detector_pipeline.analyze()
             self.detector_pipeline.plot()
 
@@ -157,8 +158,8 @@ class MBUTYOrchestrator():
         plt.draw() 
         plt.pause(0.1)
         plt.show(block=False)
-        # input(f"{INFO}\nPress Enter to close all figures...{RESET}")
-        # plt.close('all')
+        input(f"{INFO}\nPress Enter to close all figures...{RESET}")
+        plt.close('all')
         
         self.readouts_container = self.detector_pipeline.readouts_container
         self.hits_container     = self.detector_pipeline.hits_container
