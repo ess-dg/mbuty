@@ -312,8 +312,8 @@ class MBClusteredPipeline(BasePipeline):
     def build_plotters(self, unit_ids) -> None:
         from lib.histograms import MBAxisSet
         axis_set = MBAxisSet(self.parameters, self.config)
-        topology = self.config.get('topology', [])
-        num_wires = int(self.config['wires'])
+        # topology = self.config.get('topology', [])
+        # num_wires = int(self.config['wires'])
 
         from lib.plotting_readouts import MBReadoutsPlotter
         from lib.plotting_hits import MBClusteredHitsPlotter
@@ -338,7 +338,7 @@ class MGPipeline(BasePipeline):
         self.hits_container = MGMapper.map(self.readouts_container, self.config)
         # Clustering
         from lib.clustering_engine import VMMNormalClusterer
-        time_window = getattr(self.parameters.dataReduction, 'timeWindow', 3e-6)
+        time_window = getattr(self.parameters.dataReduction, 'timeWindow', 0.2e-6)
         self.events_container = VMMNormalClusterer.cluster(self.hits_container, self.config, time_window)
         # Calculate abs units
         from lib.abs_units_engine import MBAbsUnitsCalculator
@@ -350,7 +350,7 @@ class MGPipeline(BasePipeline):
     def build_plotters(self,unit_ids) -> None:
         from lib.histograms import MGAxisSet
         axis_set = MGAxisSet(self.parameters)
-        topology = self.config.get('topology', [])
+        # topology = self.config.get('topology', [])
 
         from lib.plotting_readouts import MGReadoutsPlotter
         from lib.plotting_hits import MGHitsPlotter
@@ -371,8 +371,9 @@ class R5560Pipeline(BasePipeline):
         print(f"{INFO}Mapping He3 detector (units mapped according to IDs){RESET}")
         self.hits_container = He3Mapper.map(self.readouts_container, self.config)
         # Clustering
-        from lib.clustering_engine import He3Clusterer
-        self.events_container = He3Clusterer.cluster(self.hits_container, self.config)
+        from lib.clustering_engine import R5560Clusterer
+        time_window = getattr(self.parameters.dataReduction, 'timeWindow', 3e-6)
+        self.events_container = R5560Clusterer.cluster(self.hits_container, self.config, time_window)
         # absolute units 
         from lib.abs_units_engine import R5560AbsUnitsCalculator
         R5560AbsUnitsCalculator(self.events_container, self.config, self.parameters).process_pipeline(remove_invalid_tofs=self.parameters.plotting.removeInvalidToFs)
@@ -381,8 +382,12 @@ class R5560Pipeline(BasePipeline):
         TubeThresholdEngine(self.events_container, self.config, self.parameters).process_pipeline()
 
     def build_plotters(self,unit_ids) -> None:
-        axis_set = getattr(self.parameters, 'axis_set', None)
-        topology = self.config.get('topology', [])
+        
+        from lib.histograms import R5560AxisSet
+        # axis_set = getattr(self.parameters, 'axis_set', None)
+        # topology = self.config.get('topology', [])
+        
+        axis_set = R5560AxisSet(self.parameters, self.config)
 
         from lib.plotting_readouts import R5560ReadoutsPlotter
         from lib.plotting_hits import R5560HitsPlotter

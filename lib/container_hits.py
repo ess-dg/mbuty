@@ -155,14 +155,13 @@ class hits():
         if removed > 0:
             self.matrix    = self.matrix[:self.fill_count][valid_mask].copy()
             self.fill_count = len(self.matrix)
-            print(f'\t --> removing {removed} unmapped rows from hits ...')
+            print(f'\t --> removing {removed} unmapped rows from hits, remaining hit rows {self.fill_count}')
         else:
             self.matrix    = self.matrix[:self.fill_count].copy()
             self.fill_count = len(self.matrix)
             print('\t --> no unmapped data in hits ...')
             
-   
-          
+
 
     # ------------------------------------------------------------------
     # Debug / inspection

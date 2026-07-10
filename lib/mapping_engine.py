@@ -95,12 +95,16 @@ def _report_unmapped_units(
     missing   = np.setdiff1d(config_ids, found_ids)
     if len(missing) > 0:
         id_list_missing = ' '.join(str(x) for x in missing)
-        id_list_found   = ' '.join(str(x) for x in found_ids)
-        print(
-            f'\t {WARN}WARNING: {unit_label} IDs: {id_list_missing} '
-            f'not found in data file. Mapping skipped for those.'
-            f'\n\t These readouts only contains IDs: {id_list_found}{RESET}'
-        )
+        msg = f'\t {WARN}WARNING: {unit_label} IDs: {id_list_missing} not found in data file. Mapping skipped for those.'
+        
+        # Only append the second line if we actually found some valid IDs
+        if len(found_ids) > 0:
+            id_list_found = ' '.join(str(x) for x in found_ids)
+            msg += f'\n\t These readouts only contains IDs: {id_list_found}'
+        else:
+            msg += f'\n\t These {len(assigned_ids)} readouts do not match any ID in config.'
+             
+        print(f'{msg}{RESET}')
 
 
 # =============================================================================
@@ -742,7 +746,7 @@ class He3Mapper(DetectorMapper):
         assigned_ids, _, valid_mask = DetectorMapper._assign_ids_vectorized(
             src, topo, src_third_field='tube'
         )
-   
+
         # # No Stage 2 or 3 for He3 — index IS the tube number
         # index = np.where(valid_mask, src['tube'].astype('int64'), np.int64(-1))
 

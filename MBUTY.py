@@ -260,7 +260,7 @@ if __name__ == '__main__':
     ###############################################################################
     ### read json and create parameters for plotting and analisys ###
 
-    configFileName  = "AMOR.json"
+    configFileName  = "AMOR2.json"
     
     # configFileName  = "MGtestVessels.json"
     
@@ -271,7 +271,7 @@ if __name__ == '__main__':
     # configFileName  = "ESTIA.json"
     
     # configFileName  = "MIRACLES24.json"
-    # configFileName  = "CSPEC.json"
+    configFileName  = "CSPEC.json"
     # configFileName  = "MIRACLES2.json"
 
     # configFileName  = "ESTIA_sect0.json"
@@ -350,7 +350,7 @@ if __name__ == '__main__':
    
     ### folder and file to open (file can be a list of files)
 
-    parameters.fileManagement.fileName = ['ESSmask2023_30pkts.pcapng','MGtestVess.pcapng']
+    parameters.fileManagement.fileName = ['ESSmask2023_30pkts.pcapng', 'CSPEC1.pcapng']
     
     # parameters.fileManagement.fileName = ['ESSmask2023_1000pkts.pcapng','ESSmask2023_1000pkts_2.pcapng']
     # parameters.fileManagement.fileName = ['miracles_trig2.pcapng']
@@ -478,10 +478,10 @@ if __name__ == '__main__':
     #################################
 
     ### ON/OFF
-    parameters.MONitor.MONOnOff    = False   
+    parameters.MONitor.MONOnOff    = True   
 
     ### threshold on MON, th is OFF if 0, any other value is ON
-    parameters.MONitor.MONThreshold =0 
+    parameters.MONitor.MONThreshold = 0 
 
     ### ON/OFF plotting (MON ToF and Pulse Height) 
     parameters.MONitor.plotMONtofPHS = True  
@@ -516,23 +516,23 @@ if __name__ == '__main__':
     ###############     
     ### raw plots
     parameters.plotting.plotRawReadouts         = True
-    parameters.plotting.plotReadoutsTimeStamps  = False
-    parameters.plotting.plotADCvsCh             = False 
-    parameters.plotting.plotADCvsChlog          = False 
-    parameters.plotting.plotChopperResets       = False 
+    parameters.plotting.plotReadoutsTimeStamps  = True
+    parameters.plotting.plotADCvsCh             = True 
+    parameters.plotting.plotADCvsChlog          = True 
+    parameters.plotting.plotChopperResets       = True 
 
-    parameters.plotting.plotRawHits             = False
-    parameters.plotting.plotHitsTimeStamps      = False
-    parameters.plotting.plotHitsTimeStampsVSChannels = False
+    parameters.plotting.plotRawHits             = True
+    parameters.plotting.plotHitsTimeStamps      = True
+    parameters.plotting.plotHitsTimeStampsVSChannels = True
 
     ###############
     ### Instantaneous Rate
-    parameters.plotting.plotInstRate    = False
-    parameters.plotting.instRateBin     = 100e-6  # s
-     
+    parameters.plotting.plotTimeBetwEv    = True
+    parameters.plotting.timeBetwEvBin     = 1e-6  # s
+    
     ###############
     ### ToF plot integrated over individual cassette, one per cassette
-    parameters.plotting.plotToFDistr    = False
+    parameters.plotting.plotToFDistr    = True
 
     parameters.plotting.ToFrange        = 0.12    # s
     parameters.plotting.ToFbinning      = 100e-6 # s
@@ -540,7 +540,7 @@ if __name__ == '__main__':
     parameters.plotting.ToFGate         = False
     parameters.plotting.ToFGateRange    = [0.02,0.025]   # s
          
-    parameters.plotting.plotMultiplicity = False 
+    parameters.plotting.plotMultiplicity = True 
 
     ### 'W.max-S.max' is max max,  'W.cog-S.cog' is CoG CoG, 'W.max-S.cog' is wires max and strips CoG 
     parameters.plotting.positionReconstruction = 'W.max-S.cog'
@@ -576,7 +576,7 @@ if __name__ == '__main__':
     parameters.pulseHeigthSpect.maxEnerg   = 1700
 
     ### plot the PHS correaltion wires vs strips
-    parameters.pulseHeigthSpect.plotPHScorrelation = False
+    parameters.pulseHeigthSpect.plotPHScorrelation = True
 
     ###############################################################################
     ###############################################################################

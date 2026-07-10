@@ -580,7 +580,7 @@ class R5560AxisSet(BaseAxisSet):
         bins         = int(self.config.get('positionBins', 256))
         tube_length  = self.config.get('tubeLength', 256)
         tube_spacing = self.config.get('tubeSpacing', 10)
-        topo       =  self.config.get('topology', [])
+        topo         =  self.config.get('topology', [])
         
         self.ax_mult = Axis(0, 9, 10)  # Multiplicity 0-9
 

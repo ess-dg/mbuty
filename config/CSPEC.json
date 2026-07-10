@@ -7,25 +7,25 @@
     "topology": [
         {
             "ID": 0,
-            "ring": 0,
+            "ring": 1,
             "fen": 0,
             "tube": 0
         },
         {
             "ID": 1,
-            "ring": 0,
+            "ring": 1,
             "fen": 0,
             "tube": 1
         },
         {
             "ID": 2,
-            "ring": 0,
+            "ring": 1,
             "fen": 0,
             "tube": 2
         },
         {
             "ID": 3,
-            "ring": 0,
+            "ring": 1,
             "fen": 0,
             "tube": 3
         }

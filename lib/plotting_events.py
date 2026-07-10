@@ -749,14 +749,18 @@ class R5560EventsPlotter(BaseEventsPlotter):
 
         norm_colors = log_scale_norm(log_scale)
         m = self.matrix
-        ax_tof, ax_strips = self.axis_set.ax_tof, self.axis_set.ax_strips
+        ax_tof = self.axis_set.ax_tof
 
         if not abs_units:
-            ax_wires, wire_values, pos_label = self.axis_set.ax_wires, m['coordinate0'], 'Position (a.u.)'
+            ax_length, pos0_values, pos0_label = self.axis_set.ax_length, m['coordinate0'], 'Along tube position (a.u.)'
+            ax_tubes, pos1_values, pos1_label = self.axis_set.ax_tubes, m['coordinate1'], 'Tube ID (a.u.)'
+            
         else:
-            ax_wires, wire_values, pos_label = self.axis_set.ax_wires_mm, m['absCoordinate0'], 'Position (mm)'
+            ax_length, pos0_values, pos0_label = self.axis_set.ax_length_mm, m['absCoordinate0'], 'Along tube position (mm)'
+            ax_tubes, pos1_values, pos1_label = self.axis_set.ax_tubes_mm, m['absCoordinate1'], 'Tube Position (mm)'
+           
 
-        h2d, _, _ = self.hist.hist_xyz(ax_wires.centers, wire_values, ax_strips.centers, m['coordinate1'], ax_tof.centers, m['ToF'] / 1e9)
+        h2d, _, _ = self.hist.hist_xyz(ax_tubes.centers, pos1_values, ax_length.centers, pos0_values, ax_tof.centers, m['ToF'] / 1e9)
 
         if isinstance(fig_num, matplotlib.figure.Figure):
             grid_fig = fig_num
@@ -765,21 +769,21 @@ class R5560EventsPlotter(BaseEventsPlotter):
             grid_fig, ax1 = plt.subplots(num=fig_num, figsize=(6, 6), nrows=1, ncols=1)
 
         if orientation == 'vertical':
-            pos1 = ax1.imshow(np.rot90(h2d, 1), aspect='auto', norm=norm_colors, interpolation='none',
-                               extent=[ax_strips.start - 0.5, ax_strips.stop + 0.5, ax_wires.stop, ax_wires.start], origin='upper', cmap='viridis')
-            ax1.set_xticks(ax_strips.centers)
-            ax1.set_xticklabels(ax_strips.centers.astype(int))
-            _safe_colorbar(grid_fig, pos1, ax1, 'XY', orientation='vertical', fraction=0.07, anchor=(1.0, 0.0))
-            ax1.set_ylabel(pos_label)
-            ax1.set_xlabel('Tube ID')
-        else:  # 'horizontal'
             pos1 = ax1.imshow(h2d, aspect='auto', norm=norm_colors, interpolation='none',
-                               extent=[ax_wires.start, ax_wires.stop, ax_strips.stop + 0.5, ax_strips.start - 0.5], origin='upper', cmap='viridis')
-            ax1.set_yticks(ax_strips.centers)
-            ax1.set_yticklabels(ax_strips.centers.astype(int))
+                               extent=[ax_tubes.start - 0.5, ax_tubes.stop + 0.5, ax_length.stop, ax_length.start], origin='upper', cmap='viridis')
+            ax1.set_xticks(ax_tubes.centers)
+            ax1.set_xticklabels(ax_tubes.centers.astype(int))
             _safe_colorbar(grid_fig, pos1, ax1, 'XY', orientation='vertical', fraction=0.07, anchor=(1.0, 0.0))
-            ax1.set_xlabel(pos_label)
-            ax1.set_ylabel('Tube ID')
+            ax1.set_xlabel(pos1_label)
+            ax1.set_ylabel(pos0_label)
+        else:  # 'horizontal'
+            pos1 = ax1.imshow(np.rot90(h2d, 1), aspect='auto', norm=norm_colors, interpolation='none',
+                               extent=[ax_length.start, ax_length.stop, ax_tubes.stop + 0.5, ax_tubes.start - 0.5], origin='upper', cmap='viridis')
+            ax1.set_yticks(ax_tubes.centers)
+            ax1.set_yticklabels(ax_tubes.centers.astype(int))
+            _safe_colorbar(grid_fig, pos1, ax1, 'XY', orientation='vertical', fraction=0.07, anchor=(1.0, 0.0))
+            ax1.set_xlabel(pos0_label)
+            ax1.set_ylabel(pos1_label)
             
         grid_fig.suptitle('DET image')
 
@@ -821,9 +825,9 @@ class R5560EventsPlotter(BaseEventsPlotter):
         norm_colors = log_scale_norm(log_scale)
         
         m = self.matrix
-        ax_tof, ax_strips = self.axis_set.ax_tof, self.axis_set.ax_strips
+        ax_tof, ax_tubes, ax_length = self.axis_set.ax_tof, self.axis_set.ax_tubes, self.axis_set.ax_length
 
-        _, _, h_tof = self.hist.hist_xyz(ax_strips.centers, m['coordinate1'], ax_strips.centers, m['coordinate1'], ax_tof.centers, m['ToF'] / 1e9)
+        _, _, h_tof = self.hist.hist_xyz(ax_tubes.centers, m['coordinate1'], ax_length.centers, m['coordinate0'], ax_tof.centers, m['ToF'] / 1e9)
 
         if isinstance(fig_num, matplotlib.figure.Figure):
             fig_tof = fig_num
@@ -832,9 +836,9 @@ class R5560EventsPlotter(BaseEventsPlotter):
             fig_tof, ax2 = plt.subplots(num=fig_num, figsize=(6, 6), nrows=1, ncols=1)
 
         ax2.imshow(h_tof, aspect='auto', norm=norm_colors, interpolation='nearest',
-                   extent=[ax_tof.start * 1e3, ax_tof.stop * 1e3, ax_strips.start - 0.5, ax_strips.stop + 0.5], origin='lower', cmap='viridis')
-        ax2.set_yticks(ax_strips.centers)
-        ax2.set_yticklabels(ax_strips.centers.astype(int))
+                   extent=[ax_tof.start * 1e3, ax_tof.stop * 1e3, ax_tubes.start - 0.5, ax_tubes.stop + 0.5], origin='lower', cmap='viridis')
+        ax2.set_yticks(ax_tubes.centers)
+        ax2.set_yticklabels(ax_tubes.centers.astype(int))
         ax2.set_ylabel('Tube ID')
         ax2.set_xlabel('ToF (ms)')
         
