@@ -144,11 +144,13 @@ class MBUTYOrchestrator():
         if self.detector_pipeline:
             print(f'{OK}Executing verified pipeline reduction track for: {self.config.get("detectorType")}{RESET}')
             self.detector_pipeline.analyze()
+            self.detector_pipeline.plot()
 
         # 3. Conditionally Dispatch Beam Monitor Tracking Stream
         self.bm_pipeline = build_bm_pipeline(self.config, reader, self.parameters)
         if self.bm_pipeline and self.parameters.MONitor.MONOnOff:
-            self.bm_pipeline.execute()
+            self.bm_pipeline.analyze()
+            self.bm_pipeline.plot()
         
         
 

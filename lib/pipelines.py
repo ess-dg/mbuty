@@ -116,7 +116,7 @@ class BasePipeline:
         here -- construction only, no plotting decisions."""
         raise NotImplementedError
 
-    def plot(self, unit_ids=None) -> None:
+    def make_plots(self, unit_ids=None) -> None:
         """The one and only place plotting parameters get read. A call to a
         given detector's plotter that isn't implemented just falls through
         to that plotter's inherited stub (prints a "not supported" notice,
@@ -191,7 +191,7 @@ class BasePipeline:
         previous section's figures first. Shared by execute()'s CLI loop
         and, later, a GUI's per-click handler."""
         plt.close('all')
-        self.plot(unit_ids=unit_ids)
+        self.make_plots(unit_ids=unit_ids)
         plt.show(block=False)
         
     def check_empty(self):
@@ -200,8 +200,8 @@ class BasePipeline:
             return
 
 # execute is not used anymore 
-    def execute(self, run_from_gui: bool = False) -> None:
-        """Runs analyze() then either a single plot() pass or, when
+    def plot(self, run_from_gui: bool = False) -> None:
+        """Runs either a single make_plots() pass or, when
         parameters.plotting.plottingInSections is set, a per-block
         sectioned pass -- mirrors legacy's plottingInSections behaviour,
         including 'q' to quit early in CLI mode.
@@ -213,15 +213,11 @@ class BasePipeline:
         rather than calling this with run_from_gui=True; the flag is a
         stopgap for the interim.
         """
-        self.check_empty()
-
-        self.analyze()
-
         topology = self.config.get('topology', [])
         unit_ids = [entry['ID'] for entry in topology]
 
         if not self.parameters.plotting.plottingInSections:
-            self.plot(unit_ids)
+            self.make_plots(unit_ids)
             return
         
         blocks = _chunk(unit_ids, self.parameters.plotting.plottingInSectionsBlocks)
@@ -245,7 +241,6 @@ class BasePipeline:
 
 class MBPipeline(BasePipeline):
     """Multi-Blade hardware, normal mode."""
-
     def analyze(self) -> None:
         self.check_empty()
         if getattr(self.parameters.dataReduction, 'calibrateVMM_ADC_ONOFF', False):
@@ -462,10 +457,10 @@ class BeamMonitorPipeline:
             print(f"{WARN}{type(self).__name__}: readouts container is empty — skipping pipeline pass.{RESET}")
             return
 # not used anymore
-    def execute(self) -> None:
-        self.check_empty()
-        self.analyze()
-        self.plot()
+    # def execute(self) -> None:
+    #     self.check_empty()
+    #     self.analyze()
+    #     self.plot()
 
 
 class GenericBMPipeline(BeamMonitorPipeline):
