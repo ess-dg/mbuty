@@ -193,7 +193,13 @@ class BasePipeline:
         plt.close('all')
         self.plot(unit_ids=unit_ids)
         plt.show(block=False)
+        
+    def check_empty(self):
+        if self.readouts_container.fill_count == 0:
+            print(f"{WARN}{type(self).__name__}: readouts container is empty — skipping pipeline pass.{RESET}")
+            return
 
+# execute is not used anymore 
     def execute(self, run_from_gui: bool = False) -> None:
         """Runs analyze() then either a single plot() pass or, when
         parameters.plotting.plottingInSections is set, a per-block
@@ -207,9 +213,7 @@ class BasePipeline:
         rather than calling this with run_from_gui=True; the flag is a
         stopgap for the interim.
         """
-        if self.readouts_container.fill_count == 0:
-            print(f"{WARN}{type(self).__name__}: readouts container is empty — skipping pipeline pass.{RESET}")
-            return
+        self.check_empty()
 
         self.analyze()
 
@@ -243,6 +247,7 @@ class MBPipeline(BasePipeline):
     """Multi-Blade hardware, normal mode."""
 
     def analyze(self) -> None:
+        self.check_empty()
         if getattr(self.parameters.dataReduction, 'calibrateVMM_ADC_ONOFF', False):
             # Calibrate readouts 
             self.readouts_container.calibrate(self.parameters, self.config)
@@ -288,6 +293,7 @@ class MBClusteredPipeline(BasePipeline):
     """
 
     def analyze(self) -> None:
+        self.check_empty()
         # No calibration for clustered pipeline go straight into 
         # Mapping
         from lib.mapping_engine import MBClustMapper
@@ -322,6 +328,7 @@ class MGPipeline(BasePipeline):
     """Multi-Grid hardware, normal mode."""
 
     def analyze(self) -> None:
+        self.check_empty()
         if getattr(self.parameters.dataReduction, 'calibrateVMM_ADC_ONOFF', False):
             # Calibrate readouts 
             self.readouts_container.calibrate(self.parameters, self.config)
@@ -358,6 +365,7 @@ class R5560Pipeline(BasePipeline):
     """CAEN R5560 Helium-3 gas tube detectors."""
 
     def analyze(self) -> None:
+        self.check_empty()
         # Mapping
         from lib.mapping_engine import He3Mapper
         print(f"{INFO}Mapping He3 detector (units mapped according to IDs){RESET}")
@@ -448,11 +456,14 @@ class BeamMonitorPipeline:
             self.event_plotter.plot_tof_phs_mon()
             if self.parameters.wavelength.plotLambdaDistr:
                 self.event_plotter.plot_lambda_mon()
-
-    def execute(self) -> None:
+                
+    def check_empty(self):
         if self.readouts_container.fill_count == 0:
             print(f"{WARN}{type(self).__name__}: readouts container is empty — skipping pipeline pass.{RESET}")
             return
+# not used anymore
+    def execute(self) -> None:
+        self.check_empty()
         self.analyze()
         self.plot()
 
@@ -464,6 +475,7 @@ class GenericBMPipeline(BeamMonitorPipeline):
     (monitor-specific: fixed distance, no depth correction) before plotting."""
 
     def analyze(self) -> None:
+        self.check_empty()
         # Map directly into events
         from lib.mapping_engine import BMMapper
         self.events_container = BMMapper.map(self.readouts_container, self.config)
@@ -485,6 +497,7 @@ class IBMPipeline(BeamMonitorPipeline):
     monitor-wavelength pass runs before plotting."""
 
     def analyze(self) -> None:
+        self.check_empty()
         # Map directly into events
         from lib.mapping_engine import IBMMonitorMapper
         self.events_container = IBMMonitorMapper.map(self.readouts_container, self.config)
