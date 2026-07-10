@@ -277,15 +277,18 @@ class parameters():
         
         self.timeSettings   = timeSettings()
         
-    # def validate(self):
-    #     """
-    #     Validates and normalizes parameter combinations, forcing dependent
-    #     flags and printing info about any overrides before the pipeline runs.
-    #     """
-    #     self._validateWavelengthDependencies()
-    #     self._validateHistNotification()
-    #     self._set_acqMode()
-    #     # future checks go here
+    def validate(self):
+        """
+        Validates and normalizes parameter combinations, forcing dependent
+        flags and printing info about any overrides before the pipeline runs.
+        """
+        # self._validateWavelengthDependencies()
+        # self._validateHistNotification()
+        # self._set_acqMode()
+        
+        self.fileManagement.parseFileSerialsList()
+        
+        # future checks go here
 
     def validateWavelengthDependencies(self):
         if self.fileManagement.saveReducedFileONOFF and not self.wavelength.calculateLambda:

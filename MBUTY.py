@@ -52,6 +52,7 @@ class MBUTYOrchestrator():
         ### check version ###
         checks.checkPythonVersion()
         
+        self.parameters.validate()
         self.parameters.set_acqMode()
         
         config_path = os.path.join(
@@ -340,11 +341,11 @@ if __name__ == '__main__':
     # parameters.fileManagement.fileName = ['MG_2EMMAprototypes.pcapng']
     # parameters.fileManagement.fileName = ['miracles_source_mask_red.pcapng']
     # parameters.fileManagement.fileName = ['CSPEC1.pcapng']
-    # parameters.fileManagement.fileName = ['20260122_113536_duration_s_600_FREIAsector1_00004.pcapng']
+    parameters.fileManagement.fileName = ['20260602_103110_duration_s_300_muons_00000.pcapng']
     
     parameters.fileManagement.fileSerials = [6,2,4,9]
     # OR
-    # parameters.fileManagement.fileSerials = ["0-2","11-13",45]
+    parameters.fileManagement.fileSerials = ["0-2","11-13",45]
 
     ### valid otions: 'window','fileName', 'latest', 'secondLast', 'wholeFolder', 'sequence' 
     ### window opens to selcet file, filename speficified  earlier, last or sencond last file crearted in folder, 
@@ -355,7 +356,7 @@ if __name__ == '__main__':
     #parameters.fileManagement.openMode = 'latest'
     # parameters.fileManagement.openMode = 'secondLast'
     #parameters.fileManagement.openMode = 'wholeFolder'
-    # parameters.fileManagement.openMode = 'sequence'
+    parameters.fileManagement.openMode = 'sequence'
 
     ###############
     ### type of pcap file loading, prealloc of memeory with allocate or quick, allocate is more rigorous, quick estimates the memory and it is faster 

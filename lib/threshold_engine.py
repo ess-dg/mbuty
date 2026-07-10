@@ -42,10 +42,10 @@ class ThresholdTable:
     mean "no threshold defined" -> that channel is never gated.
     """
 
-    def __init__(self, table: dict, parameters, config):
+    def __init__(self, table: dict):
         self._table = table  # {(unit_id, channel_type): np.ndarray}
-        self.parameters = parameters
-        self.config     = config 
+        # self.parameters = parameters
+        # self.config     = config 
 
     def get(self, unit_id: int, channel_type: str):
         """Return the threshold array for a unit/channel_type, or None if undefined."""
@@ -71,7 +71,7 @@ class ThresholdTable:
         """
         if not os.path.exists(filepath):
             print(f"\t {WARN}WARNING: threshold file '{filepath}' not found -> software thresholds switched OFF{RESET}")
-            self.parameters.dataReduction.softThresholdType = 'off'
+            # self.parameters.dataReduction.softThresholdType = 'off'
             return cls({})
 
         print(f"\t {INFO}loading thresholds from file: {os.path.basename(filepath)} ...{RESET}")
@@ -81,7 +81,7 @@ class ThresholdTable:
         if df.shape[1] < 3:
             print(f"\t {ERR}ERROR: threshold file needs a plane column, a channel column, "
                   f"and at least one unit ID column -> software thresholds switched OFF{RESET}")
-            self.parameters.dataReduction.softThresholdType = 'off'
+            # self.parameters.dataReduction.softThresholdType = 'off'
             return cls({})
 
         plane_col, channel_col, *unit_cols = df.columns
