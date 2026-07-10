@@ -178,6 +178,10 @@ class readouts():
 
         duration_arrays  = [c.durations for c in container_list if len(c.durations) > 0]
         master.durations = np.concatenate(duration_arrays) if duration_arrays else np.zeros(0, dtype='int64')
+        master.instrumentIDs = set.union(*(c.instrumentIDs for c in container_list))
+        
+        if len(master.instrumentIDs) > 1:
+            print(f"\033[1;31mWARNING: Mixed readouts detected! Multiple Instrument IDs found: {master.instrumentIDs}\033[1;37m")
 
         master.instrumentIDs = set.union(*(c.instrumentIDs for c in container_list))
 

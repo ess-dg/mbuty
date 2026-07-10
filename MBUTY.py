@@ -20,6 +20,7 @@ import lib.checks_and_helpers as checks
 from lib.config_validator import validate_config
 # Ingest object-oriented pipeline tracks and their factory dispatchers
 from lib.pipelines import build_detector_pipeline, build_bm_pipeline
+import lib.save_reduced_file as saveH5
 
 # Ingest legacy file resolver as an isolated asset
 from lib.file_managment import fileDialogue
@@ -131,21 +132,12 @@ class MBUTYOrchestrator():
                 readout_containers = reader.run()
                 for name, container in readout_containers.items():
                     container_lists[name].append(container)
-                    # save containers, ovewrite reader in each pass
-                
-             
-            # for name, containers in container_lists.items():
-            #     if len(containers) > 1:
-            #         print(f"DEBUG BEFORE MERGE ({name}): {[c.instrumentIDs for c in containers]}")    
+                    # save containers, ovewrite reader in each pass   
             
             merged = { # merge the lists of saved containers if you had multiple files
                 name: containers[0] if len(containers) == 1 else type(containers[0]).merge(containers)
                 for name, containers in container_lists.items()
             }
-            
-            # # Print AFTER the merge but BEFORE SimpleNamespace
-            # for name, obj in merged.items():
-            #     print(f"DEBUG AFTER MERGE ({name}): {getattr(obj, 'instrumentIDs', 'No Attribute')}")
 
             reader = SimpleNamespace(**merged)
    
@@ -156,47 +148,55 @@ class MBUTYOrchestrator():
         self.detector_pipeline = build_detector_pipeline(self.config, reader, self.parameters)
         if self.detector_pipeline:
             self.detector_pipeline.analyze()
-            self.detector_pipeline.plot()
+            if not self.run_from_gui:
+                self.detector_pipeline.plot()
 
         # 3. Conditionally Dispatch Beam Monitor Tracking Stream
         self.bm_pipeline = build_bm_pipeline(self.config, reader, self.parameters)
         if self.bm_pipeline and self.parameters.MONitor.MONOnOff:
             self.bm_pipeline.analyze()
-            self.bm_pipeline.plot()
+            if not self.run_from_gui:
+                self.bm_pipeline.plot()
         
         
 
         plt.draw() 
         plt.pause(0.1)
         plt.show(block=False)
-        # input(f"{INFO}\nPress Enter to close all figures...{RESET}")
-        # plt.close('all')
+        input(f"{INFO}\nPress Enter to close all figures...{RESET}")
+        plt.close('all')
+        
+        self.timing.lap()
         
         self.readouts_container = self.detector_pipeline.readouts_container
         self.hits_container     = self.detector_pipeline.hits_container
         self.events_container   = self.detector_pipeline.events_container
+        
+        ### save reduced data to hdf5
+        if self.parameters.fileManagement.saveReducedFileONOFF is True:
 
-          # SAVE EVENTS CONTAINES BM AND DET IN HDF5 FILE 
-          
-            ### save reduced data to hdf5
-              
-            # if self.parameters.fileManagement.saveReducedFileONOFF is True: 
-                
-            #     fileNameSave = saveH5.prepareReducedFileBaseName(fileDialogue.fileName)
-                
-            #     sav = saveH5.saveReducedDataToHDF(self.parameters,self.parameters.fileManagement.saveReducedPath,fileNameSave)
-                
-            #     if (self.parameters.MONitor.MONOnOff is True) and (self.MON.flagMONfound is True):
-            #         sav.save(self.events,self.eventsMON)
-            #     else:
-            #         sav.save(self.events)
-            
-            
-            
-            # if self.run_from_gui:       
-            #     self.main_thread_queue.put(lambda: self.plotting())
+            fileNameSave = saveH5.prepareReducedFileBaseName(file_resolver.fileName)
 
+            if (self.parameters.MONitor.MONOnOff is True) and self.bm_pipeline:
+                saveH5.saveReducedDataToHDF(
+                    self.parameters,
+                    self.events_container,
+                    self.bm_pipeline.events_container,
+                    self.parameters.fileManagement.saveReducedPath,
+                    fileNameSave
+                )
+            else:
+                saveH5.saveReducedDataToHDF(
+                    self.parameters,
+                    self.events_container,
+                    saveReducedPath=self.parameters.fileManagement.saveReducedPath,
+                    fileName=fileNameSave
+                )
 
+        # if self.run_from_gui:
+        #     self.main_thread_queue.put(lambda: self.plotting())
+
+        self.timing.lap()
 
     # # Final plotting and display logic
     # plt.show(block= False)
@@ -352,7 +352,7 @@ if __name__ == '__main__':
 
     parameters.fileManagement.fileName = ['ESSmask2023_30pkts.pcapng', 'CSPEC1.pcapng']
     
-    # parameters.fileManagement.fileName = ['ESSmask2023_1000pkts.pcapng','ESSmask2023_1000pkts_2.pcapng']
+    parameters.fileManagement.fileName = ['ESSmask2023_1000pkts.pcapng','ESSmask2023_1000pkts_2.pcapng']
     # parameters.fileManagement.fileName = ['miracles_trig2.pcapng']
     # parameters.fileManagement.fileName = ['MG_2EMMAprototypes.pcapng']
     # parameters.fileManagement.fileName = ['miracles_source_mask_red.pcapng']
@@ -398,8 +398,8 @@ if __name__ == '__main__':
     ### save a hdf file with clusters (reduced file)
 
     ### ON/OFF
-    parameters.fileManagement.saveReducedFileONOFF = False   
-    parameters.fileManagement.saveReducedPath = '/Users/francescopiscitelli/Desktop/reducedFile/'
+    parameters.fileManagement.saveReducedFileONOFF = True   
+    parameters.fileManagement.saveReducedPath = parameters.fileManagement.currentPath+'reduced/'
 
     parameters.fileManagement.reducedNameMainFolder  = 'entry1'
     parameters.fileManagement.reducedCompressionHDFT  = 'gzip'  

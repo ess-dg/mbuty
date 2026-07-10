@@ -200,7 +200,6 @@ class BasePipeline:
             print(f"{WARN}{type(self).__name__}: readouts container is empty — skipping pipeline pass.{RESET}")
             return
 
-# execute is not used anymore 
     def plot(self, run_from_gui: bool = False) -> None:
         """Runs either a single make_plots() pass or, when
         parameters.plotting.plottingInSections is set, a per-block
@@ -538,8 +537,7 @@ def build_detector_pipeline(config: dict, readout_source, parameters) -> BasePip
     """
     detector_type = config.get('detectorType')
     op_mode = config.get('opMode', 'normal')
-    # print(f'{INFO}\nEvaluating hardware metrics: detector_type = "{detector_type}"...{RESET}')
-
+    
     if detector_type == 'MB' and op_mode == 'normal':
         pipeline_cls, readouts_container = MBPipeline, readout_source.readouts_vmm_normal
 
