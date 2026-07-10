@@ -8,6 +8,7 @@ High-Performance Master Ingestion Orchestrator for ESS Neutron Detectors.
 
 import os
 import sys
+import numpy as np
 import json
 from collections import defaultdict
 from types import SimpleNamespace
@@ -244,7 +245,7 @@ if __name__ == '__main__':
     ###############################################################################
     ### read json and create parameters for plotting and analisys ###
 
-    configFileName  = "AMOR.json"
+    configFileName  = "AMOR2.json"
     
     # configFileName  = "MGtestVessels.json"
     
@@ -409,19 +410,20 @@ if __name__ == '__main__':
 
     ### 'OFF', 'fromFile' = File With Threhsolds Loaded, 'userDefined' = User defines the Thresholds in an array softTh
     parameters.dataReduction.softThresholdType = 'off' 
-    parameters.dataReduction.softThresholdType = 'fromFile' 
+    # parameters.dataReduction.softThresholdType = 'fromFile' 
     # parameters.dataReduction.softThresholdType = 'userDefined' 
     # parameters.dataReduction.softThresholdType = 'constants' 
 
     if parameters.dataReduction.softThresholdType == 'userDefined':
-        
-        parameters.dataReduction.createThArrays(parameters)    
-        parameters.dataReduction.softThArray.ThW[:,:] = 700
-        parameters.dataReduction.softThArray.ThS[:,:] = 1000   
+          
+       parameters.dataReduction.softThArray = {
+                  5: {'ch0': np.full(32, 1000.0)},   # cassette 1, wire thresholds only
+                  6: {'ch0': np.full(32, 500.0), 'ch1': np.full(64, 700.0)},
+              } 
         
     elif  parameters.dataReduction.softThresholdType == 'constants':
         
-        parameters.dataReduction.softThArray = (700,600)
+        parameters.dataReduction.softThArray = (150,100)
    
         
               
@@ -459,7 +461,7 @@ if __name__ == '__main__':
     #################################
 
     ### ON/OFF
-    parameters.MONitor.MONOnOff    = True   
+    parameters.MONitor.MONOnOff    = False   
 
     ### threshold on MON, th is OFF if 0, any other value is ON
     parameters.MONitor.MONThreshold =0 
