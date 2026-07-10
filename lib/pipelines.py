@@ -129,6 +129,9 @@ class BasePipeline:
         plot_x_lambda, plot_position_per_tube) never accepted a unit_ids
         argument in the first place, so they're left unconditional here.
         """
+        
+        self.parameters.validateHistNotification()
+        
         self.build_plotters(unit_ids)
 
         p = self.parameters.plotting
@@ -246,14 +249,17 @@ class MBPipeline(BasePipeline):
 
         # Mapping
         from lib.mapping_engine import MBMapper
+        print(f"{INFO}Mapping MB detector (units mapped according to IDs){RESET}")
         self.hits_container = MBMapper.map(self.readouts_container, self.config)
         # Clustering 
         from lib.clustering_engine import VMMNormalClusterer
-        time_window = getattr(self.parameters.dataReduction, 'timeWindow', 3e-6)
+        time_window = getattr(self.parameters.dataReduction, 'timeWindow', 0.15e-6)
         self.events_container = VMMNormalClusterer.cluster(self.hits_container, self.config, time_window)
         # Calculate abs units
         from lib.abs_units_engine import MBAbsUnitsCalculator
-        MBAbsUnitsCalculator(self.events_container, self.config, self.parameters).process_pipeline(remove_invalid_tofs=True)
+
+        
+        MBAbsUnitsCalculator(self.events_container, self.config, self.parameters).process_pipeline(remove_invalid_tofs=self.parameters.plotting.removeInvalidToFs)
         # Apply soft thresholds
         from lib.threshold_engine import VMMThresholdEngine
         VMMThresholdEngine(self.events_container, self.config, self.parameters).process_pipeline()
@@ -285,13 +291,14 @@ class MBClusteredPipeline(BasePipeline):
         # No calibration for clustered pipeline go straight into 
         # Mapping
         from lib.mapping_engine import MBClustMapper
+        print(f"{INFO}Mapping MB detector clustered (units mapped according to IDs){RESET}")
         self.hits_container = MBClustMapper.map(self.readouts_container, self.config)
         # Clustering 
         from lib.clustering_engine import VMMClusteredClusterer
         self.events_container = VMMClusteredClusterer.cluster(self.hits_container, self.config)
         # Calculate abs units
         from lib.abs_units_engine import MBAbsUnitsCalculator
-        MBAbsUnitsCalculator(self.events_container, self.config, self.parameters).process_pipeline(remove_invalid_tofs=True)
+        MBAbsUnitsCalculator(self.events_container, self.config, self.parameters).process_pipeline(remove_invalid_tofs=self.parameters.plotting.removeInvalidToFs)
         # Apply soft thresholds
         from lib.threshold_engine import VMMThresholdEngine
         VMMThresholdEngine(self.events_container, self.config, self.parameters).process_pipeline()
@@ -320,6 +327,7 @@ class MGPipeline(BasePipeline):
             self.readouts_container.calibrate(self.parameters, self.config)
         # Mapping
         from lib.mapping_engine import MGMapper
+        print(f"{INFO}Mapping MG detector (units mapped according to IDs){RESET}")
         self.hits_container = MGMapper.map(self.readouts_container, self.config)
         # Clustering
         from lib.clustering_engine import VMMNormalClusterer
@@ -327,7 +335,7 @@ class MGPipeline(BasePipeline):
         self.events_container = VMMNormalClusterer.cluster(self.hits_container, self.config, time_window)
         # Calculate abs units
         from lib.abs_units_engine import MBAbsUnitsCalculator
-        MBAbsUnitsCalculator(self.events_container, self.config, self.parameters).process_pipeline(remove_invalid_tofs=True)
+        MBAbsUnitsCalculator(self.events_container, self.config, self.parameters).process_pipeline(remove_invalid_tofs=self.parameters.plotting.removeInvalidToFs)
         # Apply soft thresholds
         from lib.threshold_engine import VMMThresholdEngine
         VMMThresholdEngine(self.events_container, self.config, self.parameters).process_pipeline()
@@ -347,16 +355,19 @@ class MGPipeline(BasePipeline):
 
 
 class R5560Pipeline(BasePipeline):
-    """CAEN R5560 Helium-3 continuous gas tube detectors."""
+    """CAEN R5560 Helium-3 gas tube detectors."""
 
     def analyze(self) -> None:
         # Mapping
         from lib.mapping_engine import He3Mapper
+        print(f"{INFO}Mapping He3 detector (units mapped according to IDs){RESET}")
         self.hits_container = He3Mapper.map(self.readouts_container, self.config)
         # Clustering
         from lib.clustering_engine import He3Clusterer
         self.events_container = He3Clusterer.cluster(self.hits_container, self.config)
-        # NOTE: no absolute units for this one
+        # absolute units 
+        from lib.abs_units_engine import R5560AbsUnitsCalculator
+        R5560AbsUnitsCalculator(self.events_container, self.config, self.parameters).process_pipeline(remove_invalid_tofs=self.parameters.plotting.removeInvalidToFs)
         # Apply soft thresholds
         from lib.threshold_engine import TubeThresholdEngine
         TubeThresholdEngine(self.events_container, self.config, self.parameters).process_pipeline()
@@ -509,7 +520,7 @@ def build_detector_pipeline(config: dict, readout_source, parameters) -> BasePip
     """
     detector_type = config.get('detectorType')
     op_mode = config.get('opMode', 'normal')
-    print(f'{INFO}\nEvaluating hardware metrics: detector_type = "{detector_type}"...{RESET}')
+    # print(f'{INFO}\nEvaluating hardware metrics: detector_type = "{detector_type}"...{RESET}')
 
     if detector_type == 'MB' and op_mode == 'normal':
         pipeline_cls, readouts_container = MBPipeline, readout_source.readouts_vmm_normal

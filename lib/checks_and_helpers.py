@@ -76,10 +76,10 @@ class timing():
 
     def restart(self):
         self.start_time = time.time()
-        self.last_lap = time.time()
+        self.last_lap   = time.time()
         
     def lap(self):       
-           elapsed_time = time.time() - self.last_lap
+           elapsed_time  = time.time() - self.last_lap
            self.last_lap = time.time()
            print('\n lap time: %.2f s' % elapsed_time)
            

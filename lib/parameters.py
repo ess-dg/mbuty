@@ -277,17 +277,17 @@ class parameters():
         
         self.timeSettings   = timeSettings()
         
-    def validate(self):
-        """
-        Validates and normalizes parameter combinations, forcing dependent
-        flags and printing info about any overrides before the pipeline runs.
-        """
-        self._validateWavelengthDependencies()
-        self._validateHistNotification()
-        self._set_acqMode()
-        # future checks go here
+    # def validate(self):
+    #     """
+    #     Validates and normalizes parameter combinations, forcing dependent
+    #     flags and printing info about any overrides before the pipeline runs.
+    #     """
+    #     self._validateWavelengthDependencies()
+    #     self._validateHistNotification()
+    #     self._set_acqMode()
+    #     # future checks go here
 
-    def _validateWavelengthDependencies(self):
+    def validateWavelengthDependencies(self):
         if self.fileManagement.saveReducedFileONOFF and not self.wavelength.calculateLambda:
             self.wavelength.calculateLambda = True
             print('\nLambda calculation turned ON to save reduced DATA')
@@ -296,8 +296,8 @@ class parameters():
             self.wavelength.plotXLambda = False
             self.wavelength.plotLambdaDistr = False
 
-    def _validateHistNotification(self):
-        if self.plotting.plottingInBlocks and self.plotting.histogOutBounds:
+    def validateHistNotification(self):
+        if self.plotting.plottingInSections and self.plotting.histogOutBounds:
             print('\n\t histogram outBounds param set as True (Events out of bounds stored in first and last bin) -> overridden with False since plottingInSections is True')
             self.plotting.histogOutBounds = False
 
@@ -308,7 +308,7 @@ class parameters():
             
  
       
-    def _set_acqMode(self):
+    def set_acqMode(self):
                     
             if self.acqMode == 'pcap-sync':
                 

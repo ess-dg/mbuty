@@ -6,7 +6,7 @@ _workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
 
-from lib.colors import INFO, WARN, ERR, RESET
+from lib.colors import INFO, WARN, ERR, RESET, OK
 
 # =============================================================================
 # Software (pulse-height) threshold engine.
@@ -42,8 +42,10 @@ class ThresholdTable:
     mean "no threshold defined" -> that channel is never gated.
     """
 
-    def __init__(self, table: dict):
+    def __init__(self, table: dict, parameters, config):
         self._table = table  # {(unit_id, channel_type): np.ndarray}
+        self.parameters = parameters
+        self.config     = config 
 
     def get(self, unit_id: int, channel_type: str):
         """Return the threshold array for a unit/channel_type, or None if undefined."""
@@ -69,6 +71,7 @@ class ThresholdTable:
         """
         if not os.path.exists(filepath):
             print(f"\t {WARN}WARNING: threshold file '{filepath}' not found -> software thresholds switched OFF{RESET}")
+            self.parameters.dataReduction.softThresholdType = 'off'
             return cls({})
 
         print(f"\t {INFO}loading thresholds from file: {os.path.basename(filepath)} ...{RESET}")
@@ -78,6 +81,7 @@ class ThresholdTable:
         if df.shape[1] < 3:
             print(f"\t {ERR}ERROR: threshold file needs a plane column, a channel column, "
                   f"and at least one unit ID column -> software thresholds switched OFF{RESET}")
+            self.parameters.dataReduction.softThresholdType = 'off'
             return cls({})
 
         plane_col, channel_col, *unit_cols = df.columns
@@ -108,6 +112,7 @@ class ThresholdTable:
         if missing_units:
             print(f"\t {WARN}WARNING: threshold file has no entries for unit IDs {sorted(missing_units)} "
                   f"-> software thresholds OFF for those units{RESET}")
+            self.parameters.dataReduction.softThresholdType = 'off'
 
         return cls(table)
 
@@ -135,6 +140,7 @@ class ThresholdTable:
         unit_id. Pass None for a plane you don't want gated, e.g. (700, None)
         thresholds ch0 only, leaves ch1 ungated.
         """
+        
         ch0_value, ch1_value = values
         table = {}
         for uid in unit_ids:
@@ -198,6 +204,7 @@ class BaseThresholdEngine:
             print(f"\t {ERR}ERROR: unknown softThresholdType '{mode}' -> software thresholds switched OFF{RESET}")
             self.table = ThresholdTable.empty()
             self.parameters.dataReduction.softThresholdType = 'off'
+  
 
     def apply(self) -> None:
         """Override in subclasses: build a keep_mask and reject the rest."""
@@ -206,14 +213,18 @@ class BaseThresholdEngine:
     def process_pipeline(self) -> None:
         """Entry point: load thresholds (if enabled) then apply them."""
         if self.parameters.dataReduction.softThresholdType == 'off':
-            print(f"\t software thresholds OFF ...")
+            print(f"\n\t detector software thresholds OFF ...")
             return
 
         self.load()
+        
+        print(self.parameters.dataReduction.softThresholdType)
 
         if self.parameters.dataReduction.softThresholdType == 'off':
             # load() may itself have switched thresholds off on error
             return
+        
+        print(self.parameters.dataReduction.softThresholdType)
 
         self.apply()
 
@@ -241,7 +252,7 @@ class VMMThresholdEngine(BaseThresholdEngine):
     """
 
     def apply(self) -> None:
-        print(f"\t {INFO}applying wire/strip software thresholds ...{RESET}")
+        print(f"\t {INFO}applying software thresholds ...{RESET}")
 
         n = self.events.fill_count
         if n == 0:
@@ -331,15 +342,18 @@ def apply_monitor_threshold(events, threshold: float) -> None:
     just using the reject/remove_invalid path instead of removeData().
     """
     if threshold <= 0:
-        print(f"\t monitor threshold OFF ...")
+        print(f"\n\t beam monitor software threshold OFF ...")
         return
 
-    print(f"\t {INFO}applying monitor software threshold ...{RESET}")
+    print(f"\n\t {INFO}applying beam monitor software threshold ...{RESET}")
 
     n = events.fill_count
     if n == 0:
         return
 
-    reject_mask = events.matrix['pulseHeight0'][:n] <= threshold
+    reject_mask = events.matrix['pulseHeight0'][:n] < threshold
     events.matrix['ID'][:n][reject_mask] = -1
     events.remove_invalid()
+    
+    print(f'{OK}\t MON events (after threshold): {events.fill_count}{RESET}')
+    

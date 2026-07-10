@@ -129,7 +129,7 @@ class events():
         if removed > 0:
             self.matrix     = self.matrix[:self.fill_count][valid_mask].copy()
             self.fill_count = len(self.matrix)
-            print(f'\t --> removing {removed} rejected rows from events ...')
+            print(f'\t --> removing {removed} rejected rows from events, remaining events {self.fill_count}')
         else:
             self.matrix     = self.matrix[:self.fill_count].copy()
             self.fill_count = len(self.matrix)
@@ -185,6 +185,9 @@ class events():
                 self.matrix = self.matrix[:self.fill_count][keep].copy()
                 self.fill_count = len(self.matrix)
                 print(f"\t {WARN}\t {n_removed} events removed because of Invalid ToFs {RESET}")
+        else:
+                
+            print(f'\t {WARN}\t Invalid ToFs not removed, kept in the plots! {RESET}')
 
     def trim_tof_range(self, tof_gate_range_s: list) -> None:
         """
