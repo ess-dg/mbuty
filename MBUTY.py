@@ -141,7 +141,8 @@ class MBUTYOrchestrator():
         self.parameters.validateWavelengthDependencies()
         self.detector_pipeline = build_detector_pipeline(self.config, reader, self.parameters)
         if self.detector_pipeline:
-            self.detector_pipeline.execute(run_from_gui=self.run_from_gui)
+            print(f'{OK}Executing verified pipeline reduction track for: {self.config.get("detectorType")}{RESET}')
+            self.detector_pipeline.analyze()
 
         # 3. Conditionally Dispatch Beam Monitor Tracking Stream
         self.bm_pipeline = build_bm_pipeline(self.config, reader, self.parameters)
