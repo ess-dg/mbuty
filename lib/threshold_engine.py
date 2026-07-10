@@ -112,7 +112,7 @@ class ThresholdTable:
         if missing_units:
             print(f"\t {WARN}WARNING: threshold file has no entries for unit IDs {sorted(missing_units)} "
                   f"-> software thresholds OFF for those units{RESET}")
-            self.parameters.dataReduction.softThresholdType = 'off'
+            # self.parameters.dataReduction.softThresholdType = 'off'
 
         return cls(table)
 
@@ -217,14 +217,12 @@ class BaseThresholdEngine:
             return
 
         self.load()
-        
-        print(self.parameters.dataReduction.softThresholdType)
+
 
         if self.parameters.dataReduction.softThresholdType == 'off':
             # load() may itself have switched thresholds off on error
             return
-        
-        print(self.parameters.dataReduction.softThresholdType)
+
 
         self.apply()
 

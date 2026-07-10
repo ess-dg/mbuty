@@ -270,7 +270,7 @@ if __name__ == '__main__' :
     parameters.fileManagement.openMode = 'sequence'
     
     # parameters.fileManagement.openMode = 'fileName'
-    # parameters.fileManagement.openMode = 'window'
+    parameters.fileManagement.openMode = 'window'
     # parameters.fileManagement.openMode = 'latest'
     
     
