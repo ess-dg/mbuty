@@ -464,9 +464,9 @@ class eventsBM(events):
         
     def print_stats(self) -> None:
         if self.fill_count == 0:
-            print(f'{OK}\t No monitor events found{RESET}')
+            print(f'{OK}\t No GENERIC beam monitor events found{RESET}')
         else:
-            print(f'{OK}\t MON events: {self.fill_count}{RESET}') 
+            print(f'{OK}\t MON (GENERIC) events: {self.fill_count}{RESET}') 
 
 
 
@@ -514,9 +514,9 @@ class eventsIBM(events):
  
     def print_stats(self) -> None:
         if self.fill_count == 0:
-            print(f'{OK}\t NO monitor events found{RESET}')
+            print(f'{OK}\t NO IBM monitor events found{RESET}')
         else:
-            print(f'{OK}\t MON events: {self.fill_count}{RESET}')     
+            print(f'{OK}\t MON (IBM) events: {self.fill_count}{RESET}')     
 
 ###############################################################################
 class eventsSKADI(events):

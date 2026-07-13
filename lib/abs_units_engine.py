@@ -147,6 +147,9 @@ class MBAbsUnitsCalculator(BaseAbsUnitsCalculator):
 
         sine = np.sin(np.deg2rad(inclination))
         cosi = np.cos(np.deg2rad(inclination))
+        
+        # sine = 1 
+        # offset_1st = 110
 
         # note coordiate when not present is nan
         has_wire   = m['coordinate0'] >= 0
@@ -158,14 +161,16 @@ class MBAbsUnitsCalculator(BaseAbsUnitsCalculator):
         
         # Replace NaN with a dummy value (e.g., -1) so the int64 cast doesn't complain
         safe_coord = np.nan_to_num(m['coordinate0'], nan=-1)
-        wire_local = np.where(has_wire, np.mod(safe_coord.astype('int64'), n_wires), 0)
+        wire_local = np.where(has_wire, (np.round(np.mod(safe_coord,n_wires))), -1)
 
         # absCoordinate0: X along blade (mm)
         x_mm = np.full(len(m), np.nan, dtype='float64')
-        for k, uid in enumerate(unit_ids):
+        for uid in unit_ids:
+ 
             sel = (m['ID'] == uid) & has_wire  # Only assign if the row has a wire
+    
             x_mm[sel] = np.round(
-                wire_local[sel] * wire_pitch * sine + offset_1st * k, 2
+                wire_local[sel] * wire_pitch * sine + offset_1st * uid, 2
             )
         # Strip-only events (no wire) get a nan sentinel
         x_mm[~has_wire] = np.nan
@@ -218,7 +223,7 @@ class MGAbsUnitsCalculator(BaseAbsUnitsCalculator):
         wire_local = np.zeros(len(m), dtype='int64')
         for k, uid in enumerate(unit_ids):
             sel = (m['ID'] == uid) & has_wire
-            wire_local[sel] = m['coordinate0'][sel].astype('int64') - k * n_wires
+            wire_local[sel] = m['coordinate0'][sel].astype('int64') - uid * n_wires
 
         # Row along X and depth along Z within each row
         wire_row = np.floor_divide(wire_local, wires_per_row)

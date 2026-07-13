@@ -172,11 +172,14 @@ class MBUTYOrchestrator():
         # input(f"{INFO}\nPress Enter to close all figures...{RESET}")
         # plt.close('all')
         
-        self.timing.lap()
+        # self.timing.lap()
         
         self.readouts_container = self.detector_pipeline.readouts_container
         self.hits_container     = self.detector_pipeline.hits_container
         self.events_container   = self.detector_pipeline.events_container
+        
+        self.readouts_BM_container = self.bm_pipeline.readouts_container
+        self.events_BM_container   = self.bm_pipeline.events_container
         
         ### save reduced data to hdf5
         if self.parameters.fileManagement.saveReducedFileONOFF is True:
@@ -202,7 +205,7 @@ class MBUTYOrchestrator():
         # if self.run_from_gui:
         #     self.main_thread_queue.put(lambda: self.plotting())
 
-        self.timing.lap()
+        # self.timing.lap()
 
     # # Final plotting and display logic
     # plt.show(block= False)
@@ -266,11 +269,11 @@ if __name__ == '__main__':
     ###############################################################################
     ### read json and create parameters for plotting and analisys ###
 
-    configFileName  = "AMOR2.json"
-    configFileName  = "clustered.json"
+    configFileName  = "AMOR.json"
+    # configFileName  = "clustered.json"
     
     
-    configFileName  = "MGtestVessels2col.json"
+    # configFileName  = "MGtestVessels2col.json"
     
     # configFileName  = "MGEMMA_2det.json"
     
@@ -358,7 +361,10 @@ if __name__ == '__main__':
    
     ### folder and file to open (file can be a list of files)
 
-    parameters.fileManagement.fileName = ['ESSmask2023_30pkts.pcapng', 'CSPEC1.pcapng']
+    parameters.fileManagement.fileName = ['ESSmask2023.pcapng']
+    
+    # parameters.fileManagement.fileName = ['20260522_153423_duration_s_5_fullyOpenAgain_00000_vkjaa.pcapng']
+    
     
     # parameters.fileManagement.fileName = ['miracles_trig2.pcapng']
     # parameters.fileManagement.fileName = ['MG_2EMMAprototypes.pcapng']
@@ -366,9 +372,9 @@ if __name__ == '__main__':
     # parameters.fileManagement.fileName = ['CSPEC1.pcapng']
     # parameters.fileManagement.fileName = ['20260602_103110_duration_s_300_muons_00000.pcapng']
     
-    parameters.fileManagement.fileName = ['sampleData_ClusteredMode.pcapng']
+    # parameters.fileManagement.fileName = ['sampleData_ClusteredMode.pcapng']
     
-    parameters.fileManagement.fileName = ['MGtestVess.pcapng']
+    # parameters.fileManagement.fileName = ['MGtestVess.pcapng']
     
     parameters.fileManagement.fileSerials = [6,2,4,9]
     # OR
@@ -476,7 +482,7 @@ if __name__ == '__main__':
     parameters.wavelength.chopperPeriod = 0.12 #s (NOTE: only matters if multipleFramesPerRest > 1)
 
     ### if chopper has two openings or more per reset of ToF
-    parameters.wavelength.multipleFramePerReset = False  #ON/OFF (this only affects the lambda calculation)
+    parameters.wavelength.multipleFramePerReset = True  #ON/OFF (this only affects the lambda calculation)
     parameters.wavelength.numOfBunchesPerPulse  = 2
     parameters.wavelength.lambdaMIN             = 2.5     #A
 
@@ -511,7 +517,7 @@ if __name__ == '__main__':
 
     ###############
     # with True disables clustering and mapping for speed reasons, analisys stops at readouts 
-    parameters.plotting.bareReadoutsCalculation = True
+    parameters.plotting.bareReadoutsCalculation = False
 
     ###############     
     ### plotting in sections of cassettes to ease the visualization if True and in blocks of ...  
@@ -559,7 +565,7 @@ if __name__ == '__main__':
     # parameters.plotting.positionReconstruction = 'W.cog-S.cog'
 
     ### if True plot XY and XtoF plot in absolute unit (mm), if False plot in wire and strip ch no.
-    parameters.plotting.plotABSunits = False
+    parameters.plotting.plotABSunits = True
      
     ### plot XY and XToF in log scale 
     parameters.plotting.plotIMGlog   = False
@@ -581,7 +587,7 @@ if __name__ == '__main__':
     parameters.pulseHeigthSpect.plotPHS = True
 
     ### plot PHS in log scale 
-    parameters.pulseHeigthSpect.plotPHSlog = True
+    parameters.pulseHeigthSpect.plotPHSlog = False
 
     parameters.pulseHeigthSpect.energyBins = 256
     parameters.pulseHeigthSpect.maxEnerg   = 2000
@@ -604,13 +610,18 @@ if __name__ == '__main__':
     hits   = pipeline_orchestrator.hits_container
     events = pipeline_orchestrator.events_container
     
+    
+    readoutsBM       = pipeline_orchestrator.readouts_BM_container
+    readoutsArrayBM  = readoutsBM.get_data_frame()
+    eventsBM         = pipeline_orchestrator.events_BM_container
+
+    
     if parameters.plotting.bareReadoutsCalculation is False:
-        hitsArray   = hits.get_data_frame()
-        eventsArray = events.get_data_frame()
+        hitsArray     = hits.get_data_frame()
+        eventsArray   = events.get_data_frame()
+        eventsBMArray = eventsBM.get_data_frame()
+        
     
-    
-         # NOTE
-    # add containerf for BM 
 
 
 

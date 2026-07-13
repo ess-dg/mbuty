@@ -501,9 +501,9 @@ class MBAxisSet(BaseAxisSet):
     def build_specific_axes(self) -> None:        
         num_strips  = int(self.config.get('strips', 64))
         num_wires   = int(self.config.get('wires', 32))
-        blades_inclination = float(self.config.get('blades_inclination', 5.0))
-        wire_pitch  = float(self.config.get('wire_pitch', 2.0))
-        strip_pitch = float(self.config.get('strip_pitch', 4.0))
+        blades_inclination = float(self.config.get('bladesInclination_deg', 5.0))
+        wire_pitch  = float(self.config.get('wirePitch_mm', 4.0))
+        strip_pitch = float(self.config.get('stripPitch_mm', 4.0))
         # n_cass      =  self.config.get('units', 0)
         topo        =  self.config.get('topology', [])
         offset_mm   =  self.config.get('offset1stWires_mm', 0)
@@ -512,21 +512,26 @@ class MBAxisSet(BaseAxisSet):
         
         sine   = np.sin(np.deg2rad(blades_inclination))
         
+        # sine = 1 
+        
+        # offset_mm  = 110
+        
         pos_w_bins, pos_s_bins = self._resolve_position_bins(num_wires, num_strips)
-
  
         min_id = min(d['ID'] for d in topo)    
         max_id = max(d['ID'] for d in topo)    
         
         start = min_id * num_wires
         stop  = (max_id+1) * num_wires
-        
         self.ax_wires  = Axis(start, stop-1, int((max_id + 1 - min_id)*pos_w_bins - int(pos_w_bins/num_wires - 1)))
 
         self.ax_strips = Axis(0, num_strips-1, pos_s_bins - int(pos_s_bins/num_strips - 1))
 
-        start = min_id * (num_wires * wire_pitch * sine + offset_mm)
-        stop  = (max_id+1) * (num_wires * wire_pitch * sine + offset_mm)
+        # start = min_id * (num_wires * wire_pitch * sine + offset_mm)
+        # stop  = (max_id+1) * (num_wires * wire_pitch * sine)  +  (max_id * offset_mm)
+        
+        start = min_id * offset_mm
+        stop  = (num_wires * wire_pitch * sine)  +  (max_id * offset_mm)
         
         self.ax_wires_mm  = Axis(start, stop-1, self.ax_wires.steps)
             
@@ -563,8 +568,8 @@ class MGAxisSet(BaseAxisSet):
         self.ax_grids = Axis(0, num_grids-1, pos_g_bins - int(pos_g_bins/num_grids - 1))
 
         # Physical coordinates TO BE FINISHED
-        start = min_id * (num_wires * wirePitchX_mm + offset_mm)
-        stop  = (max_id+1) * (num_wires * wirePitchX_mm + offset_mm)
+        start = min_id * offset_mm
+        stop  = num_wires * wirePitchX_mm + max_id * offset_mm
         
         self.ax_wires_mm = Axis(start, stop, self.ax_wires.steps)
         self.ax_grids_mm = Axis(0, (num_grids - 1) * gridPitchY_mm, self.ax_grids.steps)
@@ -595,7 +600,7 @@ class R5560AxisSet(BaseAxisSet):
         # Physical position in mm along tube
         self.ax_length_mm  = Axis(0, tube_length, bins)
 
-        self.ax_tubes_mm = Axis(min_id*tube_spacing, max_id*tube_spacing, self.ax_tubes.steps)  
+        self.ax_tubes_mm = Axis(min_id*tube_spacing, (max_id+1)*tube_spacing, self.ax_tubes.steps)  
 
 
         

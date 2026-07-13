@@ -7,16 +7,16 @@
     "operationMode": "normal",
     "topology": [
         {
-            "ID": 5,
+            "ID": 0,
             "ring": 1,
             "fen": 0,
             "hybrid": 0,
             "serial": ""
         },
         {
-            "ID": 6,
+            "ID": 2,
             "ring": 1,
-            "fen": 4,
+            "fen": 0,
             "hybrid": 1,
             "serial": ""
         }

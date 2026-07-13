@@ -9,7 +9,7 @@ if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
 
 from lib.calibration import load_calibration_map
-from lib.colors import WARN, RESET, INFO
+from lib.colors import WARN, RESET, INFO, OK
 # =============================================================================
 
 class readouts():
@@ -93,11 +93,11 @@ class readouts():
 
         sort_enabled = getattr(getattr(parameters, 'timeSettings', None), 'sortReadoutsByTimeStampsONOFF', True)
         if sort_enabled:
-            print("Readouts are sorted by timestamp")
+            print("\t Readouts are sorted by timestamp")
             idx = self.matrix['timeStamp'].argsort(kind='quicksort')
             self.matrix = self.matrix[idx]
         else:
-            print("Readouts are NOT sorted by timestamp")
+            print("\t Readouts are NOT sorted by timestamp")
 
         # Calculate durations
         try:
@@ -581,7 +581,7 @@ class readoutsBM(readouts):
         types_list_str = ", ".join([f"0x{t:02X}" if isinstance(t, (int, np.integer)) else str(t) for t in unique_types])
         
         valid_types = np.isin(self.matrix['type'], [0x01, 0x02])
-  
+
         if np.any(~valid_types):
             removed    = int(np.sum(~valid_types))
             if removed > 0:
@@ -591,8 +591,10 @@ class readoutsBM(readouts):
                 if self.fill_count == 0 :
                     print(f'\t {WARN}WARNING ---> BM data found but is IBM or others ({{{types_list_str}}}) whereas you selected GENERIC in config file! {RESET}')
                 else:
-                    print(f'\t {WARN}WARNING ---> GENERIC BM data mixed with other types: {{{types_list_str}}} then removed {removed}.{RESET}')
-            
+                    print(f'\t {WARN}WARNING ---> BM data found {self.fill_count}. GENERIC BM data mixed with other types: {{{types_list_str}}} then removed {removed}.{RESET}')
+        
+        if np.any(valid_types):
+             print(f'\t {OK}BM GENERIC found with {self.fill_count} readouts.{RESET}')
             
         # if len(unique_types) == 1:
         #     if unique_types[0] == 0x03:
@@ -666,14 +668,16 @@ class readoutsIBM(readouts):
             if removed > 0:
                 self.matrix     = self.matrix[:self.fill_count][valid_types].copy()
                 self.fill_count = len(self.matrix)
-                
-                
-                 
+
                 if self.fill_count == 0 :
                     print(f'\t {WARN}WARNING ---> BM data found but is GENERIC or others ({{{types_list_str}}}) whereas you selected IBM in config file! {RESET}')
                 else:
-                    print(f'\t {WARN}WARNING ---> IBM data mixed with other types: {{{types_list_str}}} then removed {removed}.{RESET}')
-                   
+                    print(f'\t {WARN}WARNING ---> BM IBM data found {self.fill_count}. IBM data mixed with other types: {{{types_list_str}}} then removed {removed}.{RESET}')
+               
+                    
+        if np.any(valid_types):
+             print(f'\t {OK}BM IBM found with {self.fill_count} readouts.{RESET}')
+        
         super().clean_and_sort(parameters, config)
 
 

@@ -792,8 +792,6 @@ class BaseMonitorMapper:
         # Create target channel mask extraction
         target_mask = (src['channel'] == np.int64(mon_channel)) & (src['ring'] == np.int64(mon_ring))
         count = np.sum(target_mask)
-        
-        # print(target_mask)
 
         # Vectorized Warning Checks
         if n > 0:
@@ -822,7 +820,7 @@ class BaseMonitorMapper:
                       f"Data contains Channel {wrong_ch} and Ring {wrong_ring}.{RESET}")
             
         else:
-            print(f'\t {WARN}No MONITOR data found in data file{RESET}')
+            print(f'\t {WARN}WARNING: No MONITOR data found in data file or not matching you config.{RESET}')
             
             
         # Assign real ID to configured rows; unconfigured rows stay at -1 to be cleanly dropped

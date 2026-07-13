@@ -466,7 +466,7 @@ class BeamMonitorPipeline:
                 
     def check_empty(self):
         if self.readouts_container.fill_count == 0:
-            print(f"{WARN}{type(self).__name__}: readouts container is empty — skipping pipeline pass.{RESET}")
+            print(f"{WARN}\t WARNING: BM readouts container is empty — skipping pipeline: {type(self).__name__}.{RESET}")
             return
 # not used anymore
     # def execute(self) -> None:
@@ -482,11 +482,12 @@ class GenericBMPipeline(BeamMonitorPipeline):
     (monitor-specific: fixed distance, no depth correction) before plotting."""
 
     def analyze(self) -> None:
+
         self.check_empty()
         # Map directly into events
         from lib.mapping_engine import BMMapper
+        
         self.events_container = BMMapper.map(self.readouts_container, self.config)
-
         print(f'{INFO}Calculating Beam Monitor ToF/wavelength...{RESET}')
         self.events_container.compute_and_filter_tof(remove_invalid=True)
         if self.parameters.wavelength.calculateLambda:
@@ -504,6 +505,7 @@ class IBMPipeline(BeamMonitorPipeline):
     monitor-wavelength pass runs before plotting."""
 
     def analyze(self) -> None:
+        
         self.check_empty()
         # Map directly into events
         from lib.mapping_engine import IBMMonitorMapper
@@ -572,13 +574,17 @@ def build_bm_pipeline(config: dict, readout_source, parameters) -> BeamMonitorPi
     """
     if not config.get('monitor', False):
         return None
+    
+    monitor_list = config.get('monitor') or [{}]
 
-    bm_hardware_type = config.get('hardwareType', 'generic').lower()
+    bm_hardware_type = monitor_list[0].get('hardwareType', 'generic').lower()
 
     if bm_hardware_type == 'ibm':
         pipeline_cls, readouts_container = IBMPipeline, readout_source.readouts_ibm
+        
 
     elif bm_hardware_type == 'generic':
+ 
         pipeline_cls, readouts_container = GenericBMPipeline, readout_source.readouts_bm
 
     else:
