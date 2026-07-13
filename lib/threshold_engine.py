@@ -422,16 +422,30 @@ class VMMThresholdEngine(BaseThresholdEngine):
 
 from here change 
 
-def _validate_tube_threshold_file(df: pd.DataFrame, unit_ids: list) -> bool:
+def _validate_tube_threshold_file(df: pd.DataFrame, config: list) -> bool:
     """
     A tube file has no plane/channel columns -- just tube IDs as headers
     and exactly one row of threshold values, since each tube is its own
     unit with a single scalar cut, not an array of per-channel thresholds.
     """
+    
+    ok = True 
+    
     if df.shape[0] != 1:
+        ok = False
         print(f"\t {ERR}ERROR: tube threshold file must contain exactly one row of values, "
               f"found {df.shape[0]} -> software thresholds switched OFF{RESET}")
-        return False
+        return ok
+    
+    unit_ids = [item["ID"] for item in config.get("topology", [])]
+    
+    missing = set(unit_ids) - set(unit_cols)
+    if missing:
+        print(f"\t {WARN}-> threshold file has no entries for unit IDs "
+              f"{sorted(missing)} -> software thresholds switched OFF for those IDs{RESET}")
+            
+            
+            
 
     file_units = set()
     for col in df.columns:
@@ -446,7 +460,7 @@ def _validate_tube_threshold_file(df: pd.DataFrame, unit_ids: list) -> bool:
               f"-> software thresholds switched OFF{RESET}")
         return False
 
-    return True
+    return ok
 
 
 class TubeThresholdTable:
