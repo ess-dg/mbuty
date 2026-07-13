@@ -23,16 +23,101 @@ from lib.colors import INFO, WARN, ERR, RESET, OK
 # This mirrors the schema's own field naming (coordinate0/1, pulseHeight0/1)
 # rather than introducing detector-specific vocabulary (wire/strip/grid/tube),
 # so the same table/engine machinery works for every detector type.
+#
+# Tubes (R5560) are handled entirely separately below -- each tube is its
+# own topology unit with a single scalar threshold, not an array of
+# per-channel thresholds, so they don't share the ThresholdTable machinery.
 # =============================================================================
 
 
 # =============================================================================
-# Threshold Table
+# Shared file I/O helper
+# =============================================================================
+
+def _read_threshold_file(filepath: str):
+    """Read a .csv or .xlsx threshold file into a DataFrame, or None if missing."""
+    if not os.path.exists(filepath):
+        print(f"\t {WARN}WARNING: threshold file '{filepath}' not found -> software thresholds switched OFF{RESET}")
+        return None
+
+    print(f"\t {INFO}loading thresholds from file: {os.path.basename(filepath)} ...{RESET}")
+    return pd.read_csv(filepath) if filepath.lower().endswith('.csv') else pd.read_excel(filepath)
+
+
+# =============================================================================
+# Wire / Strip / Grid Threshold Table
 # =============================================================================
 
 # Legacy threshold files label planes by physical name rather than schema
 # field name; map them onto the ch0/ch1 selectors used by the engines.
-_PLANE_TO_CHANNEL_TYPE = {'wire': 'ch0', 'strip': 'ch1', 'grid': 'ch1', 'tube': 'ch1'}
+_PLANE_TO_CHANNEL_TYPE = {'wire': 'ch0', 'strip': 'ch1', 'grid': 'ch1'}
+
+
+def _validate_wire_strip_threshold_file(df: pd.DataFrame, unit_ids: list, config: dict) -> bool:
+    """
+    Checks the file's shape against what the config actually expects:
+      - a plane column, a channel column, and at least one unit column
+      - every plane label is recognized (wire/strip/grid)
+      - each plane's row count matches config['wires'] (ch0) or
+        config['strips']/config['grids'] (ch1)
+      - every requested unit_id has a column for each plane present
+
+    Prints every problem found (doesn't stop at the first) and returns
+    False if anything is off, so the caller can switch thresholds off
+    entirely rather than silently loading a partial/misshapen table.
+    """
+    if df.shape[1] < 3:
+        print(f"\t {ERR}ERROR: threshold file needs a plane column, a channel column, "
+              f"and at least one unit ID column -> software thresholds switched OFF{RESET}")
+        return False
+
+    plane_col, channel_col, *unit_cols = df.columns
+    ok = True
+
+    expected_by_type = {
+        'ch0': int(config['wires']),
+        'ch1': config.get('strips', config.get('grids', None)),
+    }
+
+    seen_units_by_type = {'ch0': set(), 'ch1': set()}
+
+    for plane_label, group in df.groupby(plane_col):
+        channel_type = _PLANE_TO_CHANNEL_TYPE.get(str(plane_label).strip().lower())
+        if channel_type is None:
+            print(f"\t {ERR}ERROR: unrecognized plane label '{plane_label}' in threshold file "
+                  f"-> software thresholds switched OFF{RESET}")
+            ok = False
+            continue
+
+        expected = expected_by_type.get(channel_type)
+        if expected is None:
+            print(f"\t {ERR}ERROR: config has no expected channel count for '{plane_label}' "
+                  f"(checked 'strips' and 'grids') -> software thresholds switched OFF{RESET}")
+            ok = False
+            continue
+
+        n_rows = len(group)
+        if n_rows != expected:
+            print(f"\t {ERR}ERROR: plane '{plane_label}' has {n_rows} rows in the threshold file "
+                  f"but config expects {expected} -> software thresholds switched OFF{RESET}")
+            ok = False
+
+        for uid_col in unit_cols:
+            try:
+                seen_units_by_type[channel_type].add(int(uid_col))
+            except (TypeError, ValueError):
+                pass
+
+    for channel_type, seen_units in seen_units_by_type.items():
+        if not seen_units:
+            continue
+        missing = set(unit_ids) - seen_units
+        if missing:
+            print(f"\t {ERR}ERROR: threshold file has no '{channel_type}' entries for unit IDs "
+                  f"{sorted(missing)} -> software thresholds switched OFF{RESET}")
+            ok = False
+
+    return ok
 
 
 class ThresholdTable:
@@ -44,15 +129,16 @@ class ThresholdTable:
 
     def __init__(self, table: dict):
         self._table = table  # {(unit_id, channel_type): np.ndarray}
-        # self.parameters = parameters
-        # self.config     = config 
 
     def get(self, unit_id: int, channel_type: str):
         """Return the threshold array for a unit/channel_type, or None if undefined."""
         return self._table.get((unit_id, channel_type))
 
+    def is_empty(self) -> bool:
+        return not self._table
+
     @classmethod
-    def from_file(cls, filepath: str, unit_ids: list) -> 'ThresholdTable':
+    def from_file(cls, filepath: str, unit_ids: list, config: dict) -> 'ThresholdTable':
         """
         Load a threshold table (.xlsx or .csv) in the established MBUTY layout:
         first column is the plane label ('wire' / 'strip' / 'grid'), second
@@ -68,30 +154,22 @@ class ThresholdTable:
 
         Despite the header, the second column is a channel index, not a
         cassette ID — the actual unit IDs are the remaining column headers.
+
+        Row counts per plane are validated against config['wires'] /
+        config['strips'] (or 'grids') -- any mismatch switches thresholds
+        off entirely rather than loading a misshapen table.
         """
-        if not os.path.exists(filepath):
-            print(f"\t {WARN}WARNING: threshold file '{filepath}' not found -> software thresholds switched OFF{RESET}")
-            # self.parameters.dataReduction.softThresholdType = 'off'
+        df = _read_threshold_file(filepath)
+        if df is None:
             return cls({})
 
-        print(f"\t {INFO}loading thresholds from file: {os.path.basename(filepath)} ...{RESET}")
-
-        df = pd.read_csv(filepath) if filepath.lower().endswith('.csv') else pd.read_excel(filepath)
-
-        if df.shape[1] < 3:
-            print(f"\t {ERR}ERROR: threshold file needs a plane column, a channel column, "
-                  f"and at least one unit ID column -> software thresholds switched OFF{RESET}")
-            # self.parameters.dataReduction.softThresholdType = 'off'
+        if not _validate_wire_strip_threshold_file(df, unit_ids, config):
             return cls({})
 
         plane_col, channel_col, *unit_cols = df.columns
-
         table = {}
         for plane_label, group in df.groupby(plane_col):
-            channel_type = _PLANE_TO_CHANNEL_TYPE.get(str(plane_label).strip().lower())
-            if channel_type is None:
-                print(f"\t {WARN}WARNING: unrecognized plane label '{plane_label}' in threshold file -> skipped{RESET}")
-                continue
+            channel_type = _PLANE_TO_CHANNEL_TYPE[str(plane_label).strip().lower()]
 
             group      = group.sort_values(channel_col)
             channels   = group[channel_col].to_numpy(dtype='int64')
@@ -101,18 +179,11 @@ class ThresholdTable:
                 try:
                     uid = int(uid_col)
                 except (TypeError, ValueError):
-                    print(f"\t {WARN}WARNING: threshold file column '{uid_col}' is not a valid unit ID -> skipped{RESET}")
                     continue
 
                 arr = np.zeros(n_channels, dtype='float64')
                 arr[channels] = group[uid_col].to_numpy(dtype='float64')
                 table[(uid, channel_type)] = arr
-
-        missing_units = set(unit_ids) - {uid for uid, _ in table}
-        if missing_units:
-            print(f"\t {WARN}WARNING: threshold file has no entries for unit IDs {sorted(missing_units)} "
-                  f"-> software thresholds OFF for those units{RESET}")
-            # self.parameters.dataReduction.softThresholdType = 'off'
 
         return cls(table)
 
@@ -132,7 +203,7 @@ class ThresholdTable:
                 for channel_type, arr in val.items():
                     table[(int(key), str(channel_type))] = np.asarray(arr, dtype='float64')
         return cls(table)
-    
+
     @classmethod
     def from_constants(cls, values: tuple, unit_ids: list) -> 'ThresholdTable':
         """
@@ -140,7 +211,6 @@ class ThresholdTable:
         unit_id. Pass None for a plane you don't want gated, e.g. (700, None)
         thresholds ch0 only, leaves ch1 ungated.
         """
-        
         ch0_value, ch1_value = values
         table = {}
         for uid in unit_ids:
@@ -156,20 +226,18 @@ class ThresholdTable:
 
 
 # =============================================================================
-# Base Threshold Engine
+# Base Threshold Engine (Wire / Strip / Grid detectors only -- MB, MG)
 # =============================================================================
 
 class BaseThresholdEngine:
     """
-    Shared load/reject logic for all detector types. The pipeline picks
-    which concrete engine to instantiate (WireStripThresholdEngine for
-    MB/MG, TubeThresholdEngine for R5560) — there's no dispatcher here.
-    Subclasses implement apply(), which knows which matrix fields and
-    channel-decoding rules are relevant for that detector's geometry.
+    Shared load/reject logic for wire/strip/grid detector types (MB, MG).
+    Tubes (R5560) are handled entirely separately by TubeThresholdEngine
+    below -- they don't share this base class.
 
     Parameters
     ----------
-    events     : events container (eventsVMMnormal, eventsR5560, ...)
+    events     : events container (eventsVMMnormal, eventsVMMclustered, ...)
     config     : flat dict loaded from JSON config file
     parameters : legacy parameters object (dot-notation access)
     """
@@ -190,12 +258,14 @@ class BaseThresholdEngine:
                 self.parameters.fileManagement.thresholdFilePath,
                 self.parameters.fileManagement.thresholdFileName,
             )
-            self.table = ThresholdTable.from_file(path, self.unit_ids)
+            self.table = ThresholdTable.from_file(path, self.unit_ids, self.config)
+            if self.table.is_empty():
+                self.parameters.dataReduction.softThresholdType = 'off'
 
         elif mode == 'userDefined':
             print(f"\t {INFO}loading user-defined thresholds ...{RESET}")
             self.table = ThresholdTable.from_arrays(self.parameters.dataReduction.softThArray)
-            
+
         elif mode == 'constants':
             print(f"\t {INFO}loading constant thresholds ...{RESET}")
             self.table = ThresholdTable.from_constants(self.parameters.dataReduction.softThArray, self.unit_ids)
@@ -204,7 +274,6 @@ class BaseThresholdEngine:
             print(f"\t {ERR}ERROR: unknown softThresholdType '{mode}' -> software thresholds switched OFF{RESET}")
             self.table = ThresholdTable.empty()
             self.parameters.dataReduction.softThresholdType = 'off'
-  
 
     def apply(self) -> None:
         """Override in subclasses: build a keep_mask and reject the rest."""
@@ -218,11 +287,9 @@ class BaseThresholdEngine:
 
         self.load()
 
-
         if self.parameters.dataReduction.softThresholdType == 'off':
             # load() may itself have switched thresholds off on error
             return
-
 
         self.apply()
 
@@ -290,19 +357,138 @@ class VMMThresholdEngine(BaseThresholdEngine):
 
 
 # =============================================================================
-# Tube Threshold Engine (R5560) — not present in the legacy pipeline
+# Tube Threshold Table + Engine (R5560) — fully standalone
+# =============================================================================
+#
+# Each R5560 tube is its own topology unit (unit_id == tube_id), so a tube
+# only ever needs a single scalar pulse-height cut -- not an array of
+# per-channel thresholds.
+#
+# Expected tube threshold file layout: exactly two rows, no plane/channel
+# columns -- tube IDs as the header, a single row of threshold values below:
+#
+#     1        2        3        4
+#     6000.0   6200.0   5800.0   6100.0
 # =============================================================================
 
-class TubeThresholdEngine(BaseThresholdEngine):
+def _validate_tube_threshold_file(df: pd.DataFrame, unit_ids: list) -> bool:
     """
-    Single-plane threshold engine for the He-3 tube detector (CAEN R5560).
+    A tube file has no plane/channel columns -- just tube IDs as headers
+    and exactly one row of threshold values, since each tube is its own
+    unit with a single scalar cut, not an array of per-channel thresholds.
+    """
+    if df.shape[0] != 1:
+        print(f"\t {ERR}ERROR: tube threshold file must contain exactly one row of values, "
+              f"found {df.shape[0]} -> software thresholds switched OFF{RESET}")
+        return False
 
-    R5560 has one pulse height per event (pulseHeight0) and no wire/strip
-    split. coordinate1 holds the tube ID directly (see
-    R5560AbsUnitsCalculator in abs_units_engine.py — no per-unit decode is
-    needed, unlike the wire channel above), so 'ch1' selects the per-tube
-    threshold that gates pulseHeight0.
+    file_units = set()
+    for col in df.columns:
+        try:
+            file_units.add(int(col))
+        except (TypeError, ValueError):
+            print(f"\t {WARN}WARNING: tube threshold file column '{col}' is not a valid tube ID -> skipped{RESET}")
+
+    missing = set(unit_ids) - file_units
+    if missing:
+        print(f"\t {ERR}ERROR: tube threshold file has no entries for tube IDs {sorted(missing)} "
+              f"-> software thresholds switched OFF{RESET}")
+        return False
+
+    return True
+
+
+class TubeThresholdTable:
+    """Maps tube_id -> a single scalar threshold. No channel arrays."""
+
+    def __init__(self, table: dict):
+        self._table = table  # {tube_id: float}
+
+    def get(self, tube_id: int):
+        return self._table.get(tube_id)
+
+    def is_empty(self) -> bool:
+        return not self._table
+
+    @classmethod
+    def from_file(cls, filepath: str, unit_ids: list) -> 'TubeThresholdTable':
+        """Expects file in validated format above, just two rows 
+        (one with IDs and one with columns)"""
+        df = _read_threshold_file(filepath)
+        if df is None:
+            return cls({})
+        if not _validate_tube_threshold_file(df, unit_ids):
+            return cls({})
+
+        row = df.iloc[0]
+        table = {}
+        for col in df.columns:
+            try:
+                uid = int(col)
+            except (TypeError, ValueError):
+                continue
+            table[uid] = float(row[col])
+        return cls(table)
+
+    @classmethod
+    def from_dict(cls, values: dict) -> 'TubeThresholdTable':
+        """Expected dictionary format {ID: value , ...}
+        parameters.dataReduction.softThArray = {1: 6000.0, 2: 6200.0, 3: 5800.0, 4: 6100.0}"""
+        return cls({int(k): float(v) for k, v in values.items()})
+
+    @classmethod
+    def from_constants(cls, value, unit_ids: list) -> 'TubeThresholdTable':
+        """Expected constant to be applied to all tubes:
+        parameters.dataReduction.softThArray = 6000.0"""
+        return cls({int(uid): float(value) for uid in unit_ids})
+
+    @classmethod
+    def empty(cls) -> 'TubeThresholdTable':
+        return cls({})
+
+
+class TubeThresholdEngine:
     """
+    Independent threshold engine for the He-3 tube detector (CAEN R5560).
+    Each tube is its own topology unit (unit_id == tube_id), so there's
+    just one scalar pulse-height cut per tube, matched directly off the
+    event's 'ID' field -- no per-channel array, no shared code with
+    ThresholdTable/VMMThresholdEngine/BaseThresholdEngine.
+    """
+
+    def __init__(self, events, config: dict, parameters):
+        self.events     = events
+        self.config     = config
+        self.parameters = parameters
+        self.unit_ids   = [entry['ID'] for entry in config['topology']]
+        self.table      = TubeThresholdTable.empty()
+
+    def load(self) -> None:
+        mode = self.parameters.dataReduction.softThresholdType
+
+        if mode == 'fromFile':
+            path = os.path.join(
+                self.parameters.fileManagement.thresholdFilePath,
+                self.parameters.fileManagement.thresholdFileName,
+            )
+            self.table = TubeThresholdTable.from_file(path, self.unit_ids)
+
+        elif mode == 'userDefined':
+            print(f"\t {INFO}loading user-defined tube thresholds ...{RESET}")
+            self.table = TubeThresholdTable.from_dict(self.parameters.dataReduction.softThArray)
+
+        elif mode == 'constants':
+            print(f"\t {INFO}loading constant tube threshold ...{RESET}")
+            self.table = TubeThresholdTable.from_constants(self.parameters.dataReduction.softThArray, self.unit_ids)
+
+        else:
+            print(f"\t {ERR}ERROR: unknown softThresholdType '{mode}' -> software thresholds switched OFF{RESET}")
+            self.table = TubeThresholdTable.empty()
+            self.parameters.dataReduction.softThresholdType = 'off'
+            return
+
+        if self.table.is_empty():
+            self.parameters.dataReduction.softThresholdType = 'off'
 
     def apply(self) -> None:
         print(f"\t {INFO}applying per-tube software thresholds ...{RESET}")
@@ -311,27 +497,36 @@ class TubeThresholdEngine(BaseThresholdEngine):
         if n == 0:
             return
 
-        m         = self.events.matrix[:n]
-        tube_local = np.nan_to_num(m['coordinate1'], nan=-1).astype('int64')
-        has_tube   = m['coordinate1'] >= 0
-
+        m    = self.events.matrix[:n]
         keep = np.ones(n, dtype=bool)
 
         for uid in self.unit_ids:
-            sel_unit = m['ID'] == uid
-
-            arr = self.table.get(uid, 'ch1')
-            sel = sel_unit & has_tube
-            if arr is not None and np.any(sel):
-                idx = np.clip(tube_local[sel], 0, len(arr) - 1)
-                keep[sel] = m['pulseHeight0'][sel] > arr[idx]
+            threshold = self.table.get(uid)
+            if threshold is None:
+                continue
+            sel = m['ID'] == uid
+            if np.any(sel):
+                keep[sel] = m['pulseHeight0'][sel] > threshold
 
         self.events.matrix['ID'][:self.events.fill_count][~keep] = -1
         self.events.remove_invalid()
-        
+
+    def process_pipeline(self) -> None:
+        if self.parameters.dataReduction.softThresholdType == 'off':
+            print(f"\n\t detector software thresholds OFF ...")
+            return
+
+        self.load()
+
+        if self.parameters.dataReduction.softThresholdType == 'off':
+            return
+
+        self.apply()
+
+
 # =============================================================================
-# Monitor threshold engine 
-# ============================================================================= 
+# Monitor threshold engine
+# =============================================================================
 def apply_monitor_threshold(events, threshold: float) -> None:
     """
     Flat threshold for the beam monitor: pulseHeight0 <= threshold is
@@ -352,6 +547,108 @@ def apply_monitor_threshold(events, threshold: float) -> None:
     reject_mask = events.matrix['pulseHeight0'][:n] < threshold
     events.matrix['ID'][:n][reject_mask] = -1
     events.remove_invalid()
-    
+
     print(f'{OK}\t MON events (after threshold): {events.fill_count}{RESET}')
-    
+
+
+# =============================================================================
+# Manual test / demo
+# =============================================================================
+if __name__ == '__main__':
+    from types import SimpleNamespace
+    from container_events import eventsVMMnormal, eventsR5560
+ 
+    pd.set_option('display.width', 160)
+    pd.set_option('display.max_columns', 20)
+ 
+    REAL_XLSX_PATH = r'C:\Projects\mbuty\config\MB300L_thresholds.xlsx'
+    TUBE_XLSX_PATH = r'C:\Projects\mbuty\config\tube_threshold_example.xlsx'
+ 
+    UNIT_IDS = [1, 2, 3, 4, 5, 8]   # unit IDs present as columns in MB300L_thresholds.xlsx
+    N_WIRES  = 32
+    N_STRIPS = 64
+ 
+    def make_params(filename, filepath):
+        return SimpleNamespace(
+            dataReduction=SimpleNamespace(softThresholdType='fromFile', softThArray=None),
+            fileManagement=SimpleNamespace(thresholdFilePath=filepath, thresholdFileName=filename),
+        )
+ 
+    def make_fake_vmm_events(n_per_unit=1000, seed=0):
+        rng = np.random.default_rng(seed)
+        n = n_per_unit * len(UNIT_IDS)
+        ev = eventsVMMnormal(size=n)
+ 
+        computed_fields = {
+            'ID':           np.repeat(UNIT_IDS, n_per_unit),
+            'coordinate0':  rng.integers(0, N_WIRES, size=n).astype('float64'),
+            'coordinate1':  rng.integers(0, N_STRIPS, size=n).astype('float64'),
+            'pulseHeight0': rng.integers(0, 25000, size=n),
+            'pulseHeight1': rng.integers(0, 25000, size=n),
+            'mult0':        np.ones(n, dtype='int64'),
+            'mult1':        np.ones(n, dtype='int64'),
+            'clusterTimeSpan': np.zeros(n, dtype='int64'),
+        }
+        timing_src = {
+            'timeStamp': np.arange(n, dtype='int64'),
+            'pulseT':    np.zeros(n, dtype='int64'),
+            'prevPT':    np.zeros(n, dtype='int64'),
+        }
+        ev.absorb(computed_fields, timing_src)
+        return ev
+ 
+    def make_fake_tube_events(tube_ids, n_per_unit=1000, seed=1):
+        rng = np.random.default_rng(seed)
+        n = n_per_unit * len(tube_ids)
+        ev = eventsR5560(size=n)
+ 
+        computed_fields = {
+            'ID':           np.repeat(tube_ids, n_per_unit),
+            'coordinate0':  np.full(n, -1.0),
+            'coordinate1':  np.full(n, -1.0),
+            'pulseHeight0': rng.integers(0, 25000, size=n),
+        }
+        timing_src = {
+            'timeStamp': np.arange(n, dtype='int64'),
+            'pulseT':    np.zeros(n, dtype='int64'),
+            'prevPT':    np.zeros(n, dtype='int64'),
+        }
+        ev.absorb(computed_fields, timing_src)
+        return ev
+ 
+    # --- Wire/strip (MB300L) ---
+    print('\n' + '=' * 80)
+    print('WIRE/STRIP thresholds from MB300L_thresholds.xlsx')
+    print('=' * 80)
+ 
+    vmm_config = {'wires': N_WIRES, 'strips': N_STRIPS, 'topology': [{'ID': uid} for uid in UNIT_IDS]}
+    vmm_params = make_params(os.path.basename(REAL_XLSX_PATH), os.path.dirname(REAL_XLSX_PATH))
+    vmm_events = make_fake_vmm_events()
+ 
+    print(f'\nBEFORE ({vmm_events.fill_count} events):')
+    print(vmm_events.get_data_frame().head(10))
+ 
+    VMMThresholdEngine(vmm_events, vmm_config, vmm_params).process_pipeline()
+ 
+    print(f'\nAFTER ({vmm_events.fill_count} events):')
+    print(vmm_events.get_data_frame().head(10))
+    print(f'\nsoftThresholdType after run: {vmm_params.dataReduction.softThresholdType}')
+ 
+    # --- Tubes (R5560) ---
+    print('\n' + '=' * 80)
+    print('TUBE thresholds from tube_threshold_example.xlsx')
+    print('=' * 80)
+ 
+    tube_file_units = [int(c) for c in pd.read_excel(TUBE_XLSX_PATH).columns]
+    tube_config = {'topology': [{'ID': uid} for uid in tube_file_units]}
+    tube_params = make_params(os.path.basename(TUBE_XLSX_PATH), os.path.dirname(TUBE_XLSX_PATH))
+    tube_events = make_fake_tube_events(tube_file_units)
+ 
+    print(f'\nBEFORE ({tube_events.fill_count} events):')
+    print(tube_events.get_data_frame().head(10))
+ 
+    TubeThresholdEngine(tube_events, tube_config, tube_params).process_pipeline()
+ 
+    print(f'\nAFTER ({tube_events.fill_count} events):')
+    print(tube_events.get_data_frame().head(10))
+    print(f'\nsoftThresholdType after run: {tube_params.dataReduction.softThresholdType}')
