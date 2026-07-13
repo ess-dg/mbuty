@@ -131,6 +131,8 @@ class ThresholdTable:
         self.num_wires  = config['wires']
         self.num_strips = config.get('strips', config.get('grids', None))
         
+        
+        
     # def get(self, unit_id: int, channel_type: str):
     #     """Return the threshold array for a unit/channel_type, or None if undefined."""
     #     return self._table.get((unit_id, channel_type))
@@ -161,7 +163,7 @@ class ThresholdTable:
         """
         df = _read_threshold_file(filepath)
         
-        self.df = df 
+        # self.df = df 
         
         if df is None:
             return 
@@ -197,26 +199,35 @@ class ThresholdTable:
 
         return table
 
-# from here 
-
     def from_arrays(self, arrays: dict) -> 'ThresholdTable':
         """
         Build directly from user-supplied arrays. Two equivalent shapes accepted:
             {(unit_id, 'ch0'): array, (unit_id, 'ch1'): array, ...}
             {unit_id: {'ch0': array, 'ch1': array}, ...}
         """
+        
+        DEFAULT_SIZES = {
+        'ch0': self.num_wires,   # Wires
+        'ch1': self.num_strips   # Strips/grids
+         }
+        
         table = {}
-        for key, val in arrays.items():
-            if isinstance(key, tuple):
-                unit_id, channel_type = key
-                table[(int(unit_id), str(channel_type))] = np.asarray(val, dtype='float64')
-            else:
-                for channel_type, arr in val.items():
-                    table[(int(key), str(channel_type))] = np.asarray(arr, dtype='float64')
+        for uid, channels in oftThArray.items():
+            table[uid] = {}
+            
+            for ch_type in ['ch0', 'ch1']:
+                if ch_type in channels:
+                    # If the channel array is provided, use it directly as a float64 array
+                    table[uid][ch_type] = channels[ch_type].astype('float64')
+                else:
+                    # If missing, initialize a flat array of zeros matching the hardware size
+                    table[uid][ch_type] = np.zeros(DEFAULT_SIZES[ch_type], dtype='float64')
+                    
         return table
 
 
-    def from_constants(self, values: tuple, unit_ids: list) -> 'ThresholdTable':
+
+    def from_constants(self, values: tuple) -> 'ThresholdTable':
         """
         Build from a flat (ch0_value, ch1_value) pair, same bound for every
         unit_id. Pass None for a plane you don't want gated, e.g. (700, None)
@@ -224,12 +235,38 @@ class ThresholdTable:
         """
         ch0_value, ch1_value = values
         table = {}
+        
+        # Hardware channel lengths: ch0 (wires) = 32, ch1 (strips) = 64
+        CH0_SIZE = self.num_wires
+        CH1_SIZE = self.num_strips
+        
+        unit_ids = [item["ID"] for item in self.config.get("topology", [])]
+
+
         for uid in unit_ids:
+            uid_int = int(uid)
+            table[uid_int] = {}
+            
+            # Populate ch0 (wires)
             if ch0_value is not None:
-                table[(int(uid), 'ch0')] = np.array([float(ch0_value)])
+                table[uid_int]['ch0'] = np.full(CH0_SIZE, float(ch0_value), dtype='float64')
+            else:
+                table[uid_int]['ch0'] = np.zeros(CH0_SIZE, dtype='float64')
+                
+            # Populate ch1 (strips)
             if ch1_value is not None:
-                table[(int(uid), 'ch1')] = np.array([float(ch1_value)])
+                table[uid_int]['ch1'] = np.full(CH1_SIZE, float(ch1_value), dtype='float64')
+            else:
+                table[uid_int]['ch1'] = np.zeros(CH1_SIZE, dtype='float64')
+                
         return table
+        
+        # for uid in unit_ids:
+        #     if ch0_value is not None:
+        #         table[(int(uid), 'ch0')] = np.array([float(ch0_value)])
+        #     if ch1_value is not None:
+        #         table[(int(uid), 'ch1')] = np.array([float(ch1_value)])
+        # return table
 
 
     # def empty(cls) -> 'ThresholdTable':
@@ -381,6 +418,9 @@ class VMMThresholdEngine(BaseThresholdEngine):
 #     1        2        3        4
 #     6000.0   6200.0   5800.0   6100.0
 # =============================================================================
+
+
+from here change 
 
 def _validate_tube_threshold_file(df: pd.DataFrame, unit_ids: list) -> bool:
     """
@@ -652,7 +692,19 @@ if __name__ == '__main__':
      
     table = tht.from_file(REAL_XLSX_PATH)
     
-    df = tht.df
+    # df = tht.df
+    
+    
+    oftThArray = {
+               5: {'ch0': np.full(32, 1000.0)},   # cassette 1, wire thresholds only
+               6: {'ch0': np.full(32, 500.0), 'ch1': np.full(64, 700.0)},
+           } 
+    table1 = tht.from_arrays(oftThArray)
+    
+    
+    softThArray = (15000,7000)
+    
+    table2 = tht.from_constants(softThArray)
     
     
     # print(f'\nBEFORE ({vmm_events.fill_count} events):')
