@@ -37,6 +37,13 @@ import h5py
 import numpy as np
 import pandas as pd
 
+_workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _workspace not in sys.path:
+    sys.path.insert(0, _workspace)
+    
+from lib.colors import INFO, OK, WARN, ERR, RESET
+
+
 
 ###############################################################################
 
@@ -63,13 +70,13 @@ def prepareReducedFileBaseName(fileNameList):
                 nfiles = len(fileNameList)
                 fileNameSave = "_".join([base_name, str(nfiles), 'files_reduced'])
         else:
-            print('\n --> WARNING: file name list does not match format goofy_XXXXX.pcapng '
-                  '-> associated first file name for data reduction.')
+            print(f"\n{WARN} --> WARNING: file name list does not match format goofy_XXXXX.pcapng "
+                  "-> associated first file name for data reduction.{RESET}")
             nfiles = len(fileNameList)
             fileNameSave = "_".join([base_name, str(nfiles), 'files_reduced'])
     else:
         fileNameSave = None
-        print('\n --> WARNING: empty file name list!!!')
+        print(f"\n{WARN} --> WARNING: empty file name list!!!{RESET}")
 
     return fileNameSave
 
@@ -85,8 +92,8 @@ def _save_events(grp, events_obj, compressionT, compressionL):
     n = getattr(events_obj, 'fill_count', len(events_obj.matrix))
     matrix = events_obj.matrix[:n]
 
-    fieldnames = list(matrix.dtype.names or [])
-    print(f"\t --> saving matrix: {n} rows, {len(fieldnames)} fields -> {fieldnames}")
+    # fieldnames = list(matrix.dtype.names or [])
+    # print(f"\t --> saving matrix: {n} rows, {len(fieldnames)} fields -> {fieldnames}")
 
     if matrix.size > 0:
         grp.create_dataset('matrix', data=matrix, shuffle=True, compression=compressionT, compression_opts=compressionL)
@@ -198,13 +205,13 @@ def saveReducedDataToHDF(parameters, events, eventsMON=None, saveReducedPath='./
     compressionHDFL = parameters.fileManagement.reducedCompressionHDFL
 
     if not os.path.exists(saveReducedPath):
-        print(f"\n --> WARNING: folder '{saveReducedPath}' does not exist, creating it.")
+        print(f"{WARN}\n --> WARNING: folder '{saveReducedPath}' does not exist, creating it.{RESET}")
         os.makedirs(saveReducedPath, exist_ok=True)
 
     outfile = os.path.join(saveReducedPath, fileName + '.h5')
 
     if os.path.exists(outfile):
-        print('WARNING: reduced data file exists, it will be overwritten!')
+        print(f"{WARN}WARNING: reduced data file exists, it will be overwritten!{RESET}")
         os.remove(outfile)
 
     mainFolder = parameters.fileManagement.reducedNameMainFolder
@@ -216,7 +223,7 @@ def saveReducedDataToHDF(parameters, events, eventsMON=None, saveReducedPath='./
     gmon   = fid.create_group(mainFolder + '/monitor/events')
     gparam = fid.create_group(mainFolder + '/parameters')
 
-    print('-> saving reduced data to h5 file ... ')
+    print(f"{OK}-> saving reduced data to h5 file ... {RESET}")
 
     _save_events(gdet, events, compressionHDFT, compressionHDFL)
 
@@ -225,7 +232,7 @@ def saveReducedDataToHDF(parameters, events, eventsMON=None, saveReducedPath='./
 
     _save_parameters(gparam, parameters)
 
-    print(f'\t --> reduced data saved to: {outfile}')
+    print(f"{OK}-> reduced data saved to: {outfile}{RESET}")
 
     fid.close()
 
@@ -244,7 +251,7 @@ def readReducedDataFromHDF(pathAndFileName, showTree=False):
     parameters = {}
 
     if not os.path.exists(pathAndFileName):
-        print(f' ---> File DOES NOT EXIST: {pathAndFileName}')
+        print(f"{ERR} ---> File DOES NOT EXIST: {pathAndFileName}{RESET}")
         time.sleep(2)
         sys.exit()
 

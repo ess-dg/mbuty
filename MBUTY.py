@@ -35,9 +35,9 @@ class MBUTYOrchestrator():
     Main pipeline orchestrator managing data lifecycle:
     Path resolution -> Ingestion -> Guarded Multi-Key Routing -> Execution.
     """
-    def __init__(self, parameters, run_from_gui: bool = False, main_thread_queue = None):
+    def __init__(self, parameters, plottingOnOff: str = 'on', main_thread_queue = None):
         self.main_thread_queue = main_thread_queue
-        self.run_from_gui      = run_from_gui
+        self.plottingOnOff          = plottingOnOff
         # NOTE: plot split out of exectute for run gui 
 
         self.parameters = parameters
@@ -87,7 +87,7 @@ class MBUTYOrchestrator():
             self.parameters.fileManagement.fileName = [file_name]
          
         # sync the data folder from remote computer to local folder 
-        elif not self.run_from_gui and self.parameters.acqMode == 'pcap-sync':
+        elif not self.plottingOnOff == 'gui' and self.parameters.acqMode == 'pcap-sync':
             from lib.terminal import syncData
             syncData(self.parameters.fileManagement.sourcePath, self.parameters.fileManagement.destPath)   
         
@@ -148,12 +148,12 @@ class MBUTYOrchestrator():
         # NOTE --- split this into analyze then plot!!!!
         # 2. Detector Pipeline Track Instantiation & Execution Pass via Factory
 
-        self.parameters.validateWavelengthDependencies()
+        self.parameters.validateDependencies()
         self.detector_pipeline = build_detector_pipeline(self.config, reader, self.parameters)
         if self.detector_pipeline:
             if not self.parameters.plotting.bareReadoutsCalculation:
                 self.detector_pipeline.analyze()
-            if not self.run_from_gui:
+            if self.plottingOnOff == 'on':
                 self.detector_pipeline.plot()
 
         # 3. Conditionally Dispatch Beam Monitor Tracking Stream
@@ -161,14 +161,14 @@ class MBUTYOrchestrator():
         if self.bm_pipeline and self.parameters.MONitor.MONOnOff:
             if not self.parameters.plotting.bareReadoutsCalculation:
                 self.bm_pipeline.analyze()
-            if not self.run_from_gui:
+            if self.plottingOnOff == 'on':
                 self.bm_pipeline.plot()
         
         
-
-        plt.draw() 
-        plt.pause(0.1)
-        plt.show(block=False)
+        if self.plottingOnOff == 'on':
+            plt.draw() 
+            plt.pause(0.1)
+            plt.show(block=False)
         # input(f"{INFO}\nPress Enter to close all figures...{RESET}")
         # plt.close('all')
         
@@ -415,10 +415,10 @@ if __name__ == '__main__':
     ### save a hdf file with clusters (reduced file)
 
     ### ON/OFF
-    parameters.fileManagement.saveReducedFileONOFF = False   
+    parameters.fileManagement.saveReducedFileONOFF = True   
     parameters.fileManagement.saveReducedPath = parameters.fileManagement.currentPath+'reduced/'
 
-    parameters.fileManagement.reducedNameMainFolder  = 'entry1'
+    parameters.fileManagement.reducedNameMainFolder   = 'entry1'
     parameters.fileManagement.reducedCompressionHDFT  = 'gzip'  
     parameters.fileManagement.reducedCompressionHDFL  = 9    # gzip compression level 0 - 9
 
@@ -469,7 +469,7 @@ if __name__ == '__main__':
     parameters.wavelength.distance  = 32000
 
     ##ON/OFF
-    parameters.wavelength.calculateLambda = True
+    parameters.wavelength.calculateLambda = False
 
     ### ON/OFF plot X vs Lambda 2D plot
     parameters.wavelength.plotXLambda     = True
@@ -495,7 +495,7 @@ if __name__ == '__main__':
     #################################
 
     ### ON/OFF
-    parameters.MONitor.MONOnOff    = True   
+    parameters.MONitor.MONOnOff    = False   
 
     ### threshold on MON, th is OFF if 0, any other value is ON
     parameters.MONitor.MONThreshold = 0 

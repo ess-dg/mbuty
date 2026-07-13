@@ -11,6 +11,13 @@ import os
 import sys
 import time 
 
+_workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _workspace not in sys.path:
+    sys.path.insert(0, _workspace)
+    
+from lib.colors import INFO, OK, WARN, ERR, RESET
+
+
            
 ###############################################################################
 
@@ -292,14 +299,22 @@ class parameters():
         
         # future checks go here
 
-    def validateWavelengthDependencies(self):
+    def validateDependencies(self):
         if self.fileManagement.saveReducedFileONOFF and not self.wavelength.calculateLambda:
             self.wavelength.calculateLambda = True
             print('\nLambda calculation turned ON to save reduced DATA')
+            
+        if self.fileManagement.saveReducedFileONOFF and not self.MONitor.MONOnOff:
+            self.MONitor.MONOnOff = True
+            print('\nMONITOR analysis turned ON to save reduced DATA\n')    
 
         if not self.wavelength.calculateLambda:
-            self.wavelength.plotXLambda = False
+            self.wavelength.plotXLambda     = False
             self.wavelength.plotLambdaDistr = False
+            
+        if not self.MONitor.MONOnOff:
+                self.MONitor.plotMONtofPHS  = False
+                           
 
     def validateHistNotification(self):
         if self.plotting.plottingInSections and self.plotting.histogOutBounds:
