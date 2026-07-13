@@ -1,6 +1,7 @@
 import os, sys
 import numpy as np
 import pandas as pd
+import json
 
 _workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _workspace not in sys.path:
@@ -53,7 +54,7 @@ def _read_threshold_file(filepath: str):
 _PLANE_TO_CHANNEL_TYPE = {'wire': 'ch0', 'strip': 'ch1', 'grid': 'ch1'}
 
 
-def _validate_wire_strip_threshold_file(df: pd.DataFrame, unit_ids: list, config: dict) -> bool:
+def _validate_wire_strip_threshold_file(df: pd.DataFrame, config: dict) -> bool:
     """
     Checks the file's shape against what the config actually expects:
       - a plane column, a channel column, and at least one unit column
@@ -66,59 +67,55 @@ def _validate_wire_strip_threshold_file(df: pd.DataFrame, unit_ids: list, config
     False if anything is off, so the caller can switch thresholds off
     entirely rather than silently loading a partial/misshapen table.
     """
+    ok = True
+    
     if df.shape[1] < 3:
+        ok = False
         print(f"\t {ERR}ERROR: threshold file needs a plane column, a channel column, "
               f"and at least one unit ID column -> software thresholds switched OFF{RESET}")
-        return False
-
+        return ok
+    
     plane_col, channel_col, *unit_cols = df.columns
-    ok = True
+    
+    num_wires  = config['wires']
+    num_strips = config.get('strips', config.get('grids', None))
 
-    expected_by_type = {
-        'ch0': int(config['wires']),
-        'ch1': config.get('strips', config.get('grids', None)),
-    }
+    unit_ids = [item["ID"] for item in config.get("topology", [])]
+  
+    missing = set(unit_ids) - set(unit_cols)
+    if missing:
+            print(f"\t {WARN}-> threshold file has no entries for unit IDs "
+                  f"{sorted(missing)} -> software thresholds switched OFF for those IDs{RESET}")
+     
+    if not (len(df) == (num_wires+num_strips)):
+        print(f"\t {ERR}-> threshold file it does not have the right number of wires or strips/grids -> exiting.{RESET}")
+        ok = False
+        sys.exit()
+        
+    if df.isna().sum().sum() > 0:
+        print(f"\t {ERR}-> threshold file has EMPTY entries -> exiting.{RESET}")
+        ok = False
+        sys.exit()
+        
+    # label_array = df.groupby(plane_col).size().values
+    
+    label_array = df[plane_col]
+    is_wire  = label_array == 'wire'
+    is_strip = (label_array == 'strip') | (label_array == 'grid')
+    
+    if np.sum(is_wire) != num_wires:
+        print(f"\t {ERR}-> threshold file it does not have the right number of wires -> exiting.{RESET}")
+        ok = False
+        sys.exit()
+        
+    if np.sum(is_strip) != num_strips:  
+        print(f"\t {ERR}-> threshold file it does not have the right number strips/grids -> exiting.{RESET}")
+        ok = False
+        sys.exit()
 
-    seen_units_by_type = {'ch0': set(), 'ch1': set()}
-
-    for plane_label, group in df.groupby(plane_col):
-        channel_type = _PLANE_TO_CHANNEL_TYPE.get(str(plane_label).strip().lower())
-        if channel_type is None:
-            print(f"\t {ERR}ERROR: unrecognized plane label '{plane_label}' in threshold file "
-                  f"-> software thresholds switched OFF{RESET}")
-            ok = False
-            continue
-
-        expected = expected_by_type.get(channel_type)
-        if expected is None:
-            print(f"\t {ERR}ERROR: config has no expected channel count for '{plane_label}' "
-                  f"(checked 'strips' and 'grids') -> software thresholds switched OFF{RESET}")
-            ok = False
-            continue
-
-        n_rows = len(group)
-        if n_rows != expected:
-            print(f"\t {ERR}ERROR: plane '{plane_label}' has {n_rows} rows in the threshold file "
-                  f"but config expects {expected} -> software thresholds switched OFF{RESET}")
-            ok = False
-
-        for uid_col in unit_cols:
-            try:
-                seen_units_by_type[channel_type].add(int(uid_col))
-            except (TypeError, ValueError):
-                pass
-
-    for channel_type, seen_units in seen_units_by_type.items():
-        if not seen_units:
-            continue
-        missing = set(unit_ids) - seen_units
-        if missing:
-            print(f"\t {ERR}ERROR: threshold file has no '{channel_type}' entries for unit IDs "
-                  f"{sorted(missing)} -> software thresholds switched OFF{RESET}")
-            ok = False
 
     return ok
-
+            
 
 class ThresholdTable:
     """
@@ -127,18 +124,21 @@ class ThresholdTable:
     mean "no threshold defined" -> that channel is never gated.
     """
 
-    def __init__(self, table: dict):
-        self._table = table  # {(unit_id, channel_type): np.ndarray}
+    def __init__(self, config: dict):
+        self.config = config  # {(unit_id, channel_type): np.ndarray}
+        self.table  = {} 
+        
+        self.num_wires  = config['wires']
+        self.num_strips = config.get('strips', config.get('grids', None))
+        
+    # def get(self, unit_id: int, channel_type: str):
+    #     """Return the threshold array for a unit/channel_type, or None if undefined."""
+    #     return self._table.get((unit_id, channel_type))
 
-    def get(self, unit_id: int, channel_type: str):
-        """Return the threshold array for a unit/channel_type, or None if undefined."""
-        return self._table.get((unit_id, channel_type))
+    # def is_empty(self) -> bool:
+    #     return not self._table
 
-    def is_empty(self) -> bool:
-        return not self._table
-
-    @classmethod
-    def from_file(cls, filepath: str, unit_ids: list, config: dict) -> 'ThresholdTable':
+    def from_file(self, filepath: str):
         """
         Load a threshold table (.xlsx or .csv) in the established MBUTY layout:
         first column is the plane label ('wire' / 'strip' / 'grid'), second
@@ -160,11 +160,14 @@ class ThresholdTable:
         off entirely rather than loading a misshapen table.
         """
         df = _read_threshold_file(filepath)
+        
+        self.df = df 
+        
         if df is None:
-            return cls({})
+            return 
 
-        if not _validate_wire_strip_threshold_file(df, unit_ids, config):
-            return cls({})
+        if not _validate_wire_strip_threshold_file(df, self.config):
+            return 
 
         plane_col, channel_col, *unit_cols = df.columns
         table = {}
@@ -181,14 +184,22 @@ class ThresholdTable:
                 except (TypeError, ValueError):
                     continue
 
+                # Create the inner dictionary for this unit ID if it doesn't exist yet
+                if uid not in table:
+                    table[uid] = {}
+
+                # Build the flat NumPy array for this specific plane's channel layout
                 arr = np.zeros(n_channels, dtype='float64')
                 arr[channels] = group[uid_col].to_numpy(dtype='float64')
-                table[(uid, channel_type)] = arr
+                
+                # Assign to nested key 'ch0' or 'ch1' directly inside the UID profile
+                table[uid][channel_type] = arr
 
-        return cls(table)
+        return table
 
-    @classmethod
-    def from_arrays(cls, arrays: dict) -> 'ThresholdTable':
+# from here 
+
+    def from_arrays(self, arrays: dict) -> 'ThresholdTable':
         """
         Build directly from user-supplied arrays. Two equivalent shapes accepted:
             {(unit_id, 'ch0'): array, (unit_id, 'ch1'): array, ...}
@@ -202,10 +213,10 @@ class ThresholdTable:
             else:
                 for channel_type, arr in val.items():
                     table[(int(key), str(channel_type))] = np.asarray(arr, dtype='float64')
-        return cls(table)
+        return table
 
-    @classmethod
-    def from_constants(cls, values: tuple, unit_ids: list) -> 'ThresholdTable':
+
+    def from_constants(self, values: tuple, unit_ids: list) -> 'ThresholdTable':
         """
         Build from a flat (ch0_value, ch1_value) pair, same bound for every
         unit_id. Pass None for a plane you don't want gated, e.g. (700, None)
@@ -218,11 +229,11 @@ class ThresholdTable:
                 table[(int(uid), 'ch0')] = np.array([float(ch0_value)])
             if ch1_value is not None:
                 table[(int(uid), 'ch1')] = np.array([float(ch1_value)])
-        return cls(table)
+        return table
 
-    @classmethod
-    def empty(cls) -> 'ThresholdTable':
-        return cls({})
+
+    # def empty(cls) -> 'ThresholdTable':
+    #     return cls({})
 
 
 # =============================================================================
@@ -561,8 +572,8 @@ if __name__ == '__main__':
     pd.set_option('display.width', 160)
     pd.set_option('display.max_columns', 20)
  
-    REAL_XLSX_PATH = r'C:\Projects\mbuty\config\MB300L_thresholds.xlsx'
-    TUBE_XLSX_PATH = r'C:\Projects\mbuty\config\tube_threshold_example.xlsx'
+    REAL_XLSX_PATH = '/Users/francescopiscitelli/git_repos/mbuty/config/MB300L_thresholds.xlsx'
+    TUBE_XLSX_PATH = '/Users/francescopiscitelli/git_repos/mbuty/config/tube_threshold_example.xlsx'
  
     UNIT_IDS = [1, 2, 3, 4, 5, 8]   # unit IDs present as columns in MB300L_thresholds.xlsx
     N_WIRES  = 32
@@ -624,31 +635,50 @@ if __name__ == '__main__':
     vmm_config = {'wires': N_WIRES, 'strips': N_STRIPS, 'topology': [{'ID': uid} for uid in UNIT_IDS]}
     vmm_params = make_params(os.path.basename(REAL_XLSX_PATH), os.path.dirname(REAL_XLSX_PATH))
     vmm_events = make_fake_vmm_events()
+    
+    configFileName  = "AMOR.json"
+    
+    current_dir = '/Users/francescopiscitelli/git_repos/mbuty/'
+
+    config_path = os.path.join(current_dir, 'config') + os.sep +configFileName
+
+    with open(config_path, 'r') as f:
+        config = json.load(f)
+        
+  
+    
+    # unit_ids = [item["ID"] for item in config.get("topology", [])]
+    tht = ThresholdTable(config)
+     
+    table = tht.from_file(REAL_XLSX_PATH)
+    
+    df = tht.df
+    
+    
+    # print(f'\nBEFORE ({vmm_events.fill_count} events):')
+    # print(vmm_events.get_data_frame().head(10))
  
-    print(f'\nBEFORE ({vmm_events.fill_count} events):')
-    print(vmm_events.get_data_frame().head(10))
+    # VMMThresholdEngine(vmm_events, vmm_config, vmm_params).process_pipeline()
  
-    VMMThresholdEngine(vmm_events, vmm_config, vmm_params).process_pipeline()
+    # print(f'\nAFTER ({vmm_events.fill_count} events):')
+    # print(vmm_events.get_data_frame().head(10))
+    # print(f'\nsoftThresholdType after run: {vmm_params.dataReduction.softThresholdType}')
  
-    print(f'\nAFTER ({vmm_events.fill_count} events):')
-    print(vmm_events.get_data_frame().head(10))
-    print(f'\nsoftThresholdType after run: {vmm_params.dataReduction.softThresholdType}')
+    # # --- Tubes (R5560) ---
+    # print('\n' + '=' * 80)
+    # print('TUBE thresholds from tube_threshold_example.xlsx')
+    # print('=' * 80)
  
-    # --- Tubes (R5560) ---
-    print('\n' + '=' * 80)
-    print('TUBE thresholds from tube_threshold_example.xlsx')
-    print('=' * 80)
+    # tube_file_units = [int(c) for c in pd.read_excel(TUBE_XLSX_PATH).columns]
+    # tube_config = {'topology': [{'ID': uid} for uid in tube_file_units]}
+    # tube_params = make_params(os.path.basename(TUBE_XLSX_PATH), os.path.dirname(TUBE_XLSX_PATH))
+    # tube_events = make_fake_tube_events(tube_file_units)
  
-    tube_file_units = [int(c) for c in pd.read_excel(TUBE_XLSX_PATH).columns]
-    tube_config = {'topology': [{'ID': uid} for uid in tube_file_units]}
-    tube_params = make_params(os.path.basename(TUBE_XLSX_PATH), os.path.dirname(TUBE_XLSX_PATH))
-    tube_events = make_fake_tube_events(tube_file_units)
+    # print(f'\nBEFORE ({tube_events.fill_count} events):')
+    # print(tube_events.get_data_frame().head(10))
  
-    print(f'\nBEFORE ({tube_events.fill_count} events):')
-    print(tube_events.get_data_frame().head(10))
+    # TubeThresholdEngine(tube_events, tube_config, tube_params).process_pipeline()
  
-    TubeThresholdEngine(tube_events, tube_config, tube_params).process_pipeline()
- 
-    print(f'\nAFTER ({tube_events.fill_count} events):')
-    print(tube_events.get_data_frame().head(10))
-    print(f'\nsoftThresholdType after run: {tube_params.dataReduction.softThresholdType}')
+    # print(f'\nAFTER ({tube_events.fill_count} events):')
+    # print(tube_events.get_data_frame().head(10))
+    # print(f'\nsoftThresholdType after run: {tube_params.dataReduction.softThresholdType}')

@@ -271,7 +271,7 @@ if __name__ == '__main__':
     ###############################################################################
     ### read json and create parameters for plotting and analisys ###
 
-    configFileName  = "AMOR2.json"
+    configFileName  = "AMOR.json"
     # configFileName  = "clustered.json"
     
     
@@ -283,9 +283,9 @@ if __name__ == '__main__':
 
     # configFileName  = "ESTIA.json"
     
-    configFileName  = "MIRACLES24.json"
+    # configFileName  = "MIRACLES24.json"
     # configFileName  = "CSPEC.json"
-    configFileName  = "MIRACLES1.json"
+    # configFileName  = "MIRACLES1.json"
 
     # configFileName  = "ESTIA_sect0.json"
     # configFileName  = "ESTIA_sect1.json"
@@ -368,7 +368,7 @@ if __name__ == '__main__':
     # parameters.fileManagement.fileName = ['20260522_153423_duration_s_5_fullyOpenAgain_00000_vkjaa.pcapng']
     
     
-    parameters.fileManagement.fileName = ['miracles_trig2.pcapng']
+    # parameters.fileManagement.fileName = ['miracles_trig2.pcapng']
     # parameters.fileManagement.fileName = ['MG_2EMMAprototypes.pcapng']
     # parameters.fileManagement.fileName = ['miracles_source_mask_red.pcapng']
     # parameters.fileManagement.fileName = ['CSPEC1.pcapng']
@@ -407,7 +407,7 @@ if __name__ == '__main__':
     ### path to threshold  file
     parameters.fileManagement.thresholdFilePath = parameters.fileManagement.currentPath+'config/'
     parameters.fileManagement.thresholdFileName = 'MB300L_thresholds.xlsx'
-    parameters.fileManagement.thresholdFileName = 'tube_threshold_example.xlsx'
+    # parameters.fileManagement.thresholdFileName = 'tube_threshold_example.xlsx'
 
     ###############
     ### path to  Tshark, in case you open a pcap  it gets converted into pcapng 
@@ -446,9 +446,9 @@ if __name__ == '__main__':
 
     ### 'OFF', 'fromFile' = File With Threhsolds Loaded, 'userDefined' = User defines the Thresholds in an array softTh
     parameters.dataReduction.softThresholdType = 'off' 
-    # parameters.dataReduction.softThresholdType = 'fromFile' 
+    parameters.dataReduction.softThresholdType = 'fromFile' 
     # parameters.dataReduction.softThresholdType = 'userDefined' 
-    parameters.dataReduction.softThresholdType = 'constants' 
+    # parameters.dataReduction.softThresholdType = 'constants' 
 
     if parameters.dataReduction.softThresholdType == 'userDefined':
           
