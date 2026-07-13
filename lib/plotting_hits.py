@@ -335,7 +335,7 @@ class R5560HitsPlotter(BaseHitsPlotter):
         
         ax_e = self.axis_set.ax_energy
         plotPHScorr = PlotGrid(fig_num, 1, len(self.unit_ids), fig_size=(20, 20))
-        plotPHScorr.fig.suptitle('Pulse Heigth Spectrum - Correlation A-B')
+        plotPHScorr.fig.suptitle('ADC correlation - A vs B')
         m = self.matrix
 
         for k, uid in enumerate(self.unit_ids):
@@ -346,10 +346,10 @@ class R5560HitsPlotter(BaseHitsPlotter):
             plotPHScorr.ax[0][k].imshow(PHScorr, aspect='auto', norm=None, interpolation='none',
                                          extent=[ax_e.start, ax_e.stop, ax_e.start, ax_e.stop], origin='lower', cmap='jet')
             plotPHScorr.ax[0][k].set_title(f'ID {uid}')
-            plotPHScorr.ax[0][k].set_xlabel('pulse height A (a.u.)')
+            plotPHScorr.ax[0][k].set_xlabel('ADC A (a.u.)')
             plotPHScorr.ax[0][k].set_box_aspect(1)
             if k == 0:
-                plotPHScorr.ax[0][k].set_ylabel('pulse height B (a.u.)')
+                plotPHScorr.ax[0][k].set_ylabel('ADC B (a.u.)')
 
     def plot_timestamps(self,  fig_num=1004):
         """Not supported for R5560 -- use the raw readouts timestamp plots instead."""

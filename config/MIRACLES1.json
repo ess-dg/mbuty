@@ -2,12 +2,18 @@
     "detectorName": "MIRACLES1",
     "detectorType": "He3",
     "instrumentName": "MIRACLES",
-    "units": 1,
+    "units": 2,
     "orientation": "vertical",
     "topology": [
         {
-            "ID": 0,
-            "ring": 0,
+            "ID": 11,
+            "ring": 1,
+            "fen": 0,
+            "tube": 0
+        },
+        {
+            "ID": 12,
+            "ring": 1,
             "fen": 0,
             "tube": 2
         }
@@ -15,7 +21,7 @@
     "positionBins": 256,
     "tubesPerRow": 8,
     "tubeLength": 300,
-    "tubeSpacing": 10,
+    "tubeSpacing": 20,
     "monitor": [
         {
             "ID": 99,

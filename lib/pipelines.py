@@ -270,18 +270,18 @@ class MBPipeline(BasePipeline):
         
     def build_plotters(self, unit_ids) -> None:
         from lib.histograms import MBAxisSet
-        axis_set = MBAxisSet(self.parameters, self.config)
+        self.axis_set = MBAxisSet(self.parameters, self.config)
   
         from lib.plotting_readouts import MBReadoutsPlotter
-        self.readout_plotter = MBReadoutsPlotter(self.readouts_container, self.parameters, self.config, axis_set, unit_ids)
+        self.readout_plotter = MBReadoutsPlotter(self.readouts_container, self.parameters, self.config, self.axis_set, unit_ids)
 
         if self.hits_container is not None: 
             from lib.plotting_hits import MBHitsPlotter
-            self.hit_plotter     = MBHitsPlotter(self.hits_container, self.parameters,self.config, axis_set,unit_ids)
+            self.hit_plotter     = MBHitsPlotter(self.hits_container, self.parameters,self.config, self.axis_set,unit_ids)
         
         if self.events_container is not None: 
             from lib.plotting_events import MBEventsPlotter
-            self.event_plotter   = MBEventsPlotter(self.events_container, self.parameters,self.config, axis_set, unit_ids)
+            self.event_plotter   = MBEventsPlotter(self.events_container, self.parameters,self.config, self.axis_set, unit_ids)
 
 
 class MBClusteredPipeline(BasePipeline):
@@ -313,17 +313,17 @@ class MBClusteredPipeline(BasePipeline):
 
     def build_plotters(self, unit_ids) -> None:
         from lib.histograms import MBAxisSet
-        axis_set = MBAxisSet(self.parameters, self.config)
+        self.axis_set = MBAxisSet(self.parameters, self.config)
 
         from lib.plotting_readouts import MBReadoutsPlotter
-        self.readout_plotter = MBReadoutsPlotter(self.readouts_container, self.parameters,self.config, axis_set, unit_ids)
+        self.readout_plotter = MBReadoutsPlotter(self.readouts_container, self.parameters,self.config, self.axis_set, unit_ids)
 
         if self.hits_container is not None:
             from lib.plotting_hits import MBClusteredHitsPlotter
-            self.hit_plotter = MBClusteredHitsPlotter(self.hits_container, self.parameters,self.config, axis_set, unit_ids)
+            self.hit_plotter = MBClusteredHitsPlotter(self.hits_container, self.parameters,self.config, self.axis_set, unit_ids)
         if self.events_container is not None:
             from lib.plotting_events import MBEventsPlotter
-            self.event_plotter = MBEventsPlotter(self.events_container, self.parameters,self.config, axis_set, unit_ids)
+            self.event_plotter = MBEventsPlotter(self.events_container, self.parameters,self.config, self.axis_set, unit_ids)
 
 
 class MGPipeline(BasePipeline):
@@ -351,17 +351,17 @@ class MGPipeline(BasePipeline):
 
     def build_plotters(self,unit_ids) -> None:
         from lib.histograms import MGAxisSet
-        axis_set = MGAxisSet(self.parameters, self.config)
+        self.axis_set = MGAxisSet(self.parameters, self.config)
 
         from lib.plotting_readouts import MGReadoutsPlotter
-        self.readout_plotter = MGReadoutsPlotter(self.readouts_container, self.parameters,self.config, axis_set, unit_ids)
+        self.readout_plotter = MGReadoutsPlotter(self.readouts_container, self.parameters,self.config, self.axis_set, unit_ids)
 
         if self.hits_container is not None:
             from lib.plotting_hits import MGHitsPlotter
-            self.hit_plotter = MGHitsPlotter(self.hits_container, self.parameters,self.config, axis_set, unit_ids)
+            self.hit_plotter = MGHitsPlotter(self.hits_container, self.parameters,self.config, self.axis_set, unit_ids)
         if self.events_container is not None:
             from lib.plotting_events import MGEventsPlotter
-            self.event_plotter = MGEventsPlotter(self.events_container, self.parameters,self.config, axis_set,unit_ids)
+            self.event_plotter = MGEventsPlotter(self.events_container, self.parameters,self.config, self.axis_set,unit_ids)
 
 
 class R5560Pipeline(BasePipeline):
@@ -386,18 +386,18 @@ class R5560Pipeline(BasePipeline):
 
     def build_plotters(self,unit_ids) -> None:
         from lib.histograms import R5560AxisSet
-        axis_set = R5560AxisSet(self.parameters, self.config)
+        self.axis_set = R5560AxisSet(self.parameters, self.config)
 
         from lib.plotting_readouts import R5560ReadoutsPlotter
-        self.readout_plotter = R5560ReadoutsPlotter(self.readouts_container, self.parameters,self.config, axis_set,unit_ids)
+        self.readout_plotter = R5560ReadoutsPlotter(self.readouts_container, self.parameters,self.config, self.axis_set,unit_ids)
 
         if self.hits_container is not None:
             from lib.plotting_hits import R5560HitsPlotter
-            self.hit_plotter = R5560HitsPlotter(self.hits_container, self.parameters,self.config, axis_set,unit_ids)
+            self.hit_plotter = R5560HitsPlotter(self.hits_container, self.parameters,self.config, self.axis_set,unit_ids)
 
         if self.events_container is not None:
             from lib.plotting_events import R5560EventsPlotter
-            self.event_plotter = R5560EventsPlotter(self.events_container, self.parameters,self.config, axis_set,unit_ids)
+            self.event_plotter = R5560EventsPlotter(self.events_container, self.parameters,self.config, self.axis_set,unit_ids)
   
 
     def plot_always(self):

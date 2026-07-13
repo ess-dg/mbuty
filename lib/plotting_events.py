@@ -769,13 +769,15 @@ class R5560EventsPlotter(BaseEventsPlotter):
 
         if not abs_units:
             ax_length, pos0_values, pos0_label = self.axis_set.ax_length, m['coordinate0'], 'Along tube position (a.u.)'
-            ax_tubes, pos1_values, pos1_label = self.axis_set.ax_tubes, m['coordinate1'], 'Tube ID (a.u.)'
+            ax_tubes,  pos1_values, pos1_label = self.axis_set.ax_tubes, m['coordinate1'], 'Tube ID (a.u.)'
             
         else:
             ax_length, pos0_values, pos0_label = self.axis_set.ax_length_mm, m['absCoordinate0'], 'Along tube position (mm)'
-            ax_tubes, pos1_values, pos1_label = self.axis_set.ax_tubes_mm, m['absCoordinate1'], 'Tube Position (mm)'
+            ax_tubes,  pos1_values, pos1_label = self.axis_set.ax_tubes_mm, m['absCoordinate1'], 'Tube Position (mm)'
            
-
+        half_x_pixel = (ax_tubes.stop - ax_tubes.start)   / (2 * (len(ax_tubes.centers) - 1))
+        half_y_pixel = (ax_length.stop - ax_length.start) / (2 * (len(ax_length.centers) - 1))
+            
         h2d, _, _ = self.hist.hist_xyz(ax_tubes.centers, pos1_values, ax_length.centers, pos0_values, ax_tof.centers, m['ToF'] / 1e9)
 
         if isinstance(fig_num, matplotlib.figure.Figure):
@@ -784,9 +786,12 @@ class R5560EventsPlotter(BaseEventsPlotter):
         else:
             grid_fig, ax1 = plt.subplots(num=fig_num, figsize=(6, 6), nrows=1, ncols=1)
 
+
         if orientation == 'vertical':
             pos1 = ax1.imshow(h2d, aspect='auto', norm=norm_colors, interpolation='none',
-                               extent=[ax_tubes.start - 0.5, ax_tubes.stop + 0.5, ax_length.stop, ax_length.start], origin='upper', cmap='viridis')
+                               extent=[ax_tubes.start - half_x_pixel, ax_tubes.stop + half_x_pixel, 
+                                       ax_length.stop + half_y_pixel, ax_length.start - half_y_pixel], 
+                               origin='upper', cmap='viridis')
             ax1.set_xticks(ax_tubes.centers)
             ax1.set_xticklabels(ax_tubes.centers.astype(int))
             _safe_colorbar(grid_fig, pos1, ax1, 'XY', orientation='vertical', fraction=0.07, anchor=(1.0, 0.0))
@@ -794,9 +799,17 @@ class R5560EventsPlotter(BaseEventsPlotter):
             ax1.set_ylabel(pos0_label)
         else:  # 'horizontal'
             pos1 = ax1.imshow(np.rot90(h2d, 1), aspect='auto', norm=norm_colors, interpolation='none',
-                               extent=[ax_length.start, ax_length.stop, ax_tubes.stop + 0.5, ax_tubes.start - 0.5], origin='upper', cmap='viridis')
+                               extent=[ax_length.start - half_y_pixel, ax_length.stop + half_y_pixel, 
+                                       ax_tubes.stop + half_x_pixel, ax_tubes.start - half_x_pixel], 
+                               origin='upper', cmap='viridis')
+            # Set the ticks on their newly oriented axes
+            ax1.xaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%d'))
+            
+            # ax1.set_xticks(ax_length.centers)
+            # ax1.set_xticklabels(ax_length.centers.astype(int))
             ax1.set_yticks(ax_tubes.centers)
             ax1.set_yticklabels(ax_tubes.centers.astype(int))
+            
             _safe_colorbar(grid_fig, pos1, ax1, 'XY', orientation='vertical', fraction=0.07, anchor=(1.0, 0.0))
             ax1.set_xlabel(pos0_label)
             ax1.set_ylabel(pos1_label)

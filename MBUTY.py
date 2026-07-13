@@ -181,6 +181,8 @@ class MBUTYOrchestrator():
         self.readouts_BM_container = self.bm_pipeline.readouts_container
         self.events_BM_container   = self.bm_pipeline.events_container
         
+        self.axis_set = self.detector_pipeline.axis_set
+        
         ### save reduced data to hdf5
         if self.parameters.fileManagement.saveReducedFileONOFF is True:
 
@@ -269,7 +271,7 @@ if __name__ == '__main__':
     ###############################################################################
     ### read json and create parameters for plotting and analisys ###
 
-    configFileName  = "AMOR.json"
+    configFileName  = "AMOR2.json"
     # configFileName  = "clustered.json"
     
     
@@ -281,9 +283,9 @@ if __name__ == '__main__':
 
     # configFileName  = "ESTIA.json"
     
-    # configFileName  = "MIRACLES24.json"
+    configFileName  = "MIRACLES24.json"
     # configFileName  = "CSPEC.json"
-    # configFileName  = "MIRACLES2.json"
+    configFileName  = "MIRACLES1.json"
 
     # configFileName  = "ESTIA_sect0.json"
     # configFileName  = "ESTIA_sect1.json"
@@ -366,7 +368,7 @@ if __name__ == '__main__':
     # parameters.fileManagement.fileName = ['20260522_153423_duration_s_5_fullyOpenAgain_00000_vkjaa.pcapng']
     
     
-    # parameters.fileManagement.fileName = ['miracles_trig2.pcapng']
+    parameters.fileManagement.fileName = ['miracles_trig2.pcapng']
     # parameters.fileManagement.fileName = ['MG_2EMMAprototypes.pcapng']
     # parameters.fileManagement.fileName = ['miracles_source_mask_red.pcapng']
     # parameters.fileManagement.fileName = ['CSPEC1.pcapng']
@@ -405,6 +407,7 @@ if __name__ == '__main__':
     ### path to threshold  file
     parameters.fileManagement.thresholdFilePath = parameters.fileManagement.currentPath+'config/'
     parameters.fileManagement.thresholdFileName = 'MB300L_thresholds.xlsx'
+    parameters.fileManagement.thresholdFileName = 'tube_threshold_example.xlsx'
 
     ###############
     ### path to  Tshark, in case you open a pcap  it gets converted into pcapng 
@@ -415,7 +418,7 @@ if __name__ == '__main__':
     ### save a hdf file with clusters (reduced file)
 
     ### ON/OFF
-    parameters.fileManagement.saveReducedFileONOFF = True   
+    parameters.fileManagement.saveReducedFileONOFF = False   
     parameters.fileManagement.saveReducedPath = parameters.fileManagement.currentPath+'reduced/'
 
     parameters.fileManagement.reducedNameMainFolder   = 'entry1'
@@ -428,7 +431,6 @@ if __name__ == '__main__':
 
     ### calibration VMM ADC TDC
     parameters.dataReduction.calibrateVMM_ADC_ONOFF = False
-    
     parameters.dataReduction.calibrateVMM_TDC_ONOFF = False
 
     ### sorting readouts by time stamp, if OFF they are as in RMM stream
@@ -446,7 +448,7 @@ if __name__ == '__main__':
     parameters.dataReduction.softThresholdType = 'off' 
     # parameters.dataReduction.softThresholdType = 'fromFile' 
     # parameters.dataReduction.softThresholdType = 'userDefined' 
-    # parameters.dataReduction.softThresholdType = 'constants' 
+    parameters.dataReduction.softThresholdType = 'constants' 
 
     if parameters.dataReduction.softThresholdType == 'userDefined':
           
@@ -457,8 +459,11 @@ if __name__ == '__main__':
         
     elif  parameters.dataReduction.softThresholdType == 'constants':
         
-        parameters.dataReduction.softThArray = (150,100)
-   
+        # for MB or MG 
+        parameters.dataReduction.softThArray = (15000,7000)
+        
+        # for tubes
+        parameters.dataReduction.softThArray = (10000)
         
               
     ###############################################################################
@@ -590,7 +595,7 @@ if __name__ == '__main__':
     parameters.pulseHeigthSpect.plotPHSlog = False
 
     parameters.pulseHeigthSpect.energyBins = 256
-    parameters.pulseHeigthSpect.maxEnerg   = 2000
+    parameters.pulseHeigthSpect.maxEnerg   = 26000
 
     ### plot the PHS correaltion wires vs strips
     parameters.pulseHeigthSpect.plotPHScorrelation = True
@@ -604,6 +609,8 @@ if __name__ == '__main__':
     pipeline_orchestrator.run_pipeline()
     
     config = pipeline_orchestrator.config
+    
+    axis_set = pipeline_orchestrator.axis_set
     
     readouts = pipeline_orchestrator.readouts_container
     readoutsArray = readouts.get_data_frame()
@@ -619,7 +626,8 @@ if __name__ == '__main__':
     if parameters.plotting.bareReadoutsCalculation is False:
         hitsArray     = hits.get_data_frame()
         eventsArray   = events.get_data_frame()
-        eventsBMArray = eventsBM.get_data_frame()
+        if eventsBM is not None:
+            eventsBMArray = eventsBM.get_data_frame()
         
     
 

@@ -600,7 +600,7 @@ class R5560AxisSet(BaseAxisSet):
         # Physical position in mm along tube
         self.ax_length_mm  = Axis(0, tube_length, bins)
 
-        self.ax_tubes_mm = Axis(min_id*tube_spacing, (max_id+1)*tube_spacing, self.ax_tubes.steps)  
+        self.ax_tubes_mm = Axis(min_id*tube_spacing, max_id*tube_spacing, (max_id-min_id+1))  
 
 
         
