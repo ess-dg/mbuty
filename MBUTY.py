@@ -285,7 +285,7 @@ if __name__ == '__main__':
     
     # configFileName  = "MIRACLES24.json"
     # configFileName  = "CSPEC.json"
-    # configFileName  = "MIRACLES1.json"
+    configFileName  = "MIRACLES1.json"
 
     # configFileName  = "ESTIA_sect0.json"
     # configFileName  = "ESTIA_sect1.json"
@@ -368,7 +368,7 @@ if __name__ == '__main__':
     # parameters.fileManagement.fileName = ['20260522_153423_duration_s_5_fullyOpenAgain_00000_vkjaa.pcapng']
     
     
-    # parameters.fileManagement.fileName = ['miracles_trig2.pcapng']
+    parameters.fileManagement.fileName = ['miracles_trig2.pcapng']
     # parameters.fileManagement.fileName = ['MG_2EMMAprototypes.pcapng']
     # parameters.fileManagement.fileName = ['miracles_source_mask_red.pcapng']
     # parameters.fileManagement.fileName = ['CSPEC1.pcapng']
@@ -407,7 +407,7 @@ if __name__ == '__main__':
     ### path to threshold  file
     parameters.fileManagement.thresholdFilePath = parameters.fileManagement.currentPath+'config/'
     parameters.fileManagement.thresholdFileName = 'MB300L_thresholds.xlsx'
-    # parameters.fileManagement.thresholdFileName = 'tube_threshold_example.xlsx'
+    parameters.fileManagement.thresholdFileName = 'tube_threshold_example.xlsx'
 
     ###############
     ### path to  Tshark, in case you open a pcap  it gets converted into pcapng 
@@ -456,6 +456,12 @@ if __name__ == '__main__':
                   5: {'ch0': np.full(32, 1000.0)},   # cassette 1, wire thresholds only
                   6: {'ch0': np.full(32, 500.0), 'ch1': np.full(64, 700.0)},
               } 
+       
+       # for tubes
+       # parameters.dataReduction.softThArray = {
+       #            11: 1334,  
+       #             6: 4566,
+       #         } 
         
     elif  parameters.dataReduction.softThresholdType == 'constants':
         
@@ -463,7 +469,7 @@ if __name__ == '__main__':
         parameters.dataReduction.softThArray = (15000,7000)
         
         # for tubes
-        parameters.dataReduction.softThArray = (10000)
+        parameters.dataReduction.softThArray = 10000
         
               
     ###############################################################################

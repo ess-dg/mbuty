@@ -37,6 +37,8 @@ from lib.colors import INFO, WARN, ERR, RESET, OK
 
 def _read_threshold_file(filepath: str):
     """Read a .csv or .xlsx threshold file into a DataFrame, or None if missing."""
+    
+    print(filepath)
     if not os.path.exists(filepath):
         print(f"\t {WARN}WARNING: threshold file '{filepath}' not found -> software thresholds switched OFF{RESET}")
         return None
@@ -113,7 +115,6 @@ def _validate_wire_strip_threshold_file(df: pd.DataFrame, config: dict) -> bool:
         ok = False
         sys.exit()
 
-
     return ok
             
 
@@ -130,15 +131,13 @@ class ThresholdTable:
         
         self.num_wires  = config['wires']
         self.num_strips = config.get('strips', config.get('grids', None))
-        
-        
-        
+ 
     # def get(self, unit_id: int, channel_type: str):
     #     """Return the threshold array for a unit/channel_type, or None if undefined."""
     #     return self._table.get((unit_id, channel_type))
 
     # def is_empty(self) -> bool:
-    #     return not self._table
+    #     return not self.table
 
     def from_file(self, filepath: str):
         """
@@ -199,7 +198,7 @@ class ThresholdTable:
 
         return table
 
-    def from_arrays(self, arrays: dict) -> 'ThresholdTable':
+    def from_arraysOrDict(self, arrays: dict) -> 'ThresholdTable':
         """
         Build directly from user-supplied arrays. Two equivalent shapes accepted:
             {(unit_id, 'ch0'): array, (unit_id, 'ch1'): array, ...}
@@ -212,7 +211,7 @@ class ThresholdTable:
          }
         
         table = {}
-        for uid, channels in oftThArray.items():
+        for uid, channels in arrays.items():
             table[uid] = {}
             
             for ch_type in ['ch0', 'ch1']:
@@ -269,13 +268,138 @@ class ThresholdTable:
         # return table
 
 
-    # def empty(cls) -> 'ThresholdTable':
-    #     return cls({})
+    # def empty():
+    #     table = {}
+    #     return table
+
+###############################################################################
+###############################################################################
+# =============================================================================
+# Tube Threshold Table + Engine (R5560) — fully standalone
+# =============================================================================
+#
+# Each R5560 tube is its own topology unit (unit_id == tube_id), so a tube
+# only ever needs a single scalar pulse-height cut -- not an array of
+# per-channel thresholds.
+#
+# Expected tube threshold file layout: exactly two rows, no plane/channel
+# columns -- tube IDs as the header, a single row of threshold values below:
+#
+#     1        2        3        4
+#     6000.0   6200.0   5800.0   6100.0
+# =============================================================================
+
+def _validate_tube_threshold_file(df: pd.DataFrame, config: list) -> bool:
+    """
+    A tube file has no plane/channel columns -- just tube IDs as headers
+    and exactly one row of threshold values, since each tube is its own
+    unit with a single scalar cut, not an array of per-channel thresholds.
+    """
+    
+    ok = True 
+    
+    if df.shape[0] != 1:
+        ok = False
+        print(f"\t {ERR}ERROR: tube threshold file must contain exactly one row of values, "
+              f"found {df.shape[0]} -> software thresholds switched OFF{RESET}")
+        return ok
+    
+    unit_cols = df.columns
+    
+    # for uu in unit_cols:
+    #     print(uu)
+    
+    unit_ids = [item["ID"] for item in config.get("topology", [])]
+    
+    missing = set(unit_ids) - set(unit_cols)
+    
+    # print(unit_ids)
+    if missing:
+        print(f"\t {WARN}-> threshold file has no entries for unit IDs "
+              f"{sorted(missing)} -> software thresholds switched OFF for those IDs{RESET}")
+            
+    
+    if not (len(df) == 1):
+        print(f"\t {ERR}-> threshold file it does not have the right number rows, must be 1 threshold per tube -> exiting.{RESET}")
+        ok = False
+        sys.exit()      
+          
+    if df.isna().sum().sum() > 0:
+        print(f"\t {ERR}-> threshold file has EMPTY entries -> exiting.{RESET}")
+        ok = False
+        sys.exit()          
+        
+
+    return ok
+
+###############################################################################
+###############################################################################
+class TubeThresholdTable:
+    """Maps tube_id -> a single scalar threshold. No channel arrays."""
+
+    def __init__(self, config: dict):
+        
+        self.config = config  
+        self.table  = {} 
+    
+    # def is_empty(self) -> bool:
+    #     return not self.table
+
+    def from_file(self, filepath: str):
+        """Expects file in validated format above, just two rows 
+        (one with IDs and one with columns)"""
+        df = _read_threshold_file(filepath)
+        
+        # self.df = df 
+        
+        if df is None:
+            return 
+      
+        if not _validate_tube_threshold_file(df, self.config):
+            return 
+
+        row = df.iloc[0]
+        table = {}
+        for col in df.columns:
+            try:
+                uid = int(col)
+            except (TypeError, ValueError):
+                continue
+            table[uid] = float(row[col])
+            
+        return table
+
+    def from_arraysOrDict(self, values: dict):
+        """Expected dictionary format {ID: value , ...}
+        parameters.dataReduction.softThArray = {1: 6000.0, 2: 6200.0, 3: 5800.0, 4: 6100.0}"""
+        table = {int(k): float(v) for k, v in values.items()}
+        
+        return table
+
+    def from_constants(self, value):
+        """Expected constant to be applied to all tubes:
+        parameters.dataReduction.softThArray = 6000.0"""
+        
+        unit_ids = [item["ID"] for item in self.config.get("topology", [])]
+        
+        table = {int(uid): float(value) for uid in unit_ids}
+        
+        return table
+
+    # def empty():
+    #     table = {}
+    #     return table
 
 
-# =============================================================================
-# Base Threshold Engine (Wire / Strip / Grid detectors only -- MB, MG)
-# =============================================================================
+
+
+
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
 
 class BaseThresholdEngine:
     """
@@ -295,7 +419,9 @@ class BaseThresholdEngine:
         self.config     = config
         self.parameters = parameters
         self.unit_ids   = [entry['ID'] for entry in config['topology']]
-        self.table      = ThresholdTable.empty()
+        self.table      = {}
+        self.thEngine   = None
+        # self.table      = ThresholdTable.empty()
 
     def load(self) -> None:
         """Populate self.table according to parameters.dataReduction.softThresholdType."""
@@ -306,21 +432,21 @@ class BaseThresholdEngine:
                 self.parameters.fileManagement.thresholdFilePath,
                 self.parameters.fileManagement.thresholdFileName,
             )
-            self.table = ThresholdTable.from_file(path, self.unit_ids, self.config)
-            if self.table.is_empty():
+            self.table = self.thEngine.from_file(path)
+            if not self.table:
                 self.parameters.dataReduction.softThresholdType = 'off'
 
         elif mode == 'userDefined':
             print(f"\t {INFO}loading user-defined thresholds ...{RESET}")
-            self.table = ThresholdTable.from_arrays(self.parameters.dataReduction.softThArray)
+            self.table = self.thEngine.from_arraysOrDict(self.parameters.dataReduction.softThArray)
 
         elif mode == 'constants':
             print(f"\t {INFO}loading constant thresholds ...{RESET}")
-            self.table = ThresholdTable.from_constants(self.parameters.dataReduction.softThArray, self.unit_ids)
+            self.table = self.thEngine.from_constants(self.parameters.dataReduction.softThArray)
 
         else:
             print(f"\t {ERR}ERROR: unknown softThresholdType '{mode}' -> software thresholds switched OFF{RESET}")
-            self.table = ThresholdTable.empty()
+            self.table = {}
             self.parameters.dataReduction.softThresholdType = 'off'
 
     def apply(self) -> None:
@@ -363,6 +489,13 @@ class VMMThresholdEngine(BaseThresholdEngine):
     An event is rejected only on a channel it actually has (per the
     coordinate >= 0 sentinel) — a missing plane never gates the event.
     """
+    
+    def load(self):
+        
+        self.thEngine = ThresholdTable(self.config)
+        
+        super().load()
+ 
 
     def apply(self) -> None:
         print(f"\t {INFO}applying software thresholds ...{RESET}")
@@ -383,17 +516,24 @@ class VMMThresholdEngine(BaseThresholdEngine):
 
         keep_ch0 = np.ones(n, dtype=bool)
         keep_ch1 = np.ones(n, dtype=bool)
-
+        
         for uid in self.unit_ids:
+            # 1. Safely retrieve the nested dictionaries for the unit ID
+            unit_data = self.table.get(uid)
+            if not unit_data:
+                continue  # No threshold rules defined for this unit ID, skip it
+
             sel_unit = m['ID'] == uid
 
-            arr0 = self.table.get(uid, 'ch0')
+            # --- Process Channel 0 (Wires) ---
+            arr0 = unit_data.get('ch0')
             sel0 = sel_unit & has_ch0
             if arr0 is not None and np.any(sel0):
                 idx = np.clip(ch0_local[sel0], 0, len(arr0) - 1)
                 keep_ch0[sel0] = m['pulseHeight0'][sel0] > arr0[idx]
 
-            arr1 = self.table.get(uid, 'ch1')
+            # --- Process Channel 1 (Strips) ---
+            arr1 = unit_data.get('ch1')
             sel1 = sel_unit & has_ch1
             if arr1 is not None and np.any(sel1):
                 idx = np.clip(ch1_local[sel1], 0, len(arr1) - 1)
@@ -402,158 +542,23 @@ class VMMThresholdEngine(BaseThresholdEngine):
         reject_mask = ~(keep_ch0 & keep_ch1)
         self.events.matrix['ID'][:self.events.fill_count][reject_mask] = -1
         self.events.remove_invalid()
+       
 
 
-# =============================================================================
-# Tube Threshold Table + Engine (R5560) — fully standalone
-# =============================================================================
-#
-# Each R5560 tube is its own topology unit (unit_id == tube_id), so a tube
-# only ever needs a single scalar pulse-height cut -- not an array of
-# per-channel thresholds.
-#
-# Expected tube threshold file layout: exactly two rows, no plane/channel
-# columns -- tube IDs as the header, a single row of threshold values below:
-#
-#     1        2        3        4
-#     6000.0   6200.0   5800.0   6100.0
-# =============================================================================
 
 
-from here change 
-
-def _validate_tube_threshold_file(df: pd.DataFrame, config: list) -> bool:
+###############################################################################
+###############################################################################
+class TubeThresholdEngine(BaseThresholdEngine):
     """
-    A tube file has no plane/channel columns -- just tube IDs as headers
-    and exactly one row of threshold values, since each tube is its own
-    unit with a single scalar cut, not an array of per-channel thresholds.
+    threshold engine for the He-3 tube detector (CAEN R5560).
+    Each tube is its own topology unit (unit_id == tube_id)
     """
-    
-    ok = True 
-    
-    if df.shape[0] != 1:
-        ok = False
-        print(f"\t {ERR}ERROR: tube threshold file must contain exactly one row of values, "
-              f"found {df.shape[0]} -> software thresholds switched OFF{RESET}")
-        return ok
-    
-    unit_ids = [item["ID"] for item in config.get("topology", [])]
-    
-    missing = set(unit_ids) - set(unit_cols)
-    if missing:
-        print(f"\t {WARN}-> threshold file has no entries for unit IDs "
-              f"{sorted(missing)} -> software thresholds switched OFF for those IDs{RESET}")
-            
-            
-            
-
-    file_units = set()
-    for col in df.columns:
-        try:
-            file_units.add(int(col))
-        except (TypeError, ValueError):
-            print(f"\t {WARN}WARNING: tube threshold file column '{col}' is not a valid tube ID -> skipped{RESET}")
-
-    missing = set(unit_ids) - file_units
-    if missing:
-        print(f"\t {ERR}ERROR: tube threshold file has no entries for tube IDs {sorted(missing)} "
-              f"-> software thresholds switched OFF{RESET}")
-        return False
-
-    return ok
-
-
-class TubeThresholdTable:
-    """Maps tube_id -> a single scalar threshold. No channel arrays."""
-
-    def __init__(self, table: dict):
-        self._table = table  # {tube_id: float}
-
-    def get(self, tube_id: int):
-        return self._table.get(tube_id)
-
-    def is_empty(self) -> bool:
-        return not self._table
-
-    @classmethod
-    def from_file(cls, filepath: str, unit_ids: list) -> 'TubeThresholdTable':
-        """Expects file in validated format above, just two rows 
-        (one with IDs and one with columns)"""
-        df = _read_threshold_file(filepath)
-        if df is None:
-            return cls({})
-        if not _validate_tube_threshold_file(df, unit_ids):
-            return cls({})
-
-        row = df.iloc[0]
-        table = {}
-        for col in df.columns:
-            try:
-                uid = int(col)
-            except (TypeError, ValueError):
-                continue
-            table[uid] = float(row[col])
-        return cls(table)
-
-    @classmethod
-    def from_dict(cls, values: dict) -> 'TubeThresholdTable':
-        """Expected dictionary format {ID: value , ...}
-        parameters.dataReduction.softThArray = {1: 6000.0, 2: 6200.0, 3: 5800.0, 4: 6100.0}"""
-        return cls({int(k): float(v) for k, v in values.items()})
-
-    @classmethod
-    def from_constants(cls, value, unit_ids: list) -> 'TubeThresholdTable':
-        """Expected constant to be applied to all tubes:
-        parameters.dataReduction.softThArray = 6000.0"""
-        return cls({int(uid): float(value) for uid in unit_ids})
-
-    @classmethod
-    def empty(cls) -> 'TubeThresholdTable':
-        return cls({})
-
-
-class TubeThresholdEngine:
-    """
-    Independent threshold engine for the He-3 tube detector (CAEN R5560).
-    Each tube is its own topology unit (unit_id == tube_id), so there's
-    just one scalar pulse-height cut per tube, matched directly off the
-    event's 'ID' field -- no per-channel array, no shared code with
-    ThresholdTable/VMMThresholdEngine/BaseThresholdEngine.
-    """
-
-    def __init__(self, events, config: dict, parameters):
-        self.events     = events
-        self.config     = config
-        self.parameters = parameters
-        self.unit_ids   = [entry['ID'] for entry in config['topology']]
-        self.table      = TubeThresholdTable.empty()
-
-    def load(self) -> None:
-        mode = self.parameters.dataReduction.softThresholdType
-
-        if mode == 'fromFile':
-            path = os.path.join(
-                self.parameters.fileManagement.thresholdFilePath,
-                self.parameters.fileManagement.thresholdFileName,
-            )
-            self.table = TubeThresholdTable.from_file(path, self.unit_ids)
-
-        elif mode == 'userDefined':
-            print(f"\t {INFO}loading user-defined tube thresholds ...{RESET}")
-            self.table = TubeThresholdTable.from_dict(self.parameters.dataReduction.softThArray)
-
-        elif mode == 'constants':
-            print(f"\t {INFO}loading constant tube threshold ...{RESET}")
-            self.table = TubeThresholdTable.from_constants(self.parameters.dataReduction.softThArray, self.unit_ids)
-
-        else:
-            print(f"\t {ERR}ERROR: unknown softThresholdType '{mode}' -> software thresholds switched OFF{RESET}")
-            self.table = TubeThresholdTable.empty()
-            self.parameters.dataReduction.softThresholdType = 'off'
-            return
-
-        if self.table.is_empty():
-            self.parameters.dataReduction.softThresholdType = 'off'
+    def load(self):
+        
+        self.thEngine = TubeThresholdTable(self.config)
+        
+        super().load()
 
     def apply(self) -> None:
         print(f"\t {INFO}applying per-tube software thresholds ...{RESET}")
@@ -576,19 +581,10 @@ class TubeThresholdEngine:
         self.events.matrix['ID'][:self.events.fill_count][~keep] = -1
         self.events.remove_invalid()
 
-    def process_pipeline(self) -> None:
-        if self.parameters.dataReduction.softThresholdType == 'off':
-            print(f"\n\t detector software thresholds OFF ...")
-            return
-
-        self.load()
-
-        if self.parameters.dataReduction.softThresholdType == 'off':
-            return
-
-        self.apply()
-
-
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
 # =============================================================================
 # Monitor threshold engine
 # =============================================================================
@@ -615,110 +611,147 @@ def apply_monitor_threshold(events, threshold: float) -> None:
 
     print(f'{OK}\t MON events (after threshold): {events.fill_count}{RESET}')
 
-
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
 # =============================================================================
 # Manual test / demo
 # =============================================================================
 if __name__ == '__main__':
-    from types import SimpleNamespace
-    from container_events import eventsVMMnormal, eventsR5560
+    # from types import SimpleNamespace
+    # from container_events import eventsVMMnormal, eventsR5560
  
-    pd.set_option('display.width', 160)
-    pd.set_option('display.max_columns', 20)
+    # pd.set_option('display.width', 160)
+    # pd.set_option('display.max_columns', 20)
  
     REAL_XLSX_PATH = '/Users/francescopiscitelli/git_repos/mbuty/config/MB300L_thresholds.xlsx'
     TUBE_XLSX_PATH = '/Users/francescopiscitelli/git_repos/mbuty/config/tube_threshold_example.xlsx'
  
-    UNIT_IDS = [1, 2, 3, 4, 5, 8]   # unit IDs present as columns in MB300L_thresholds.xlsx
-    N_WIRES  = 32
-    N_STRIPS = 64
+    # UNIT_IDS = [1, 2, 3, 4, 5, 8]   # unit IDs present as columns in MB300L_thresholds.xlsx
+    # N_WIRES  = 32
+    # N_STRIPS = 64
  
-    def make_params(filename, filepath):
-        return SimpleNamespace(
-            dataReduction=SimpleNamespace(softThresholdType='fromFile', softThArray=None),
-            fileManagement=SimpleNamespace(thresholdFilePath=filepath, thresholdFileName=filename),
-        )
+    # def make_params(filename, filepath):
+    #     return SimpleNamespace(
+    #         dataReduction=SimpleNamespace(softThresholdType='fromFile', softThArray=None),
+    #         fileManagement=SimpleNamespace(thresholdFilePath=filepath, thresholdFileName=filename),
+    #     )
  
-    def make_fake_vmm_events(n_per_unit=1000, seed=0):
-        rng = np.random.default_rng(seed)
-        n = n_per_unit * len(UNIT_IDS)
-        ev = eventsVMMnormal(size=n)
+    # def make_fake_vmm_events(n_per_unit=1000, seed=0):
+    #     rng = np.random.default_rng(seed)
+    #     n = n_per_unit * len(UNIT_IDS)
+    #     ev = eventsVMMnormal(size=n)
  
-        computed_fields = {
-            'ID':           np.repeat(UNIT_IDS, n_per_unit),
-            'coordinate0':  rng.integers(0, N_WIRES, size=n).astype('float64'),
-            'coordinate1':  rng.integers(0, N_STRIPS, size=n).astype('float64'),
-            'pulseHeight0': rng.integers(0, 25000, size=n),
-            'pulseHeight1': rng.integers(0, 25000, size=n),
-            'mult0':        np.ones(n, dtype='int64'),
-            'mult1':        np.ones(n, dtype='int64'),
-            'clusterTimeSpan': np.zeros(n, dtype='int64'),
-        }
-        timing_src = {
-            'timeStamp': np.arange(n, dtype='int64'),
-            'pulseT':    np.zeros(n, dtype='int64'),
-            'prevPT':    np.zeros(n, dtype='int64'),
-        }
-        ev.absorb(computed_fields, timing_src)
-        return ev
+    #     computed_fields = {
+    #         'ID':           np.repeat(UNIT_IDS, n_per_unit),
+    #         'coordinate0':  rng.integers(0, N_WIRES, size=n).astype('float64'),
+    #         'coordinate1':  rng.integers(0, N_STRIPS, size=n).astype('float64'),
+    #         'pulseHeight0': rng.integers(0, 25000, size=n),
+    #         'pulseHeight1': rng.integers(0, 25000, size=n),
+    #         'mult0':        np.ones(n, dtype='int64'),
+    #         'mult1':        np.ones(n, dtype='int64'),
+    #         'clusterTimeSpan': np.zeros(n, dtype='int64'),
+    #     }
+    #     timing_src = {
+    #         'timeStamp': np.arange(n, dtype='int64'),
+    #         'pulseT':    np.zeros(n, dtype='int64'),
+    #         'prevPT':    np.zeros(n, dtype='int64'),
+    #     }
+    #     ev.absorb(computed_fields, timing_src)
+    #     return ev
  
-    def make_fake_tube_events(tube_ids, n_per_unit=1000, seed=1):
-        rng = np.random.default_rng(seed)
-        n = n_per_unit * len(tube_ids)
-        ev = eventsR5560(size=n)
+    # def make_fake_tube_events(tube_ids, n_per_unit=1000, seed=1):
+    #     rng = np.random.default_rng(seed)
+    #     n = n_per_unit * len(tube_ids)
+    #     ev = eventsR5560(size=n)
  
-        computed_fields = {
-            'ID':           np.repeat(tube_ids, n_per_unit),
-            'coordinate0':  np.full(n, -1.0),
-            'coordinate1':  np.full(n, -1.0),
-            'pulseHeight0': rng.integers(0, 25000, size=n),
-        }
-        timing_src = {
-            'timeStamp': np.arange(n, dtype='int64'),
-            'pulseT':    np.zeros(n, dtype='int64'),
-            'prevPT':    np.zeros(n, dtype='int64'),
-        }
-        ev.absorb(computed_fields, timing_src)
-        return ev
+    #     computed_fields = {
+    #         'ID':           np.repeat(tube_ids, n_per_unit),
+    #         'coordinate0':  np.full(n, -1.0),
+    #         'coordinate1':  np.full(n, -1.0),
+    #         'pulseHeight0': rng.integers(0, 25000, size=n),
+    #     }
+    #     timing_src = {
+    #         'timeStamp': np.arange(n, dtype='int64'),
+    #         'pulseT':    np.zeros(n, dtype='int64'),
+    #         'prevPT':    np.zeros(n, dtype='int64'),
+    #     }
+    #     ev.absorb(computed_fields, timing_src)
+    #     return ev
  
-    # --- Wire/strip (MB300L) ---
-    print('\n' + '=' * 80)
-    print('WIRE/STRIP thresholds from MB300L_thresholds.xlsx')
-    print('=' * 80)
+    # # --- Wire/strip (MB300L) ---
+    # print('\n' + '=' * 80)
+    # print('WIRE/STRIP thresholds from MB300L_thresholds.xlsx')
+    # print('=' * 80)
  
-    vmm_config = {'wires': N_WIRES, 'strips': N_STRIPS, 'topology': [{'ID': uid} for uid in UNIT_IDS]}
-    vmm_params = make_params(os.path.basename(REAL_XLSX_PATH), os.path.dirname(REAL_XLSX_PATH))
-    vmm_events = make_fake_vmm_events()
+    # vmm_config = {'wires': N_WIRES, 'strips': N_STRIPS, 'topology': [{'ID': uid} for uid in UNIT_IDS]}
+    # vmm_params = make_params(os.path.basename(REAL_XLSX_PATH), os.path.dirname(REAL_XLSX_PATH))
+    # vmm_events = make_fake_vmm_events()
     
-    configFileName  = "AMOR.json"
+    configFileName1  = "AMOR.json"
+    
+    configFileName2  = "MIRACLES1.json"
     
     current_dir = '/Users/francescopiscitelli/git_repos/mbuty/'
 
-    config_path = os.path.join(current_dir, 'config') + os.sep +configFileName
+    config_path1 = os.path.join(current_dir, 'config') + os.sep +configFileName1
 
-    with open(config_path, 'r') as f:
-        config = json.load(f)
+    config_path2 = os.path.join(current_dir, 'config') + os.sep +configFileName2
+    
+    with open(config_path1, 'r') as f:
+        config1 = json.load(f)
+        
+    with open(config_path2, 'r') as f:
+            config2 = json.load(f)
         
   
     
     # unit_ids = [item["ID"] for item in config.get("topology", [])]
-    tht = ThresholdTable(config)
+    tht = ThresholdTable(config1)
      
-    table = tht.from_file(REAL_XLSX_PATH)
+    table1 = tht.from_file(REAL_XLSX_PATH)
     
-    # df = tht.df
+    
     
     
     oftThArray = {
                5: {'ch0': np.full(32, 1000.0)},   # cassette 1, wire thresholds only
                6: {'ch0': np.full(32, 500.0), 'ch1': np.full(64, 700.0)},
            } 
-    table1 = tht.from_arrays(oftThArray)
+    table2 = tht.from_arraysOrDict(oftThArray)
+    
+    oftThArray = {
+               11: 1334,  
+                6: 4566,
+            } 
+    
+    softThArray = (15000, 5000)
+    
+    table3 = tht.from_constants(softThArray)
     
     
-    softThArray = (15000,7000)
     
-    table2 = tht.from_constants(softThArray)
+    
+    
+    tht20 = TubeThresholdTable(config2)
+    
+    table21 = tht20.from_file(TUBE_XLSX_PATH)
+    # df = tht.df
+    
+    oftThArray = {
+               11: 1334,  
+                6: 4566,
+            } 
+    
+    softThArray = 6666
+    
+    table22 = tht20.from_arraysOrDict(oftThArray)
+    
+    table23 = tht20.from_constants(softThArray)
     
     
     # print(f'\nBEFORE ({vmm_events.fill_count} events):')
