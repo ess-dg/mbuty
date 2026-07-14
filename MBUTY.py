@@ -103,10 +103,7 @@ class MBUTYOrchestrator():
             from lib.kafka_reader import KafkaReader
             reader = KafkaReader(
                 parameters = self.parameters,
-                config     = self.config,
-                broker     = self.parameters.kafkaSettings.broker,
-                topic      = self.parameters.kafkaSettings.topic,
-                n_packets  = self.parameters.kafkaSettings.numOfPackets,
+                config     = self.config,  
                 testing    = False
             )
             reader.run()
@@ -311,11 +308,11 @@ if __name__ == '__main__':
     #################################
     ### can only be only one of these 5 options: off, pcap-sync, pcap-local, pcap-local-overwrite or kafka
 
-    # parameters.acqMode = 'pcap-sync'
+    parameters.acqMode = 'pcap-sync'
     # parameters.acqMode = 'pcap-local'
     # parameters.acqMode = 'pcap-local-overwrite'
-    # parameters.acqMode = 'kafka'
-    parameters.acqMode = 'off'
+    parameters.acqMode = 'kafka'
+    # parameters.acqMode = 'off'
 
     ###  then check parameters.fileManagement.openMode = 'window' for the open mode ...
     ###############################################################################
@@ -349,6 +346,8 @@ if __name__ == '__main__':
     ### from ... to  ... rsync the data
 
     parameters.fileManagement.sourcePath = 'essdaq@172.30.244.50:/home/essdaq/pcaps/'
+    
+    parameters.fileManagement.sourcePath = 'essdaq@det-efu-devel01.cslab.esss.lu.se:/home/essdaq/pcaps/'
 
     parameters.fileManagement.destPath   = r"/Users/francescopiscitelli/Desktop/dataVMM/"
 
