@@ -176,10 +176,6 @@ class pulseHeigthSpect():
 class plotting():
       def __init__(self):
      
-          # self.config = config
-          
-          #  is you want stats of clusters per cassette or for all at once, 0 no  stat, individualStat stat per cass, globalStat stat all cass glob
-          self.showStat = 'globalStat'
 
           # Primary plotting surface is the PySide6 dashboard. Flip this off
           # to fall back to plain matplotlib windows (one per active plot,

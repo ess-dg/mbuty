@@ -31,14 +31,9 @@ from lib.colors import INFO, WARN, ERR, RESET, OK
 # =============================================================================
 
 
-# =============================================================================
-# Shared file I/O helper
-# =============================================================================
-
 def _read_threshold_file(filepath: str):
     """Read a .csv or .xlsx threshold file into a DataFrame, or None if missing."""
-    
-    print(filepath)
+
     if not os.path.exists(filepath):
         print(f"\t {WARN}WARNING: threshold file '{filepath}' not found -> software thresholds switched OFF{RESET}")
         return None
@@ -47,16 +42,23 @@ def _read_threshold_file(filepath: str):
     return pd.read_csv(filepath) if filepath.lower().endswith('.csv') else pd.read_excel(filepath)
 
 
-# =============================================================================
-# Wire / Strip / Grid Threshold Table
-# =============================================================================
+###############################################################################
 
+def validate_entries_in_th(unit_ids,unit_cols):
+    missing = set(unit_ids) - set(unit_cols)
+    if missing:
+            print(f"\t {WARN}-> threshold file/arrays have no entries for unit IDs "
+                  f"{sorted(missing)} -> software thresholds switched OFF for those IDs. "
+                  f"\n\t config file contains IDs: {unit_ids}{RESET}")
+    
+
+###############################################################################
 # Legacy threshold files label planes by physical name rather than schema
 # field name; map them onto the ch0/ch1 selectors used by the engines.
 _PLANE_TO_CHANNEL_TYPE = {'wire': 'ch0', 'strip': 'ch1', 'grid': 'ch1'}
 
-
-def _validate_wire_strip_threshold_file(df: pd.DataFrame, config: dict) -> bool:
+###############################################################################
+def _validate_wire_strip_threshold_file(df: pd.DataFrame, unit_ids, num_wires, num_strips) -> bool:
     """
     Checks the file's shape against what the config actually expects:
       - a plane column, a channel column, and at least one unit column
@@ -79,15 +81,11 @@ def _validate_wire_strip_threshold_file(df: pd.DataFrame, config: dict) -> bool:
     
     plane_col, channel_col, *unit_cols = df.columns
     
-    num_wires  = config['wires']
-    num_strips = config.get('strips', config.get('grids', None))
-
-    unit_ids = [item["ID"] for item in config.get("topology", [])]
+    # num_wires  = config['wires']
+    # num_strips = config.get('strips', config.get('grids', None))
+    # unit_ids = [item["ID"] for item in config.get("topology", [])]
   
-    missing = set(unit_ids) - set(unit_cols)
-    if missing:
-            print(f"\t {WARN}-> threshold file has no entries for unit IDs "
-                  f"{sorted(missing)} -> software thresholds switched OFF for those IDs{RESET}")
+    validate_entries_in_th(unit_ids,unit_cols)
      
     if not (len(df) == (num_wires+num_strips)):
         print(f"\t {ERR}-> threshold file it does not have the right number of wires or strips/grids -> exiting.{RESET}")
@@ -117,7 +115,7 @@ def _validate_wire_strip_threshold_file(df: pd.DataFrame, config: dict) -> bool:
 
     return ok
             
-
+###############################################################################
 class ThresholdTable:
     """
     Maps (unit_id, channel_type) -> 1D array of per-local-channel thresholds.
@@ -126,18 +124,12 @@ class ThresholdTable:
     """
 
     def __init__(self, config: dict):
-        self.config = config  # {(unit_id, channel_type): np.ndarray}
+        self.config = config  
         self.table  = {} 
         
         self.num_wires  = config['wires']
         self.num_strips = config.get('strips', config.get('grids', None))
- 
-    # def get(self, unit_id: int, channel_type: str):
-    #     """Return the threshold array for a unit/channel_type, or None if undefined."""
-    #     return self._table.get((unit_id, channel_type))
-
-    # def is_empty(self) -> bool:
-    #     return not self.table
+        self.unit_ids   = [item["ID"] for item in config.get("topology", [])]
 
     def from_file(self, filepath: str):
         """
@@ -167,7 +159,7 @@ class ThresholdTable:
         if df is None:
             return 
 
-        if not _validate_wire_strip_threshold_file(df, self.config):
+        if not _validate_wire_strip_threshold_file(df,self.unit_ids,self.num_wires,self.num_strips):
             return 
 
         plane_col, channel_col, *unit_cols = df.columns
@@ -210,6 +202,10 @@ class ThresholdTable:
         'ch1': self.num_strips   # Strips/grids
          }
         
+        unit_cols = list(arrays.keys())
+  
+        validate_entries_in_th(self.unit_ids,unit_cols)
+        
         table = {}
         for uid, channels in arrays.items():
             table[uid] = {}
@@ -238,11 +234,8 @@ class ThresholdTable:
         # Hardware channel lengths: ch0 (wires) = 32, ch1 (strips) = 64
         CH0_SIZE = self.num_wires
         CH1_SIZE = self.num_strips
-        
-        unit_ids = [item["ID"] for item in self.config.get("topology", [])]
 
-
-        for uid in unit_ids:
+        for uid in self.unit_ids:
             uid_int = int(uid)
             table[uid_int] = {}
             
@@ -260,17 +253,6 @@ class ThresholdTable:
                 
         return table
         
-        # for uid in unit_ids:
-        #     if ch0_value is not None:
-        #         table[(int(uid), 'ch0')] = np.array([float(ch0_value)])
-        #     if ch1_value is not None:
-        #         table[(int(uid), 'ch1')] = np.array([float(ch1_value)])
-        # return table
-
-
-    # def empty():
-    #     table = {}
-    #     return table
 
 ###############################################################################
 ###############################################################################
@@ -289,7 +271,7 @@ class ThresholdTable:
 #     6000.0   6200.0   5800.0   6100.0
 # =============================================================================
 
-def _validate_tube_threshold_file(df: pd.DataFrame, config: list) -> bool:
+def _validate_tube_threshold_file(df: pd.DataFrame, unit_ids) -> bool:
     """
     A tube file has no plane/channel columns -- just tube IDs as headers
     and exactly one row of threshold values, since each tube is its own
@@ -305,20 +287,9 @@ def _validate_tube_threshold_file(df: pd.DataFrame, config: list) -> bool:
         return ok
     
     unit_cols = df.columns
-    
-    # for uu in unit_cols:
-    #     print(uu)
-    
-    unit_ids = [item["ID"] for item in config.get("topology", [])]
-    
-    missing = set(unit_ids) - set(unit_cols)
-    
-    # print(unit_ids)
-    if missing:
-        print(f"\t {WARN}-> threshold file has no entries for unit IDs "
-              f"{sorted(missing)} -> software thresholds switched OFF for those IDs{RESET}")
-            
-    
+
+    validate_entries_in_th(unit_ids,unit_cols)
+
     if not (len(df) == 1):
         print(f"\t {ERR}-> threshold file it does not have the right number rows, must be 1 threshold per tube -> exiting.{RESET}")
         ok = False
@@ -338,12 +309,9 @@ class TubeThresholdTable:
     """Maps tube_id -> a single scalar threshold. No channel arrays."""
 
     def __init__(self, config: dict):
-        
         self.config = config  
         self.table  = {} 
-    
-    # def is_empty(self) -> bool:
-    #     return not self.table
+        self.unit_ids   = [item["ID"] for item in config.get("topology", [])]
 
     def from_file(self, filepath: str):
         """Expects file in validated format above, just two rows 
@@ -355,7 +323,7 @@ class TubeThresholdTable:
         if df is None:
             return 
       
-        if not _validate_tube_threshold_file(df, self.config):
+        if not _validate_tube_threshold_file(df, self.unit_ids):
             return 
 
         row = df.iloc[0]
@@ -372,6 +340,9 @@ class TubeThresholdTable:
     def from_arraysOrDict(self, values: dict):
         """Expected dictionary format {ID: value , ...}
         parameters.dataReduction.softThArray = {1: 6000.0, 2: 6200.0, 3: 5800.0, 4: 6100.0}"""
+   
+        unit_cols = list(values.keys())
+        validate_entries_in_th(self.unit_ids,unit_cols)
         table = {int(k): float(v) for k, v in values.items()}
         
         return table
@@ -379,19 +350,10 @@ class TubeThresholdTable:
     def from_constants(self, value):
         """Expected constant to be applied to all tubes:
         parameters.dataReduction.softThArray = 6000.0"""
-        
-        unit_ids = [item["ID"] for item in self.config.get("topology", [])]
-        
-        table = {int(uid): float(value) for uid in unit_ids}
+
+        table = {int(uid): float(value) for uid in self.unit_ids}
         
         return table
-
-    # def empty():
-    #     table = {}
-    #     return table
-
-
-
 
 
 ###############################################################################
@@ -455,8 +417,11 @@ class BaseThresholdEngine:
 
     def process_pipeline(self) -> None:
         """Entry point: load thresholds (if enabled) then apply them."""
+        
+        print(f"{INFO}Software thresholds ...{RESET}")
+        
         if self.parameters.dataReduction.softThresholdType == 'off':
-            print(f"\n\t detector software thresholds OFF ...")
+            print(f"\t {INFO}detector software thresholds OFF ...{RESET}")
             return
 
         self.load()
@@ -596,7 +561,7 @@ def apply_monitor_threshold(events, threshold: float) -> None:
     just using the reject/remove_invalid path instead of removeData().
     """
     if threshold <= 0:
-        print(f"\n\t beam monitor software threshold OFF ...")
+        print(f"\n\t {INFO}beam monitor software threshold OFF ...{RESET}")
         return
 
     print(f"\n\t {INFO}applying beam monitor software threshold ...{RESET}")

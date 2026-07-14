@@ -177,17 +177,40 @@ class VMMEventsPlotter(BaseEventsPlotter):
                 grid.ax[1][k].step(ax_span.centers * 1e6, hist_rate_zoomed, 'b', where='mid', label='time delta bet ev')
                 
             # print(ax_rate.centers)
+
+            #     grid.ax[0][k].set_yscale('log')
+            #     grid.ax[1][k].set_yscale('log')
+        
             
-            grid.ax[0][k].set_yscale('log')
-            grid.ax[1][k].set_yscale('log')
+            # --- SAFE LOG SCALE CHECK ---
+            # Set y-scale to log only if there is at least one positive count in the histogram
+            if hist_rate is not None and (hist_rate > 0).any():
+                grid.ax[0][k].set_yscale('log')
+            else:
+                grid.ax[0][k].set_yscale('linear') # fall back safely to linear scale
+
+            # Check both overlaid datasets on row 1 before applying log scale
+            has_positive_span = hist_span is not None and (hist_span > 0).any()
+            has_positive_zoomed = hist_rate_zoomed is not None and (hist_rate_zoomed > 0).any()
             
-            # grid.ax[0][k].set_xscale('symlog', linthresh=1)
+            if has_positive_span or has_positive_zoomed:
+                grid.ax[1][k].set_yscale('log')
+            else:
+                grid.ax[1][k].set_yscale('linear')    
+                
+            # has_positive_span = hist_span is not None and (hist_span > 0).any()
+            # has_positive_zoomed = hist_rate_zoomed is not None and (hist_rate_zoomed > 0).any()
+            
+            # if has_positive_span or has_positive_zoomed:
+            #     # grid.ax[1][k].set_yscale('log')
+            #     grid.ax[1][k].set_xscale('symlog', linthresh=1)
+            # else:
+            #     grid.ax[1][k].set_yscale('linear')
+ 
+            
             grid.ax[1][k].set_xscale('symlog', linthresh=1)
-            # grid.ax[0][k].set_xlim(ax_rate.start * 1e6, ax_rate.stop * 1e6)
-            # grid.ax[1][k].set_xlim(ax_span.start * 1e6, ax_span.stop * 1e6)
-            
+
             grid.ax[0][k].set_xlabel('delta time (us)')
-            
             grid.ax[1][k].set_xlabel('delta time / span (us)')
             
             grid.ax[0][k].set_title(f'ID {uid}')

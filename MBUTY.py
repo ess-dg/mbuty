@@ -285,7 +285,7 @@ if __name__ == '__main__':
     
     # configFileName  = "MIRACLES24.json"
     # configFileName  = "CSPEC.json"
-    configFileName  = "MIRACLES1.json"
+    # configFileName  = "MIRACLES1.json"
 
     # configFileName  = "ESTIA_sect0.json"
     # configFileName  = "ESTIA_sect1.json"
@@ -368,7 +368,7 @@ if __name__ == '__main__':
     # parameters.fileManagement.fileName = ['20260522_153423_duration_s_5_fullyOpenAgain_00000_vkjaa.pcapng']
     
     
-    parameters.fileManagement.fileName = ['miracles_trig2.pcapng']
+    # parameters.fileManagement.fileName = ['miracles_trig2.pcapng']
     # parameters.fileManagement.fileName = ['MG_2EMMAprototypes.pcapng']
     # parameters.fileManagement.fileName = ['miracles_source_mask_red.pcapng']
     # parameters.fileManagement.fileName = ['CSPEC1.pcapng']
@@ -407,7 +407,7 @@ if __name__ == '__main__':
     ### path to threshold  file
     parameters.fileManagement.thresholdFilePath = parameters.fileManagement.currentPath+'config/'
     parameters.fileManagement.thresholdFileName = 'MB300L_thresholds.xlsx'
-    parameters.fileManagement.thresholdFileName = 'tube_threshold_example.xlsx'
+    # parameters.fileManagement.thresholdFileName = 'tube_threshold_example.xlsx'
 
     ###############
     ### path to  Tshark, in case you open a pcap  it gets converted into pcapng 
@@ -446,7 +446,7 @@ if __name__ == '__main__':
 
     ### 'OFF', 'fromFile' = File With Threhsolds Loaded, 'userDefined' = User defines the Thresholds in an array softTh
     parameters.dataReduction.softThresholdType = 'off' 
-    parameters.dataReduction.softThresholdType = 'fromFile' 
+    # parameters.dataReduction.softThresholdType = 'fromFile' 
     # parameters.dataReduction.softThresholdType = 'userDefined' 
     # parameters.dataReduction.softThresholdType = 'constants' 
 
@@ -459,17 +459,17 @@ if __name__ == '__main__':
        
        # for tubes
        # parameters.dataReduction.softThArray = {
-       #            11: 1334,  
-       #             6: 4566,
+       #            11: 13340,  
+       #             12: 4566,
        #         } 
         
     elif  parameters.dataReduction.softThresholdType == 'constants':
         
         # for MB or MG 
-        parameters.dataReduction.softThArray = (15000,7000)
+        parameters.dataReduction.softThArray = (300,0)
         
         # for tubes
-        parameters.dataReduction.softThArray = 10000
+        # parameters.dataReduction.softThArray = 10000
         
               
     ###############################################################################
@@ -536,12 +536,6 @@ if __name__ == '__main__':
     parameters.plotting.plottingInSectionsBlocks = 5
 
     ###############     
-    ### show stat during clustering, option  'globalStat'  stat for all cassettes together, 
-    ### 'individualStat' stat per cassette or None for no stat
-    parameters.plotting.showStat = 'globalStat'
-    # parameters.plotting.showStat = 'individualStat'
-
-    ###############     
     ### raw plots
     parameters.plotting.plotRawReadouts         = True
     parameters.plotting.plotReadoutsTimeStamps  = True
@@ -576,7 +570,7 @@ if __name__ == '__main__':
     # parameters.plotting.positionReconstruction = 'W.cog-S.cog'
 
     ### if True plot XY and XtoF plot in absolute unit (mm), if False plot in wire and strip ch no.
-    parameters.plotting.plotABSunits = True
+    parameters.plotting.plotABSunits = False
      
     ### plot XY and XToF in log scale 
     parameters.plotting.plotIMGlog   = False
@@ -601,7 +595,7 @@ if __name__ == '__main__':
     parameters.pulseHeigthSpect.plotPHSlog = False
 
     parameters.pulseHeigthSpect.energyBins = 256
-    parameters.pulseHeigthSpect.maxEnerg   = 26000
+    parameters.pulseHeigthSpect.maxEnerg   = 1700
 
     ### plot the PHS correaltion wires vs strips
     parameters.pulseHeigthSpect.plotPHScorrelation = True
