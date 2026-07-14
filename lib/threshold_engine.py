@@ -222,13 +222,14 @@ class ThresholdTable:
 
 
 
-    def from_constants(self, values: tuple) -> 'ThresholdTable':
+    def from_constants(self, values: list) -> 'ThresholdTable':
         """
         Build from a flat (ch0_value, ch1_value) pair, same bound for every
         unit_id. Pass None for a plane you don't want gated, e.g. (700, None)
         thresholds ch0 only, leaves ch1 ungated.
         """
-        ch0_value, ch1_value = values
+        ch0_value = values[0]
+        ch1_value = values[1]
         table = {}
         
         # Hardware channel lengths: ch0 (wires) = 32, ch1 (strips) = 64
@@ -347,11 +348,11 @@ class TubeThresholdTable:
         
         return table
 
-    def from_constants(self, value):
+    def from_constants(self, list):
         """Expected constant to be applied to all tubes:
         parameters.dataReduction.softThArray = 6000.0"""
 
-        table = {int(uid): float(value) for uid in self.unit_ids}
+        table = {int(uid): float(list[0]) for uid in self.unit_ids}
         
         return table
 
@@ -694,7 +695,7 @@ if __name__ == '__main__':
                 6: 4566,
             } 
     
-    softThArray = (15000, 5000)
+    softThArray = [15000, 5000]
     
     table3 = tht.from_constants(softThArray)
     
@@ -712,7 +713,7 @@ if __name__ == '__main__':
                 6: 4566,
             } 
     
-    softThArray = 6666
+    softThArray = [6666]
     
     table22 = tht20.from_arraysOrDict(oftThArray)
     

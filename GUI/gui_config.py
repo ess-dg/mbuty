@@ -144,13 +144,6 @@ def dataFileOptions(widgets):
         return (folder, ".pcapng")
     except Exception:
         return []
-
-
-def set_ThW(val):
-    parameters.dataReduction.softThArray.ThW[:, :] = val
-
-def set_ThS(val):
-    parameters.dataReduction.softThArray.ThS[:, :] = val
     
 def open_config_creator_standalone():
     """
@@ -457,14 +450,10 @@ config = {
         "parameters.dataReduction.softThresholdType": {
             "label": "Soft Threshold Type",
             "type": "radio",
-            "options": ["off", "fromFile", "userDefined"],
+            "options": ["off", "fromFile", "constants"],
             "default": "off",
             "info": "Select how to define soft thresholds: off, from file, or user-defined.",
-            "set": lambda val: (
-                    setattr(parameters.dataReduction, 'softThresholdType', val),
-                    parameters.dataReduction.createThArrays(parameters)
-                    if val == "userDefined" else None
-                )[-1]  
+            "set": lambda val: setattr(parameters.dataReduction, 'softThresholdType', val)
         },
         "parameters.fileManagement.thresholdFilePath": {
             "label": "Threshold File Path",
@@ -484,21 +473,21 @@ config = {
             "info": "Name of the Excel threshold file.",
             "set": lambda val: setattr(parameters.fileManagement, 'thresholdFileName', val)
         },
-        "parameters.dataReduction.softThArray.ThW[:,:]": {
+        "parameters.dataReduction.softThArray": {
             "label": "Soft Threshold W",
             "type": "entry",
             "inputValidation": "float",
             "default": 200,
-            "dependsOn": ("parameters.dataReduction.softThresholdType", "userDefined"),
-            "set": set_ThW
+            "dependsOn": ("parameters.dataReduction.softThresholdType", "constants"),
+            "set": lambda val: parameters.dataReduction.softThArray.__setitem__(0, val)
         },
-        "parameters.dataReduction.softThArray.ThS[:,:]": {
+        "parameters.dataReduction.softThArray": {
             "label": "Soft Threshold S",
             "type": "entry",
             "inputValidation": "float",
             "default": 100,
-            "dependsOn": ("parameters.dataReduction.softThresholdType", "userDefined"),
-            "set": set_ThS
+            "dependsOn": ("parameters.dataReduction.softThresholdType", "constants"),
+            "set": lambda val: parameters.dataReduction.softThArray.__setitem__(1, val)
         }
     }, 
     "calibration": {

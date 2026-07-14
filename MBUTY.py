@@ -459,10 +459,10 @@ if __name__ == '__main__':
     elif  parameters.dataReduction.softThresholdType == 'constants':
         
         # for MB or MG 
-        parameters.dataReduction.softThArray = (300,0)
+        parameters.dataReduction.softThArray = [300,0]
         
         # for tubes
-        # parameters.dataReduction.softThArray = 10000
+        # parameters.dataReduction.softThArray[0] = [10000]
         
               
     ###############################################################################
