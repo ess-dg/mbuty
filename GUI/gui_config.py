@@ -245,7 +245,7 @@ config = {
         "parameters.kafkaSettings.topic": {
             "label": "Kafka Topic",
             "type": "entry",
-            "default": "estia_detector_samples",
+            "default": "freia_detector_samples",
             "dependsOn": ("parameters.acqMode", "kafka"),
             "set": lambda val: setattr(parameters.kafkaSettings, 'topic', val)
         },
@@ -384,7 +384,7 @@ config = {
             "label": "Sort Readouts by Time Stamps",
             "type": "bool",
             "options": ["True", "False"],
-            "default": "False",
+            "default": "True",
             "info": "Sorting readouts by time stamp, if OFF they are as in RMM stream",
             "set": lambda val: setattr(parameters.timeSettings, 'sortReadoutsByTimeStampsONOFF', val)
         },
@@ -440,7 +440,7 @@ config = {
             "label": "Time Window for clustering (s)",
             "type": "entry",
             "inputValidation": "scientific",
-            "default": "0.5e-6",
+            "default": "0.13e-6",
             "info": "Time window to search for clusters.\nThis is the maximum time allowed between events in a cluster.\nHalf the value is used as the recursive threshold between adjacent hits.",
             "set": lambda val: setattr(parameters.dataReduction, 'timeWindow', val)
         },
@@ -796,20 +796,20 @@ config = {
             "set": lambda val: setattr(parameters.plotting, 'plotHitsTimeStampsVSChannels', val)
         },
         # Instantaneous Rate
-        "parameters.plotting.plotInstRate": {
-            "label": "Plot Instantaneous Rate",
+        "parameters.plotting.plotTimeBetwEv": {
+            "label": "Plot Time Between Events",
             "type": "bool",
             "options": ["True", "False"],
             "default": "False",
-            "set": lambda val: setattr(parameters.plotting, 'plotInstRate', val)
+            "set": lambda val: setattr(parameters.plotting, 'plotTimeBetwEv', val)
         },
-        "parameters.plotting.instRateBin": {
-            "label": "Rate Bin Width (s)",
+        "parameters.plotting.timeBetwEvBin": {
+            "label": "Time Bin Width (s)",
             "type": "entry",
             "default": "100e-6",
             "inputValidation": "scientific",
-            "dependsOn": ("parameters.plotting.plotInstRate", True),
-            "set": lambda val: setattr(parameters.plotting, 'instRateBin', val)
+            "dependsOn": ("parameters.plotting.plotTimeBetwEv", True),
+            "set": lambda val: setattr(parameters.plotting, 'timeBetwEvBin', val)
         },
         # ToF (Time of Flight) plotting
         "parameters.plotting.plotToFDistr": {

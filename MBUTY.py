@@ -159,16 +159,16 @@ class MBUTYOrchestrator():
             if not self.parameters.plotting.bareReadoutsCalculation:
                 self.bm_pipeline.analyze()
             if self.plottingOnOff == 'on':
-        
                 self.bm_pipeline.plot()
         
         
         if self.plottingOnOff == 'on':
-            plt.draw() 
-            plt.pause(0.1)
-            plt.show(block=False)
-            # input(f"{INFO}\nPress Enter to close all figures...{RESET}")
-            # plt.close('all')
+            if (self.detector_pipeline or self.bm_pipeline): 
+                plt.draw() 
+                plt.pause(0.1)
+                plt.show(block=False)
+                # input(f"{INFO}\nPress Enter to close all figures...{RESET}")
+                # plt.close('all')
             
             # self.timing.lap()
         
@@ -525,6 +525,9 @@ if __name__ == '__main__':
 
     ###############     
     parameters.plotting.useDashboard = False
+    ###############   
+    
+    ###############   
     ### plotting in sections of cassettes to ease the visualization if True and in blocks of ...  
     parameters.plotting.plottingInSections       = False 
     parameters.plotting.plottingInSectionsBlocks = 5
