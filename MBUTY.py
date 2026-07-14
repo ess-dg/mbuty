@@ -163,7 +163,7 @@ class MBUTYOrchestrator():
         
         
         if self.plottingOnOff == 'on':
-            if (self.detector_pipeline or self.bm_pipeline): 
+            if (self.detector_pipeline or (self.bm_pipeline and self.parameters.MONitor.MONOnOff)): 
                 plt.draw() 
                 plt.pause(0.1)
                 plt.show(block=False)
