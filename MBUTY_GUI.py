@@ -671,14 +671,28 @@ class MBUTY_GUI_App:
                     self.close_plots_button.grid()
                 if self.stop_button and self.stop_button.winfo_ismapped():
                     self.stop_button.grid_remove()
-            except Exception as e:
-                # Check if the exception was a KeyboardInterrupt raised by the stop button
+            except BaseException as e:
+                # BaseException (not just Exception) so that sys.exit()/SystemExit
+                # raised anywhere in the pipeline can't silently kill this thread.
                 if isinstance(e, KeyboardInterrupt):
                     print("\nAnalysis was interrupted by user.")
+                elif isinstance(e, SystemExit):
+                    print(f"\nAnalysis stopped: {e}")
+                    self.main_thread_queue.put(
+                        lambda msg=str(e): messagebox.showerror("Analysis Stopped", msg or "Analysis was stopped.")
+                    )
                 else:
                     print(f" Error during analysis: {e}")
+                    self.main_thread_queue.put(
+                        lambda msg=str(e): messagebox.showerror("Error", f"Error during analysis:\n{msg}")
+                    )
             finally:
                 self.analysis_running = False # Reset the running flag in finally block
+                # Make sure the stop button retracts even on failure, not just on success
+                self.main_thread_queue.put(
+                    lambda: (self.stop_button.grid_remove()
+                             if self.stop_button and self.stop_button.winfo_ismapped() else None)
+                )
 
         # Start the backend work in a new thread to prevent GUI freezing
         self.backend_thread = threading.Thread(target=backend_work)

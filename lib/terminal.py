@@ -390,8 +390,7 @@ def dumpToPcapng(interface='en0', destPath='./', fileName='temp',typeOfCapture='
                 
                 if temp_status != 0:
                     print(f"\033[1;31mERROR: interface does not exist or you do not have the rights to record -> exiting. \033[1;37m")
-                    time.sleep(2)
-                    sys.exit()
+                    raise ValueError(f"ERROR: interface does not exist or you do not have the rights to record ->")
                     
             allStatus = sum(status)      
             if allStatus == 0: 

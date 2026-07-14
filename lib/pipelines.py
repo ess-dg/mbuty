@@ -463,6 +463,7 @@ class BeamMonitorPipeline:
                 self.event_plotter.plot_tof_phs_mon()
                 if self.parameters.wavelength.plotLambdaDistr:
                     self.event_plotter.plot_lambda_mon()
+            
                 
     def check_empty(self):
         if self.readouts_container.fill_count == 0:
