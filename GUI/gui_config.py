@@ -129,7 +129,7 @@ from tkinter import messagebox
 
 # Fix import path to allow access to lib from GUI folder
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from lib import libParameters as para
+from lib import parameters as para
 # Set current path
 currentPath = os.path.abspath(os.path.dirname(os.path.dirname(__file__))) 
 parameters = para.parameters(currentPath)
@@ -380,21 +380,21 @@ config = {
             "info": "Controls how memory is allocated when loading PCAP files. 'allocate' is more rigorous, \n'quick' estimates the memory and is faster.",
             "set": lambda val: setattr(parameters.fileManagement, 'pcapLoadingMethod', val)
         },
-        "parameters.VMMsettings.sortReadoutsByTimeStampsONOFF": {
+        "parameters.timeSettings.sortReadoutsByTimeStampsONOFF": {
             "label": "Sort Readouts by Time Stamps",
             "type": "bool",
             "options": ["True", "False"],
             "default": "False",
             "info": "Sorting readouts by time stamp, if OFF they are as in RMM stream",
-            "set": lambda val: setattr(parameters.VMMsettings, 'sortReadoutsByTimeStampsONOFF', val)
+            "set": lambda val: setattr(parameters.timeSettings, 'sortReadoutsByTimeStampsONOFF', val)
         },
-        "parameters.VMMsettings.timeResolutionType": {
+        "parameters.timeSettings.timeResolutionType": {
             "label": "Time Resolution Type",
             "type": "bool",
             "options": ["fine", "coarse"],
             "default": "fine",
             "info": "Time stamp is time HI + time LO or if fine corrected with TDC ",
-            "set": lambda val: setattr(parameters.VMMsettings, 'timeResolutionType', val)
+            "set": lambda val: setattr(parameters.timeSettings, 'timeResolutionType', val)
         },
         "subtitle.bareReadouts": {
             "type": "subheading",
@@ -453,7 +453,7 @@ config = {
             "set": lambda val: setattr(parameters.plotting, 'positionReconstruction', val)
         },
     },
-    "threshold": {
+    "threshold": { ######################################### TO UPDATE once thresholds consolidated
         "parameters.dataReduction.softThresholdType": {
             "label": "Soft Threshold Type",
             "type": "radio",
@@ -464,7 +464,7 @@ config = {
                     setattr(parameters.dataReduction, 'softThresholdType', val),
                     parameters.dataReduction.createThArrays(parameters)
                     if val == "userDefined" else None
-                )[-1]
+                )[-1]  
         },
         "parameters.fileManagement.thresholdFilePath": {
             "label": "Threshold File Path",
@@ -510,11 +510,20 @@ config = {
             "info": "Calibration VMM ADC",
             "set": lambda val: setattr(parameters.dataReduction, 'calibrateVMM_ADC_ONOFF', val)
         },
+        "parameters.dataReduction.calibrateVMM_TDC_ONOFF": {
+            "label": "Calibrate VMM TDC",
+            "type": "bool",
+            "options": ["True", "False"],
+            "default": "False",
+            "info": "Calibration VMM TDC",
+            "set": lambda val: setattr(parameters.dataReduction, 'calibrateVMM_TDC_ONOFF', val)
+        },
         "parameters.fileManagement.calibFilePath": {
             "label": "Calibration File Path",
             "type": "filePath",
             "default": os.path.join(parameters.fileManagement.currentPath,'calib'),
-            "dependsOn": ("parameters.dataReduction.calibrateVMM_ADC_ONOFF", True),
+            "dependsOn":{"or":  [("parameters.dataReduction.calibrateVMM_ADC_ONOFF", True),
+                                 ("parameters.dataReduction.calibrateVMM_TDC_ONOFF", True)]},
             "info": "Path to the calibration file folder.",
             "set": lambda val: setattr(parameters.fileManagement, 'calibFilePath', val)
         },
@@ -717,14 +726,6 @@ config = {
             "dependsOn": ("parameters.plottingInSections", True),
             "info": "Number of cassettes per plotting section.",
             "set": lambda val: setattr(parameters, 'plottingInSectionsBlocks', val)
-        },
-        "parameters.plotting.showStat": {
-            "label": "Statistics Display",
-            "type": "radio",
-            "options": ["globalStat", "individualStat"],
-            "default": "globalStat",
-            "info": "Choose how to display statistical summaries.",
-            "set": lambda val: setattr(parameters.plotting, 'showStat', val)
         },
         # Raw plotting options
         "parameters.plotting.plotRawReadouts": {

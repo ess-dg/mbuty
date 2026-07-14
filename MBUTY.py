@@ -166,10 +166,10 @@ class MBUTYOrchestrator():
             plt.draw() 
             plt.pause(0.1)
             plt.show(block=False)
-        # input(f"{INFO}\nPress Enter to close all figures...{RESET}")
-        # plt.close('all')
-        
-        # self.timing.lap()
+            # input(f"{INFO}\nPress Enter to close all figures...{RESET}")
+            # plt.close('all')
+            
+            # self.timing.lap()
         
         self.readouts_container = self.detector_pipeline.readouts_container
         self.hits_container     = self.detector_pipeline.hits_container
@@ -200,14 +200,7 @@ class MBUTYOrchestrator():
                     saveReducedPath=self.parameters.fileManagement.saveReducedPath,
                     fileName=fileNameSave
                 )
-
-        # if self.run_from_gui:
-        #     self.main_thread_queue.put(lambda: self.plotting())
-
-        # self.timing.lap()
-
-    # # Final plotting and display logic
-    # plt.show(block= False)
+            # self.timing.lap()
 
         ###############################################################################
         ###############################################################################

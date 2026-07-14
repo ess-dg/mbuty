@@ -31,8 +31,8 @@ from GUI.expandable_section import ExpandableSection
 from GUI.gui_config import config, parameters
 from GUI.gui_utils import create_gui_widget, setup_dynamic_file_options, setup_dynamic_option_resolver, should_show, extract_dependency_keys, update_widget_fonts
 from GUI.console_widgets import ANSIColorTextWidget, ConsoleRedirector
-from MBUTY import MBUTYmain
-from lib import libTerminal as ta
+from MBUTY import MBUTYOrchestrator
+from lib import terminal as ta
 from GUI.scroll_helpers import bind_mousewheel, unbind_mousewheel
 
 class MBUTY_GUI_App:
@@ -648,22 +648,27 @@ class MBUTY_GUI_App:
         plt.close("All")
 
         # Initialize the MBUTY backend with current parameters and the main thread queue
-        MBUTY_backEnd = MBUTYmain(parameters, runFromGui=True, main_thread_queue = self.main_thread_queue)
-
+        MBUTY_backEnd = MBUTYOrchestrator(parameters, plottingOnOff='off', main_thread_queue=self.main_thread_queue)
+        
         # === Backend work in a separate thread ===
         def backend_work():
-            """
-            Worker function executed in a separate thread for the MBUTY analysis.
-            Handles the execution of the backend analysis and reports status.
-            """
             try:
-                print("\nRunning analysis with selected parameters...\n")
-                MBUTY_backEnd.analysis() # Execute the main analysis function
-                print("\nAnalysis complete")
-                # Display the "Close Plots" button after analysis completion
+                print("\nRunning Master Ingestion Pipeline...\n")
+                MBUTY_backEnd.run_pipeline()  # Performs ingestion and .analyze() tracks
+                
+                print("\nAnalysis complete. Dispatching plots to main thread...")
+                
+                # Push the sequential plot execution track onto the main GUI thread queue
+                self.main_thread_queue.put(lambda: (
+                    MBUTY_backEnd.detector_pipeline.plot() if MBUTY_backEnd.detector_pipeline else None,
+                    MBUTY_backEnd.bm_pipeline.plot() if (MBUTY_backEnd.bm_pipeline and parameters.MONitor.MONOnOff) else None,
+                    plt.draw(),
+                    plt.pause(0.1),
+                    plt.show(block=False)
+                ))
+
                 if self.close_plots_button:
                     self.close_plots_button.grid()
-                # Hide the "Stop" button after analysis completion
                 if self.stop_button and self.stop_button.winfo_ismapped():
                     self.stop_button.grid_remove()
             except Exception as e:
