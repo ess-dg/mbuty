@@ -108,6 +108,7 @@ class BasePipeline:
         self.readout_plotter = None
         self.hit_plotter = None
         self.event_plotter = None
+        self.axis_set = None
 
     def analyze(self) -> None:
         raise NotImplementedError
@@ -215,7 +216,7 @@ class BasePipeline:
         """
         topology = self.config.get('topology', [])
         unit_ids = [entry['ID'] for entry in topology]
-        
+                
         # sort here to have plots sorted by ID ascending otherwise as they are in config file 
         unit_ids     = np.sort(unit_ids)
         
@@ -271,7 +272,6 @@ class MBPipeline(BasePipeline):
     def build_plotters(self, unit_ids) -> None:
         from lib.histograms import MBAxisSet
         self.axis_set = MBAxisSet(self.parameters, self.config)
-  
         from lib.plotting_readouts import MBReadoutsPlotter
         self.readout_plotter = MBReadoutsPlotter(self.readouts_container, self.parameters, self.config, self.axis_set, unit_ids)
 

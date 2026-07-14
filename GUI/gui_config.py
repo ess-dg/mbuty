@@ -533,7 +533,8 @@ config = {
             "optionsFromPath": "parameters.fileManagement.calibFilePath",
             "fileTypeFilter": ".json",
             "default": "AMOR_calib_20231111002842.json",
-            "dependsOn": ("parameters.dataReduction.calibrateVMM_ADC_ONOFF", True),
+            "dependsOn": {"or":  [("parameters.dataReduction.calibrateVMM_ADC_ONOFF", True),
+                                 ("parameters.dataReduction.calibrateVMM_TDC_ONOFF", True)]},
             "info": "Name of the calibration file.",
             "set": lambda val: setattr(parameters.fileManagement, 'calibFileName', val)
         }
@@ -710,22 +711,30 @@ config = {
         }
     },
     "plotting": {
-        "parameters.plottingInSections": {
+        "parameters.plotting.useDashboard": {
+            "label": "Plot in Dashboard",
+            "type": "bool",
+            "options": ["True", "False"],
+            "default": "False",
+            "info": "If True, plots are shown in dashboard for easier visualization.",
+            "set": lambda val: setattr(parameters.plotting, 'useDashboard', val)
+        },
+        "parameters.plotting.plottingInSections": {
             "label": "Plot in Sections",
             "type": "bool",
             "options": ["True", "False"],
             "default": "False",
             "info": "If True, plots are split into blocks for easier visualization.",
-            "set": lambda val: setattr(parameters, 'plottingInSections', val)
+            "set": lambda val: setattr(parameters.plotting, 'plottingInSections', val)
         },
-        "parameters.plottingInSectionsBlocks": {
+        "parameters.plotting.plottingInSectionsBlocks": {
             "label": "Sections Per Block",
             "type": "entry",
             "default": 5,
             "inputValidation": "int",
             "dependsOn": ("parameters.plottingInSections", True),
             "info": "Number of cassettes per plotting section.",
-            "set": lambda val: setattr(parameters, 'plottingInSectionsBlocks', val)
+            "set": lambda val: setattr(parameters.plotting, 'plottingInSectionsBlocks', val)
         },
         # Raw plotting options
         "parameters.plotting.plotRawReadouts": {

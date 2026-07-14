@@ -159,6 +159,7 @@ class MBUTYOrchestrator():
             if not self.parameters.plotting.bareReadoutsCalculation:
                 self.bm_pipeline.analyze()
             if self.plottingOnOff == 'on':
+        
                 self.bm_pipeline.plot()
         
         
@@ -523,6 +524,7 @@ if __name__ == '__main__':
     parameters.plotting.bareReadoutsCalculation = False
 
     ###############     
+    parameters.plotting.useDashboard = False
     ### plotting in sections of cassettes to ease the visualization if True and in blocks of ...  
     parameters.plotting.plottingInSections       = False 
     parameters.plotting.plottingInSectionsBlocks = 5

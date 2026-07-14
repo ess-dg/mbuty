@@ -648,7 +648,7 @@ class MBUTY_GUI_App:
         plt.close("All")
 
         # Initialize the MBUTY backend with current parameters and the main thread queue
-        MBUTY_backEnd = MBUTYOrchestrator(parameters, plottingOnOff='off', main_thread_queue=self.main_thread_queue)
+        MBUTY_backEnd = MBUTYOrchestrator(parameters, plottingOnOff='gui', main_thread_queue=self.main_thread_queue)
         
         # === Backend work in a separate thread ===
         def backend_work():
@@ -769,7 +769,7 @@ class MBUTY_GUI_App:
         user_name = os.environ.get('USER', os.environ.get('USERNAME', 'User'))
         self.main_app_title_label = tk.Label(
             header,
-            text=f"Ciao {user_name}! Welcome to MBUTY 7.3",
+            text=f"Ciao {user_name}! Welcome to MBUTY 8.0",
             font=(const.gui_font, const.param_font_size+8, "bold"), # Initial font
             fg="#228B22", # Foreground color (Forest Green)
         )
@@ -890,7 +890,7 @@ class MBUTY_GUI_App:
     def show_about_dialog(self):
         """Displays software version and author information."""
         # Assuming these are defined in your library/constants
-        version = "7.3 (Mar 26, 2026)" 
+        version = "8.0 (July 14, 2026)" 
         author = "Francesco Piscitelli, Sheila Monera Cabarique"
         
         about_text = (
