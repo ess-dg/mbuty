@@ -1,0 +1,33 @@
+{
+    "detectorName": "test",
+    "detectorType": "SKADI",
+    "instrumentName": "SKADI",
+    "units": 2,
+    "orientation": "vertical",
+    "topology": [
+        {
+            "ID": 0,
+            "IP": "192.168.0.1",
+            "rotation": 0,
+            "bank": 0
+        },
+        {
+            "ID": 1,
+            "IP": "192.168.0.2",
+            "rotation": 0,
+            "bank": 0
+        }
+    ],
+    "tilesPerRow": 10,
+    "gapX_mm": 4,
+    "gapY_mm": 4,
+    "monitor": [
+        {
+            "ID": 99,
+            "hardwareType": "generic",
+            "connectionType": "ring",
+            "ring": 11,
+            "channel": 0
+        }
+    ]
+}

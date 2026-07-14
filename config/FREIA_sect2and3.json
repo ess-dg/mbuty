@@ -103,12 +103,6 @@
             "hybrid": 1
         }
     ],
-    "channelMapping": [
-        {
-            "wireASIC": 1,
-            "stripASIC": 0
-        }
-    ],
     "wires": 32,
     "strips": 64,
     "wirePitch_mm": 4,

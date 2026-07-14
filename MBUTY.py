@@ -308,11 +308,11 @@ if __name__ == '__main__':
     #################################
     ### can only be only one of these 5 options: off, pcap-sync, pcap-local, pcap-local-overwrite or kafka
 
-    parameters.acqMode = 'pcap-sync'
+    # parameters.acqMode = 'pcap-sync'
     # parameters.acqMode = 'pcap-local'
     # parameters.acqMode = 'pcap-local-overwrite'
-    parameters.acqMode = 'kafka'
-    # parameters.acqMode = 'off'
+    # parameters.acqMode = 'kafka'
+    parameters.acqMode = 'off'
 
     ###  then check parameters.fileManagement.openMode = 'window' for the open mode ...
     ###############################################################################

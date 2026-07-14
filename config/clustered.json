@@ -20,20 +20,20 @@
             "hybrid": 1,
             "serial": ""
         },
-                {
-                    "ID": 7,
-                    "ring": 0,
-                    "fen": 2,
-                    "hybrid": 2,
-                    "serial": ""
-                },
-                {
-                    "ID": 8,
-                    "ring": 0,
-                    "fen": 2,
-                    "hybrid": 3,
-                    "serial": ""
-                }
+        {
+            "ID": 7,
+            "ring": 0,
+            "fen": 2,
+            "hybrid": 2,
+            "serial": ""
+        },
+        {
+            "ID": 8,
+            "ring": 0,
+            "fen": 2,
+            "hybrid": 3,
+            "serial": ""
+        }
     ],
     "wires": 32,
     "strips": 64,
