@@ -158,7 +158,7 @@ class dataReduction():
           # 'constants' = User defines a single threshold applied to all wires, and another for all the strips 
           self.softThresholdType = 'off'
           
-          self.softThArray = np.zeros((0))
+          self.softThArray = [0,0]
           
           self.calibrateVMM_ADC_ONOFF = False
           

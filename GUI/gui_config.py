@@ -473,16 +473,16 @@ config = {
             "info": "Name of the Excel threshold file.",
             "set": lambda val: setattr(parameters.fileManagement, 'thresholdFileName', val)
         },
-        "parameters.dataReduction.softThArray": {
-            "label": "Soft Threshold W",
+        "parameters.dataReduction.softThArrayW": {
+            "label": "Soft Threshold Wire/Tube",
             "type": "entry",
             "inputValidation": "float",
             "default": 200,
             "dependsOn": ("parameters.dataReduction.softThresholdType", "constants"),
             "set": lambda val: parameters.dataReduction.softThArray.__setitem__(0, val)
         },
-        "parameters.dataReduction.softThArray": {
-            "label": "Soft Threshold S",
+        "parameters.dataReduction.softThArrayS": {
+            "label": "Soft Threshold Strip/Grid",
             "type": "entry",
             "inputValidation": "float",
             "default": 100,
