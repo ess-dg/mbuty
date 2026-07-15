@@ -1,33 +1,33 @@
 {
-    "detectorName": "test",
+    "detectorName": "skaditest",
     "detectorType": "SKADI",
     "instrumentName": "SKADI",
-    "units": 2,
+    "units": 4,
     "orientation": "vertical",
     "topology": [
         {
             "ID": 0,
-            "IP": 133,
+            "IP": 100,
             "rotation": 0,
             "bank": 0
         },
         {
             "ID": 1,
-            "IP": 144,
+            "IP": 101,
             "rotation": 0,
             "bank": 0
-        }
+        },
         {
             "ID": 2,
-            "IP": 159,
+            "IP": 102,
             "rotation": 0,
-            "bank": 2
+            "bank": 0
         },
         {
             "ID": 3,
-            "IP": 147,
+            "IP": 103,
             "rotation": 0,
-            "bank": 2
+            "bank": 0
         }
     ],
     "tilesPerRow": 10,

@@ -721,7 +721,7 @@ config = {
             "type": "entry",
             "default": 5,
             "inputValidation": "int",
-            "dependsOn": ("parameters.plottingInSections", True),
+            "dependsOn": ("parameters.plotting.plottingInSections", True),
             "info": "Number of cassettes per plotting section.",
             "set": lambda val: setattr(parameters.plotting, 'plottingInSectionsBlocks', val)
         },
