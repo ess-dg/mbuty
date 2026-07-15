@@ -53,7 +53,6 @@ from lib.container_hits import (
     hitsVMMnormal,
     hitsVMMclustered,
     hitsR5560,
-    hitsSKADI,
 )
 
 from lib.container_events import (
