@@ -21,9 +21,12 @@ from __future__ import annotations
 from typing import Iterable, NamedTuple, Sequence
 
 import numpy as np
+import os
+os.environ["QT_API"] = "pyside6"
 
-from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex, QSortFilterProxyModel, QTimer
-from PySide6.QtWidgets import (
+# CHANGED: Replaced PySide6 imports with qtpy equivalents for clean cross-IDE & cross-platform portability
+from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex, QSortFilterProxyModel, QTimer
+from qtpy.QtWidgets import (
     QApplication,
     QMainWindow,
     QWidget,
@@ -39,6 +42,7 @@ from PySide6.QtWidgets import (
     QFrame,
 )
 
+# RESTORED: Standard Matplotlib Agg backend that automatically resolves Qt5 vs Qt6
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.figure import Figure
 

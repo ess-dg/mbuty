@@ -7,6 +7,7 @@ High-Performance Master Ingestion Orchestrator for ESS Neutron Detectors.
 """
 
 import os
+os.environ["QT_API"] = "pyside6"
 import sys
 import numpy as np
 import json
@@ -25,6 +26,7 @@ import lib.save_reduced_file as saveH5
 # Ingest legacy file resolver as an isolated asset
 from lib.file_managment import fileDialogue
 import lib.parameters as para
+
 
 # =============================================================================
 # Master Ingestion Orchestrator
