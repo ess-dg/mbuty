@@ -200,6 +200,19 @@ class BasePipeline:
         if self.readouts_container.fill_count == 0:
             print(f"{WARN}{type(self).__name__}: readouts container is empty — skipping pipeline pass.{RESET}")
             return
+############################    gui fix #################################################### 
+    def get_unit_id_blocks(self) -> list:
+        """Returns the list of unit-ID blocks that plot() would iterate over,
+        honoring plottingInSections/plottingInSectionsBlocks. Lets a caller
+        (the GUI) drive plot_section() one block at a time itself."""
+        topology = self.config.get('topology', [])
+        unit_ids = np.sort([entry['ID'] for entry in topology])
+
+        if not self.parameters.plotting.plottingInSections:
+            return [unit_ids]
+
+        return _chunk(unit_ids, self.parameters.plotting.plottingInSectionsBlocks)
+############################################################################################## 
 
     def plot(self, run_from_gui: bool = False) -> None:
         """Runs either a single make_plots() pass or, when

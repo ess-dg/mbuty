@@ -657,18 +657,47 @@ class MBUTY_GUI_App:
                 MBUTY_backEnd.run_pipeline()  # Performs ingestion and .analyze() tracks
                 
                 print("\nAnalysis complete. Dispatching plots to main thread...")
-                
-                # Push the sequential plot execution track onto the main GUI thread queue
-                self.main_thread_queue.put(lambda: (
-                    MBUTY_backEnd.detector_pipeline.plot() if MBUTY_backEnd.detector_pipeline else None,
-                    MBUTY_backEnd.bm_pipeline.plot() if (MBUTY_backEnd.bm_pipeline and parameters.MONitor.MONOnOff) else None,
-                    plt.draw(),
-                    plt.pause(0.1),
-                    plt.show(block=False)
-                ))
 
-                if self.close_plots_button:
-                    self.close_plots_button.grid()
+                def plot_all_sections():
+                    """
+                    Runs on the Tk main thread. Plots one block at a time; between blocks
+                    it shows the same Yes/No dialog your old MBUTY 7.3 used. Note this
+                    stays responsive NOT because it does less work, but because
+                    messagebox.askquestion() pumps Tk's event loop internally while it
+                    waits for the click -- unlike plt.pause()/input(), which don't.
+                    """
+                    blocks = (
+                        MBUTY_backEnd.detector_pipeline.get_unit_id_blocks()
+                        if MBUTY_backEnd.detector_pipeline else []
+                    )
+
+                    for i, block in enumerate(blocks):
+                        MBUTY_backEnd.detector_pipeline.plot_section(block)
+
+                        if i == len(blocks) - 1:
+                            break
+
+                        plt.pause(0.5)
+                        answer = messagebox.askquestion(
+                            "Plot Next Section?",
+                            f"Section {i + 1}/{len(blocks)} done.\n\n"
+                            "Click Yes to plot the next section, No to stop here.",
+                            icon='warning'
+                        )
+                        if answer == 'no':
+                            plt.close('all')
+                            break
+
+                    if MBUTY_backEnd.bm_pipeline and parameters.MONitor.MONOnOff:
+                        MBUTY_backEnd.bm_pipeline.plot()
+
+                    plt.show(block=False)
+
+                    if self.close_plots_button:
+                        self.close_plots_button.grid()
+
+                self.main_thread_queue.put(plot_all_sections)
+
                 if self.stop_button and self.stop_button.winfo_ismapped():
                     self.stop_button.grid_remove()
             except Exception as e:
