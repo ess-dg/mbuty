@@ -276,7 +276,7 @@ if __name__ == '__main__':
     configFileName  = "AMOR.json"
     # configFileName  = "clustered.json"
     
-    configFileName  = "skadi.json"
+    # configFileName  = "skadi.json"
     
     
     # configFileName  = "MGtestVessels2col.json"
@@ -384,11 +384,11 @@ if __name__ == '__main__':
     
     # parameters.fileManagement.fileName = ['MGtestVess.pcapng']
     
-    parameters.fileManagement.fileName = ['skadi_1tile.pcapng']
+    # parameters.fileManagement.fileName = ['skadi_1tile.pcapng']
     
-    parameters.fileManagement.fileName = ['skadiDataQ.pcapng']
+    # parameters.fileManagement.fileName = ['skadiDataQ.pcapng']
     
-    parameters.fileManagement.fileName = ['skadi_48tiles.pcapng']
+    # parameters.fileManagement.fileName = ['skadi_48tiles.pcapng']
     
     parameters.fileManagement.fileSerials = [6,2,4,9]
     # OR
@@ -548,7 +548,7 @@ if __name__ == '__main__':
     
     ###############   
     ### plotting in sections of cassettes to ease the visualization if True and in blocks of ...  
-    parameters.plotting.plottingInSections       = True 
+    parameters.plotting.plottingInSections       = False 
     parameters.plotting.plottingInSectionsBlocks = 5
 
     ###############     

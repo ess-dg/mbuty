@@ -53,6 +53,7 @@ from lib.container_hits import (
     hitsVMMnormal,
     hitsVMMclustered,
     hitsR5560,
+    hitsSKADI,
 )
 
 from lib.container_events import (
@@ -767,7 +768,83 @@ class He3Mapper(DetectorMapper):
 
         _report_unmapped_units(assigned_ids, topo['ID'], 'tube')
         return h
+    
+# =============================================================================
+# SKADImapper - SKADI
+# =============================================================================
 
+# class SkadiMapper():
+ 
+#     @staticmethod
+#     def _assign_ids_vectorized(
+#         src: np.ndarray,
+#         topo_arrays: dict,
+#         src_third_field: str = 'IP',  # unused for SKADI, kept for interface consistency
+#     ) -> tuple:
+  
+#         ids      = topo_arrays['ID']
+#         ips      = topo_arrays['IP']
+
+#         sip      = src['IP']  # (n,)
+
+#         # Broadcast: (n_readouts, n_topology)
+#         IP_match = sip[:, None] == ips[None, :]    # (n, N)
+
+#         valid_mask   = IP_match.any(axis=1)
+#         topo_idx     = np.where(valid_mask, IP_match.argmax(axis=1), np.int64(-1))
+#         assigned_ids = np.where(valid_mask, ids[topo_idx], np.int64(-1))
+
+#         # Derive plane from which hybrid matched at the resolved column index.
+#         safe_idx = np.where(valid_mask, topo_idx, np.int64(0))
+
+#         # is_wire  = valid_mask & (h == hybridWs[safe_idx])
+#         # is_grid  = valid_mask & (h == hybridGs[safe_idx])
+
+#         plane = np.full(len(src), -1, dtype='int64')
+#         plane[is_wire]  = np.int64(0)
+#         plane[is_grid]  = np.int64(1)
+
+#         return (
+#             assigned_ids.astype('int64'),
+#             topo_idx.astype('int64'),
+#             valid_mask,
+#             plane,
+#         )
+
+
+#     @staticmethod
+#     def map(readouts, config: dict) -> eventsSKADI:
+     
+#         topology = config['topology']
+#         topo = DetectorMapper._build_topology_arrays(topology, ['ID', 'IP'])
+#         n    = readouts.fill_count
+#         src  = readouts.matrix[:n]
+
+#         # Stage 1: Topology only
+#         assigned_ids, _, valid_mask = DetectorMapper._assign_ids_vectorized(
+#             src, topo, src_third_field='tube'
+#         )
+
+#         # # No Stage 2 or 3 for He3 — index IS the tube number
+#         # index = np.where(valid_mask, src['tube'].astype('int64'), np.int64(-1))
+
+#         # Stage 4: Absorption
+#         h = hitsR5560(size=n)
+#         h.durations = readouts.durations.copy()
+#         h.instrumentIDs = readouts.instrumentIDs.copy()
+#         h.absorb(
+#             computed_fields={
+#                 'ID': assigned_ids, 
+#                 'counter1': src['counter1'].astype('int64'),
+#                 'ampA': src['ampA'].astype('int64'),
+#                 'ampB': src['ampB'].astype('int64'),
+#                 'counter2': src['counter2'].astype('int64'),
+#             },
+#             timing_src=src,
+#         )
+
+#         _report_unmapped_units(assigned_ids, topo['ID'], 'tube')
+#         return h
 
 # ---------------------------------------------------------------------------
 # Base Monitor Mother Class using Standard Absorb Lifecycle

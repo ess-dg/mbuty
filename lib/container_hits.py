@@ -304,46 +304,46 @@ class hitsR5560(hits):
 
          return df
      
-# Note: wait to implement fully — structure TBD
-class hitsSKADI(hits):
-    """
-    SKADI detector hits.
-    Mapped from readoutsSKADI.
-    """
-    def __init__(self, size: int = 0):
-        subclass_fields = [
-            ('IP',      'int64'),
-            ('sysID',   'int64'),
-            ('channel', 'int64'),
-            ('column',  'int64'),
-            ('row',     'int64'),
-            ('adc',     'int64'),
-            ('flag',    'int64'),
-            ('opMode',  'int64'),
-        ]
-        super().__init__(size, subclass_fields)
+# # Note: wait to implement fully — structure TBD
+# class hitsSKADI(hits):
+#     """
+#     SKADI detector hits.
+#     Mapped from readoutsSKADI.
+#     """
+#     def __init__(self, size: int = 0):
+#         subclass_fields = [
+#             ('IP',      'int64'),
+#             ('sysID',   'int64'),
+#             ('channel', 'int64'),
+#             ('column',  'int64'),
+#             ('row',     'int64'),
+#             ('adc',     'int64'),
+#             ('flag',    'int64'),
+#             ('opMode',  'int64'),
+#         ]
+#         super().__init__(size, subclass_fields)
         
-    def get_data_frame(self) -> pd.DataFrame:
-      """Convert active matrix block to labeled DataFrame for easy inspection."""
+#     def get_data_frame(self) -> pd.DataFrame:
+#       """Convert active matrix block to labeled DataFrame for easy inspection."""
       
       
-      # NOTE TO BE IMPLEMENTED ....
+#       # NOTE TO BE IMPLEMENTED ....
       
-      columns_to_extract = [
-         'pulseT',
-         'prevPT',
-         'timeStamp',
-         'ID',
-         'channel',
-         'adc',
-         'type',
-         'debug',
-         'mcaSum',
-      ]
+#       columns_to_extract = [
+#          'pulseT',
+#          'prevPT',
+#          'timeStamp',
+#          'ID',
+#          'channel',
+#          'adc',
+#          'type',
+#          'debug',
+#          'mcaSum',
+#       ]
 
-      df = pd.DataFrame(self.matrix[columns_to_extract])
+#       df = pd.DataFrame(self.matrix[columns_to_extract])
 
-      return df             
+#       return df             
 
 # class hitsBM(hits):
 #     """
