@@ -113,15 +113,6 @@ class BasePipeline:
     def analyze(self) -> None:
         raise NotImplementedError
     
-    ################ For dashboard  #######################################################
-    def build_for_gui(self) -> None:
-        """Construct plotters only -- no eager drawing. Dashboard mode calls
-        this instead of plot(); render() on each plotter draws lazily per tab."""
-        topology = self.config.get('topology', [])
-        unit_ids = np.sort([e['ID'] for e in topology])
-        self.build_plotters(unit_ids)
-    #######################################################################################
-    
     def build_plotters(self) -> None:
         """Subclasses set self.readout_plotter / hit_plotter / event_plotter
         here -- construction only, no plotting decisions."""
