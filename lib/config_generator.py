@@ -84,14 +84,15 @@ def _generateTopologySKADI(num_units):
     IP         = 100
     # sysID    = 0
     rotation = 0
-    bank     = 0
+    # bank     = 0
+    offset   = 1000
     for i in range(num_units):
         unit_config.append({
-            "ID": i,
+            "ID": offset+i,
             "IP": IP,
             # "IP": str(IP),
             "rotation": rotation,
-            "bank":     bank,
+            # "bank":     bank,
         })
         IP = IP+1
         # ring += 1
@@ -217,8 +218,8 @@ def generateDefaultDetConfig(path, detectorName, detectorType, instrumentName, u
         data.update({
             "topology": topology,
             "tilesPerRow": 10,
-            # "xpix": 16,
-            # "ypix": 16,
+            "pix"        : 16,
+            "pix_size_mm": 5,
             "gapX_mm": 4,
             "gapY_mm": 4,
             "monitor" : monitor,

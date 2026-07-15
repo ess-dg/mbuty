@@ -521,6 +521,14 @@ class eventsIBM(events):
 ###############################################################################
 class eventsSKADI(events):
     """SKADI detector event container placeholder stub."""
-    def __init__(self, size: int = 0):
-        subclass_fields: list = []
-        super().__init__(size, subclass_fields)
+    
+    def __init__(self, size: int): 
+
+       subclass_fields = [
+           ('bank',    'int64'), 
+           ('channel',  'int64'), 
+       ]
+       super().__init__(size, subclass_fields)
+        
+        
+        
