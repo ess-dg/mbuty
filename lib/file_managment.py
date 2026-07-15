@@ -12,8 +12,8 @@ import time
 import os
 import glob
 import sys
-from PyQt5.QtWidgets import QFileDialog, QApplication
-
+# from PyQt5.QtWidgets import QFileDialog, QApplication
+from PySide6.QtWidgets import QFileDialog, QApplication
 _workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
