@@ -12,7 +12,7 @@ import sys
 import time 
 # import numpy as np 
 
-import ipaddress
+# import ipaddress
 
 _workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _workspace not in sys.path:
@@ -80,14 +80,16 @@ def _generateTopologyMG(num_units):
 def _generateTopologySKADI(num_units):
     unit_config = []
     # ring     = 0
-    IP       = ipaddress.IPv4Address("192.168.0.1") 
+    # IP       = ipaddress.IPv4Address("192.168.0.1") 
+    IP         = 100
     # sysID    = 0
     rotation = 0
     bank     = 0
     for i in range(num_units):
         unit_config.append({
             "ID": i,
-            "IP": str(IP),
+            "IP": IP,
+            # "IP": str(IP),
             "rotation": rotation,
             "bank":     bank,
         })
@@ -315,7 +317,7 @@ def checkIfExists(pathFile):
 if __name__ == '__main__':
     path = '/Users/francescopiscitelli/Documents/PYTHON/MBUTYcapWorkInProgress/config/'
     
-    path = '/Users/francescopiscitelli/git_repos/mbuty/MBUTYcap/config/'
+    path = '/Users/francescopiscitelli/git_repos/mbuty/config/'
     
     # path = '/Users/francescopiscitelli/git_repos/mbuty/MBUTYcap/config/'
 
@@ -382,17 +384,17 @@ if __name__ == '__main__':
     # instrumentName = 'ESTIA'
     
     
-    detectorName = "SKADI1"
+    detectorName = "SKADI48"
     detectorType = 'SKADI'
     instrumentName = 'SKADI'
  
     
     operationMode = 'normal'
-    units = 14
+    units = 48
     orientation = 'horizontal'
 
     # Call the function directly
-    generated_file = generateDefaultDetConfig(path, detectorName, detectorType, instrumentName, units, orientation = orientation , operationMode = operationMode,  overwrite=True) # add overwrite=True to overwrite a file
+    generated_file, ok = generateDefaultDetConfig(path, detectorName, detectorType, instrumentName, units, orientation = orientation , operationMode = operationMode,  overwrite=True) # add overwrite=True to overwrite a file
     print(f"Generated file path: {generated_file}")
 
     if generated_file and os.path.exists(generated_file):
