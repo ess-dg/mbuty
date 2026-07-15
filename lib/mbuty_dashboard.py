@@ -69,6 +69,154 @@ class DashboardDataSource:
         raise NotImplementedError
 
 
+class OrchestratorDataSource(DashboardDataSource):
+    def __init__(self, detector_pipeline, bm_pipeline):
+        self._plotters = {
+            "readouts":           detector_pipeline.readout_plotter,
+            "mapped_hits":        detector_pipeline.hit_plotter,
+            "coincidence_events": detector_pipeline.event_plotter,
+            "beam_monitor":       bm_pipeline.event_plotter if bm_pipeline else None,
+        }
+        # Same keys as _plotters -- the container backing each tab's
+        # dataframe pane. bm_pipeline is already None-checked by the
+        # caller (MBUTYOrchestrator._launch_dashboard), same as above.
+        self._containers = {
+            "readouts":              detector_pipeline.readouts_container,
+            "mapped_hits":           detector_pipeline.hits_container,
+            "coincidence_events":    detector_pipeline.events_container,
+            "beam_monitor":          bm_pipeline.events_container if bm_pipeline else None,
+            "beam_monitor_readouts": bm_pipeline.readouts_container if bm_pipeline else None,
+        }
+
+    def beam_monitor_present(self) -> bool:
+        return self._plotters.get("beam_monitor") is not None
+
+    def get_available_plots(self, tab_key):
+        p = self._plotters.get(tab_key)
+        return p.available_plot_names() if p else []
+
+    def get_dataframe_array(self, tab_key):
+        container = self._containers.get(tab_key)
+        if container is None:
+            return np.empty(0, dtype=[("_", "i4")]), 0
+        return container.matrix, container.fill_count
+
+    def render_plot(self, tab_key, plot_name, figure):
+        p = self._plotters.get(tab_key)
+        if p:
+            p.render(plot_name, figure)
+
+
+# --------------------------------------------------------------------------
+# Orchestration entry point -- everything MBUTY.py needs is this one call
+# --------------------------------------------------------------------------
+
+def _selected_plot_names_by_tab(parameters) -> dict:
+    """Mirrors -- flag for flag -- the exact checklist BasePipeline.make_plots()
+    and BeamMonitorPipeline.plot() read to decide what a CLI run would have
+    drawn. The dashboard is a viewing layer, not a second source of truth,
+    so "what's selected" must come from the same parameters.plotting /
+    .wavelength / .pulseHeigthSpect / .MONitor flags, not be reinvented here.
+
+    A few plots aren't gated by any flag at all -- plot_xy/plot_tof_xy
+    (BasePipeline.plot_always, run unconditionally) and plot_position_per_tube
+    (R5560Pipeline.plot_always override, same deal) -- those are included
+    unconditionally rather than left out.
+
+    Returns display-name sets keyed by dashboard tab_key; launch_dashboard()
+    intersects each set against get_available_plots() so a flag being on
+    never surfaces a plot this pipeline can't actually produce.
+    """
+    p, w, phs, mon = parameters.plotting, parameters.wavelength, parameters.pulseHeigthSpect, parameters.MONitor
+
+    readouts = {name for name, on in {
+        "Raw Channels":   p.plotRawReadouts,
+        "Timestamps":     p.plotReadoutsTimeStamps,
+        "ADC vs Channel": p.plotADCvsCh,
+        "Chopper Resets": p.plotChopperResets,
+    }.items() if on}
+
+    hits = {name for name, on in {
+        "Raw Channels":          p.plotRawHits,
+        "Timestamps":            p.plotHitsTimeStamps,
+        "Timestamps vs Channel": p.plotHitsTimeStampsVSChannels,
+    }.items() if on}
+
+    events = {"XY", "ToF vs XY", "Position per Tube"}  # always drawn, no flag
+    events |= {name for name, on in {
+        "ToF":                 p.plotToFDistr,
+        "Wavelength":          w.plotLambdaDistr,
+        "X vs Wavelength":     w.plotXLambda,
+        "Multiplicity":        p.plotMultiplicity,
+        "PHS":                 phs.plotPHS,
+        "PHS Correlation":     phs.plotPHScorrelation,
+        "Time Between Events": p.plotTimeBetwEv,
+    }.items() if on}
+
+    # BeamMonitorPipeline.plot(): plot_lambda_mon is nested inside the
+    # plotMONtofPHS check, not an independent flag -- reproduce that nesting.
+    beam_monitor = set()
+    if mon.plotMONtofPHS:
+        beam_monitor.add("ToF & PHS")
+        if w.plotLambdaDistr:
+            beam_monitor.add("Wavelength")
+
+    return {
+        "readouts":           readouts,
+        "mapped_hits":        hits,
+        "coincidence_events": events,
+        "beam_monitor":       beam_monitor,
+    }
+
+
+def launch_dashboard(detector_pipeline, bm_pipeline, parameters):
+    """The one call MBUTY.py needs to make. Builds the plotters
+    (construction only -- no eager drawing, see BasePipeline.build_for_gui /
+    BeamMonitorPipeline.build_plotter), wraps them in OrchestratorDataSource,
+    works out which plots the user's parameters actually select, and shows
+    the Qt window.
+
+    Deliberately does none of its own error handling: MBUTY.py wraps the
+    call in a try/except that falls back to standard plotting on any
+    failure here (missing PySide6, no display/Qt platform plugin, etc.),
+    so this stays a plain "build it and show it" path.
+
+    Returns the MbutyDashboard instance so the caller can hold a reference
+    (Qt won't keep a window alive if it's garbage-collected).
+    """
+    import sys
+
+    bm_active = bool(bm_pipeline) and parameters.MONitor.MONOnOff
+
+    detector_pipeline.build_for_gui()
+    if bm_active:
+        bm_pipeline.build_plotter()  # construction only, doesn't draw
+
+    data_source = OrchestratorDataSource(detector_pipeline, bm_pipeline if bm_active else None)
+
+    selected = _selected_plot_names_by_tab(parameters)
+    config = {
+        "readouts_active_plots": [n for n in data_source.get_available_plots("readouts")
+                                   if n in selected["readouts"]],
+        "hits_active_plots":     [n for n in data_source.get_available_plots("mapped_hits")
+                                   if n in selected["mapped_hits"]],
+        "events_active_plots":   [n for n in data_source.get_available_plots("coincidence_events")
+                                   if n in selected["coincidence_events"]],
+        "bm_active_plots":       [n for n in data_source.get_available_plots("beam_monitor")
+                                   if n in selected["beam_monitor"]],
+    }
+
+    # Reuse an existing QApplication if one's already running (e.g.
+    # embedded in a larger Qt app); otherwise start one here.
+    app = QApplication.instance() or QApplication(sys.argv)
+
+    dashboard = MbutyDashboard(data_source, config=config)
+    dashboard.resize(1300, 800)
+    dashboard.show()
+    app.exec()
+    return dashboard
+
+
 # --------------------------------------------------------------------------
 # Table model: structured numpy array -> QTableView, with the validity gate
 # --------------------------------------------------------------------------
@@ -215,6 +363,11 @@ class TabSpec(NamedTuple):
     title: str
     index_fields: tuple[str, ...]
     active_plots: tuple[str, ...]  # fixed set chosen in config, pre-run
+    # (sub-tab title, data-source key for get_dataframe_array). A data
+    # key of None means "use this tab's own key" -- true for every
+    # instrument tab except Beam Monitor, which shows two containers
+    # (raw BM readouts + mapped BM events) side by side as two sub-tabs.
+    dataframe_tabs: tuple[tuple[str, str | None], ...] = (("Dataframe View", None),)
 
 
 # --------------------------------------------------------------------------
@@ -248,14 +401,21 @@ class InstrumentView(QWidget):
         self.sub_tabs = QTabWidget()
         layout.addWidget(self.sub_tabs)
 
-        self.table_model: StructuredArrayTableModel | None = None
-        self.table_view: QTableView | None = None
+        self.table_models: dict[str, StructuredArrayTableModel] = {}
+        self.table_views: dict[str, QTableView] = {}
         self._plot_canvases: dict[str, FigureCanvasQTAgg] = {}
+
+        # sub-tab title -> data-source key (None resolves to this tab's own key)
+        self._dataframe_keys: dict[str, str] = {
+            title: (data_key if data_key is not None else spec.key)
+            for title, data_key in spec.dataframe_tabs
+        }
 
         self._built: set[str] = set()
         for plot_name in spec.active_plots:
             self.sub_tabs.addTab(QWidget(), plot_name)
-        self.sub_tabs.addTab(QWidget(), "Dataframe View")
+        for title in self._dataframe_keys:
+            self.sub_tabs.addTab(QWidget(), title)
 
         self._fill_queue: list[str] = [self.sub_tabs.tabText(i) for i in range(self.sub_tabs.count())]
 
@@ -290,10 +450,12 @@ class InstrumentView(QWidget):
             return
         self._built.add(title)
 
-        if title == "Dataframe View":
-            page, self.table_model, self.table_view = _build_dataframe_pane(self._spec.index_fields)
-            array, fill_count = self._data_source.get_dataframe_array(self._tab_key)
-            self.table_model.set_data(array, fill_count)
+        if title in self._dataframe_keys:
+            page, model, view = _build_dataframe_pane(self._spec.index_fields)
+            self.table_models[title] = model
+            self.table_views[title] = view
+            array, fill_count = self._data_source.get_dataframe_array(self._dataframe_keys[title])
+            model.set_data(array, fill_count)
         else:
             page, canvas = _build_plot_pane(self._tab_key, title, self._data_source)
             self._plot_canvases[title] = canvas
@@ -323,10 +485,9 @@ class InstrumentView(QWidget):
             old.deleteLater()
 
     def refresh_dataframe(self) -> None:
-        if self.table_model is None:
-            return  # Dataframe sub-tab hasn't been opened yet -- nothing to do
-        array, fill_count = self._data_source.get_dataframe_array(self._tab_key)
-        self.table_model.set_data(array, fill_count)
+        for title, model in self.table_models.items():
+            array, fill_count = self._data_source.get_dataframe_array(self._dataframe_keys[title])
+            model.set_data(array, fill_count)
 
 
 # --------------------------------------------------------------------------
@@ -551,6 +712,10 @@ class MbutyDashboard(QMainWindow):
                 "beam_monitor", "Beam Monitor",
                 tuple(config.get("bm_index_fields", ())),
                 tuple(config.get("bm_active_plots", data_source.get_available_plots("beam_monitor"))),
+                dataframe_tabs=(
+                    ("BM Readouts", "beam_monitor_readouts"),
+                    ("BM Events",   "beam_monitor"),
+                ),
             ))
 
         # Main tabs are lazy too: each InstrumentView is only constructed

@@ -33,7 +33,13 @@ class BaseReadoutsPlotter(BasePlotter):
     need exactly this and nothing more, so it lives here once instead of
     being duplicated in each branch.
     """
-
+    PLOT_METHODS = {
+        "Raw Channels":   "plot_channels_raw",
+        "Timestamps":     "plot_timestamps",
+        "ADC vs Channel": "plot_adc_vs_channel",
+        "Chopper Resets": "plot_chopper_resets",
+    }
+    
     def __init__(self, container, parameters, config, axis_set, unit_ids):
         super().__init__(container, parameters, config, axis_set, unit_ids)
 

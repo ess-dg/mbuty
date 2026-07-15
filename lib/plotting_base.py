@@ -31,21 +31,21 @@ class PlotGrid:
     """Thin wrapper around plt.subplots producing a guaranteed-2D axis grid."""
 
     def __init__(self, fig_num, n_rows, n_cols=1, fig_size=(12, 12), sharex='col', sharey='row', **kwargs):
-        # import matplotlib.figure
+        import matplotlib.figure
 
         # # If running inside a GUI context, populate the injected canvas figure directly
-        # if isinstance(fig_num, matplotlib.figure.Figure):
-        #     self.fig = fig_num
-        #     axes = self.fig.subplots(
-        #         nrows=n_rows, ncols=n_cols,
-        #         sharex=sharex, sharey=sharey, **kwargs
-        #     )
-        # # Fallback to standard PyPlot state manager if running a standalone script track
-        # else:
-        self.fig, axes = plt.subplots(
-                num=fig_num, figsize=fig_size, nrows=n_rows, ncols=n_cols,
-                sharex=sharex, sharey=sharey, **kwargs,
-        )
+        if isinstance(fig_num, matplotlib.figure.Figure):
+            self.fig = fig_num
+            axes = self.fig.subplots(
+                nrows=n_rows, ncols=n_cols,
+                sharex=sharex, sharey=sharey, **kwargs
+            )
+        # Fallback to standard PyPlot state manager if running a standalone script track
+        else:
+            self.fig, axes = plt.subplots(
+                    num=fig_num, figsize=fig_size, nrows=n_rows, ncols=n_cols,
+                    sharex=sharex, sharey=sharey, **kwargs,
+            )
 
         self.ax = np.atleast_2d(axes).reshape(n_rows, n_cols)
 
@@ -92,6 +92,12 @@ class BasePlotter:
     of the legacy checkXxxClass() pattern.
     """
 
+    # Dashboard menu: display name -> method name. Empty on the base class;
+    # each concrete plotter (or its detector-agnostic base, when every
+    # subclass shares the same method names) sets this to declare what it
+    # can show. See available_plot_names()/render() below.
+    PLOT_METHODS: dict[str, str] = {}
+
     def __init__(self, container, parameters, config, axis_set, unit_ids):
         self.container  = container
         self.config     = config
@@ -110,7 +116,30 @@ class BasePlotter:
 
     def _has_field(self, name: str) -> bool:
         return name in self.container.matrix.dtype.names
-     
+
+    ################ For dashboard #######################################
+    def available_plot_names(self) -> list[str]:
+        """Menu names the dashboard can show for this plotter -- everything
+        in PLOT_METHODS whose target method actually exists. Stage-base
+        stubs (e.g. plot_adc_vs_channel on R5560ReadoutsPlotter) still count
+        as "available": they exist, and calling them just prints a
+        not-supported notice via _skip -- same graceful-degrade behaviour
+        CLI plotting already relies on."""
+        return [name for name, m in self.PLOT_METHODS.items() if hasattr(self, m)]
+
+    def render(self, plot_name: str, figure) -> None:
+        """The one seam the dashboard draws through. CLI plotting never
+        touches this -- it keeps calling plot_channels_raw() etc. directly.
+        `figure` is a real matplotlib Figure (a Qt canvas's canvas.figure);
+        passing it straight through as fig_num relies on PlotGrid's
+        isinstance(fig_num, Figure) branch to draw onto it in place instead
+        of opening a pyplot-managed window."""
+        method = getattr(self, self.PLOT_METHODS.get(plot_name, ''), None)
+        if method is None:
+            self._skip(plot_name)
+            return
+        method(fig_num=figure)
+    #######################################################################
 
     def _skip(self, name: str, *args, **kwargs) -> None:
         """Shared no-op body for stage-base stub methods (see

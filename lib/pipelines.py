@@ -92,7 +92,7 @@ class BasePipeline:
     to decide what to show, so every detector runs the exact same checklist
     and nothing is duplicated per subclass. execute() is shared too and
     should not need to be overridden.
-    """
+    """    
     def __init__(self, readouts_container, parameters, config: dict):
         self.readouts_container = readouts_container
         self.parameters = parameters
@@ -112,7 +112,16 @@ class BasePipeline:
 
     def analyze(self) -> None:
         raise NotImplementedError
-
+    
+    ################ For dashboard  #######################################################
+    def build_for_gui(self) -> None:
+        """Construct plotters only -- no eager drawing. Dashboard mode calls
+        this instead of plot(); render() on each plotter draws lazily per tab."""
+        topology = self.config.get('topology', [])
+        unit_ids = np.sort([e['ID'] for e in topology])
+        self.build_plotters(unit_ids)
+    #######################################################################################
+    
     def build_plotters(self) -> None:
         """Subclasses set self.readout_plotter / hit_plotter / event_plotter
         here -- construction only, no plotting decisions."""

@@ -25,7 +25,12 @@ from lib.plotting_base import PlotGrid, BasePlotter, log_scale_norm
 # ============================================================================
 class BaseHitsPlotter(BasePlotter):
     """Detector-agnostic hits scaffolding: selection by mapped 'ID' field."""
-
+    PLOT_METHODS = {
+        "Raw Channels":          "plot_channels_raw",
+        "Timestamps":            "plot_timestamps",
+        "Timestamps vs Channel": "plot_timestamps_vs_channel",
+    }
+    
     def select_unit(self, unit_id):
         return self.matrix['ID'] == unit_id
     
