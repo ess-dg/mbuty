@@ -150,20 +150,31 @@ class MBUTYOrchestrator():
         if self.detector_pipeline:
             if not self.parameters.plotting.bareReadoutsCalculation:
                 self.detector_pipeline.analyze()
-            if self.plottingOnOff == 'on':
-                self.detector_pipeline.plot()
-
+                
         # 3. Conditionally Dispatch Beam Monitor Tracking Stream
         self.bm_pipeline = build_bm_pipeline(self.config, reader, self.parameters)
         if self.bm_pipeline and self.parameters.MONitor.MONOnOff:
             if not self.parameters.plotting.bareReadoutsCalculation:
                 self.bm_pipeline.analyze()
-            if self.plottingOnOff == 'on':
-                self.bm_pipeline.plot()
-        
-        
+                
         if self.plottingOnOff == 'on':
-            if (self.detector_pipeline or (self.bm_pipeline and self.parameters.MONitor.MONOnOff)): 
+            dashboard_shown = False
+            if self.parameters.plotting.useDashboard:
+                try: # launch dashboard
+                    from lib.mbuty_dashboard import launch_dashboard
+                    self._dashboard = launch_dashboard(self.detector_pipeline, self.bm_pipeline, self.parameters)
+                    dashboard_shown = True
+                except Exception as e:
+                    print(f"{WARN}Dashboard failed ({e}) -- falling back to standard plotting.{RESET}")
+                    self.detector_pipeline.plot()
+                    if self.bm_pipeline and self.parameters.MONitor.MONOnOff:
+                        self.bm_pipeline.plot()
+            else:
+                self.detector_pipeline.plot()
+                if self.bm_pipeline and self.parameters.MONitor.MONOnOff:
+                    self.bm_pipeline.plot()
+
+            if not dashboard_shown and (self.detector_pipeline or (self.bm_pipeline and self.parameters.MONitor.MONOnOff)): 
                 plt.draw() 
                 plt.pause(0.1)
                 plt.show(block=False)
@@ -210,7 +221,7 @@ class MBUTYOrchestrator():
         print('----------------------------------------------------------------------')
         ###############################################################################
         ###############################################################################
-
+    
 def _enable_all_plots(params) -> None:
     """Test-only helper: flips on every plotting flag BasePipeline.plot()
     and BeamMonitorPipeline.plot() check, so a single test run exercises
@@ -499,7 +510,7 @@ if __name__ == '__main__':
     #################################
 
     ### ON/OFF
-    parameters.MONitor.MONOnOff    = False   
+    parameters.MONitor.MONOnOff    = True   
 
     ### threshold on MON, th is OFF if 0, any other value is ON
     parameters.MONitor.MONThreshold = 0 
@@ -524,12 +535,12 @@ if __name__ == '__main__':
     parameters.plotting.bareReadoutsCalculation = False
 
     ###############     
-    parameters.plotting.useDashboard = False
+    parameters.plotting.useDashboard = True
     ###############   
     
     ###############   
     ### plotting in sections of cassettes to ease the visualization if True and in blocks of ...  
-    parameters.plotting.plottingInSections       = False 
+    parameters.plotting.plottingInSections       = True 
     parameters.plotting.plottingInSectionsBlocks = 5
 
     ###############     
@@ -540,9 +551,9 @@ if __name__ == '__main__':
     parameters.plotting.plotADCvsChlog          = True 
     parameters.plotting.plotChopperResets       = True 
 
-    parameters.plotting.plotRawHits             = True
-    parameters.plotting.plotHitsTimeStamps      = True
-    parameters.plotting.plotHitsTimeStampsVSChannels = True
+    parameters.plotting.plotRawHits             = False
+    parameters.plotting.plotHitsTimeStamps      = False
+    parameters.plotting.plotHitsTimeStampsVSChannels = False
 
     ###############
     ### time between events 

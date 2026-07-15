@@ -36,6 +36,17 @@ class BaseEventsPlotter(BasePlotter):
     mapped 'ID', and direct access onto this detector's flat configuration
     dictionary (needed for layout math and "not supported" messages).
     """
+    PLOT_METHODS = {
+        "XY":                   "plot_xy",
+        "ToF vs XY":            "plot_tof_xy",
+        "ToF":                  "plot_tof",
+        "Wavelength":           "plot_lambda",
+        "X vs Wavelength":      "plot_x_lambda",
+        "Multiplicity":         "plot_multiplicity",
+        "PHS":                  "plot_phs",
+        "PHS Correlation":      "plot_phs_correlation",
+        "Time Between Events":  "plot_time_between_events",
+    }
     
     def select_unit(self, unit_id):
         """Boolean row mask for rows belonging to this unit ID (cassette/tube)."""
@@ -51,7 +62,7 @@ class BaseEventsPlotter(BasePlotter):
     def plot_phs(self, *args, **kwargs): self._skip('plot_phs')
     def plot_phs_correlation(self, *args, **kwargs): self._skip('plot_phs_correlation')
     def plot_time_between_events(self, *args, **kwargs): self._skip('plot_time_between_events')
-    def plot_position_per_tube(self, *args, **kwargs): self._skip('plot_position_per_tube')
+    def plot_position_per_tube(self, *args, **kwargs): pass
 
 # ============================================================================
 # Shared VMM (ASIC-based) layer -- Multi-Blade + Multi-Grid
@@ -676,6 +687,10 @@ class R5560EventsPlotter(BaseEventsPlotter):
     doesn't apply -- those simply print a "not supported" warning, matching
     legacy.
     """
+    PLOT_METHODS = {
+        **BaseEventsPlotter.PLOT_METHODS,
+        "Position per Tube": "plot_position_per_tube",
+    }
 
     def plot_tof(self, fig_num=333):
         """ToF distribution per tube (single curve, no coincidence overlay)."""
@@ -917,7 +932,10 @@ class MonitorEventsPlotter(BasePlotter):
     monitor pipeline actually wants the detector-specific 'adc' field
     instead.
     """
-
+    PLOT_METHODS = {
+        "ToF & PHS":  "plot_tof_phs_mon",
+        "Wavelength": "plot_lambda_mon",
+    }
 
     def plot_tof_phs_mon(self, fig_num=999):
         """ToF and pulse-height spectra for the monitor stream, side by side."""
@@ -929,7 +947,9 @@ class MonitorEventsPlotter(BasePlotter):
         hist_tof = self.hist.hist1d(ax_tof.centers, m['ToF'] / 1e9)
         hist_phs = self.hist.hist1d(ax_energy_mon.centers, m['pulseHeight0'])
 
-        fig, (ax1, ax2) = plt.subplots(num=fig_num, figsize=(9, 6), nrows=1, ncols=2)
+        grid = PlotGrid(fig_num, n_rows=1, n_cols=2, fig_size=(9, 6), sharex=False, sharey=False)
+        fig = grid.fig
+        ax1, ax2 = grid.ax[0]
         fig.suptitle('MONITOR')
 
         ax1.step(ax_tof.centers * 1e3, hist_tof, 'k', where='mid', label='MON')
@@ -950,7 +970,9 @@ class MonitorEventsPlotter(BasePlotter):
         ax_lambda = self.axis_set.ax_lambda
         hist_lambda = self.hist.hist1d(ax_lambda.centers, m['wavelength'])
 
-        fig, ax1 = plt.subplots(num=fig_num, figsize=(6, 6), nrows=1, ncols=1)
+        grid = PlotGrid(fig_num, n_rows=1, n_cols=1, fig_size=(6, 6), sharex=False, sharey=False)
+        fig = grid.fig
+        ax1 = grid.ax[0][0]
         fig.suptitle('MONITOR')
 
         ax1.step(ax_lambda.centers, hist_lambda, 'k', where='mid', label='MON')
