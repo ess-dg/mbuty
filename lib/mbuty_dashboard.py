@@ -171,49 +171,75 @@ def _selected_plot_names_by_tab(parameters) -> dict:
 
 def launch_dashboard(detector_pipeline, bm_pipeline, parameters):
     """The one call MBUTY.py needs to make. Builds the plotters
-    (construction only -- no eager drawing, see BasePipeline.build_for_gui /
+    (construction only -- no eager drawing, see BasePipeline.build_plotters /
     BeamMonitorPipeline.build_plotter), wraps them in OrchestratorDataSource,
     works out which plots the user's parameters actually select, and shows
-    the Qt window.
+    the Qt window(s).
+
+    Mirrors BasePipeline.plot()'s plottingInSections behaviour: when it's
+    on, topology unit_ids are chunked into blocks (same _chunk helper CLI
+    mode uses) and one dashboard is shown per block -- closing it advances
+    to the next section's dashboard, same "close one, next pops up" flow
+    the CLI gives via its per-section input() prompt, just windows instead
+    of a console step-through. Beam Monitor has no per-unit concept at all,
+    so its plotter is built once and reused unchanged across every section.
 
     Deliberately does none of its own error handling: MBUTY.py wraps the
     call in a try/except that falls back to standard plotting on any
     failure here (missing PySide6, no display/Qt platform plugin, etc.),
     so this stays a plain "build it and show it" path.
 
-    Returns the MbutyDashboard instance so the caller can hold a reference
-    (Qt won't keep a window alive if it's garbage-collected).
+    Returns the last MbutyDashboard instance shown, so the caller can hold
+    a reference (Qt won't keep a window alive if it's garbage-collected).
     """
     import sys
+    from lib.pipelines import _chunk
 
     bm_active = bool(bm_pipeline) and parameters.MONitor.MONOnOff
-
-    detector_pipeline.build_for_gui()
     if bm_active:
-        bm_pipeline.build_plotter()  # construction only, doesn't draw
+        bm_pipeline.build_plotter()  # construction only, doesn't draw; BM isn't sectioned
 
-    data_source = OrchestratorDataSource(detector_pipeline, bm_pipeline if bm_active else None)
-
-    selected = _selected_plot_names_by_tab(parameters)
-    config = {
-        "readouts_active_plots": [n for n in data_source.get_available_plots("readouts")
-                                   if n in selected["readouts"]],
-        "hits_active_plots":     [n for n in data_source.get_available_plots("mapped_hits")
-                                   if n in selected["mapped_hits"]],
-        "events_active_plots":   [n for n in data_source.get_available_plots("coincidence_events")
-                                   if n in selected["coincidence_events"]],
-        "bm_active_plots":       [n for n in data_source.get_available_plots("beam_monitor")
-                                   if n in selected["beam_monitor"]],
-    }
-
-    # Reuse an existing QApplication if one's already running (e.g.
-    # embedded in a larger Qt app); otherwise start one here.
     app = QApplication.instance() or QApplication(sys.argv)
+    selected = _selected_plot_names_by_tab(parameters)
 
-    dashboard = MbutyDashboard(data_source, config=config)
-    dashboard.resize(1300, 800)
-    dashboard.show()
-    app.exec()
+    def _show_section(unit_ids) -> MbutyDashboard:
+        detector_pipeline.build_plotters(unit_ids=unit_ids)
+        # Fresh data source every section -- build_plotters() just replaced
+        # detector_pipeline.readout_plotter/hit_plotter/event_plotter with
+        # new instances scoped to this block, and OrchestratorDataSource
+        # snapshots those references at construction time.
+        data_source = OrchestratorDataSource(detector_pipeline, bm_pipeline if bm_active else None)
+        config = {
+            "readouts_active_plots": [n for n in data_source.get_available_plots("readouts")
+                                       if n in selected["readouts"]],
+            "hits_active_plots":     [n for n in data_source.get_available_plots("mapped_hits")
+                                       if n in selected["mapped_hits"]],
+            "events_active_plots":   [n for n in data_source.get_available_plots("coincidence_events")
+                                       if n in selected["coincidence_events"]],
+            "bm_active_plots":       [n for n in data_source.get_available_plots("beam_monitor")
+                                       if n in selected["beam_monitor"]],
+        }
+        dashboard = MbutyDashboard(data_source, config=config)
+        dashboard.resize(1300, 800)
+        dashboard.show()
+        app.exec()  # blocks until this section's window is closed
+        return dashboard
+
+    topology = detector_pipeline.config.get('topology', [])
+    unit_ids = np.sort([entry['ID'] for entry in topology])
+
+    if not parameters.plotting.plottingInSections:
+        return _show_section(unit_ids)
+
+    blocks = _chunk(list(unit_ids), parameters.plotting.plottingInSectionsBlocks)
+    print(f'\nDashboard: plotting in {len(blocks)} section(s) of '
+          f'{parameters.plotting.plottingInSectionsBlocks} unit(s) each.')
+
+    dashboard = None
+    for i, block in enumerate(blocks):
+        print(f'\n\tSection {i + 1}/{len(blocks)} -- unit IDs {block[0]} to {block[-1]}'
+              f' -- close this window to continue.')
+        dashboard = _show_section(block)
     return dashboard
 
 
