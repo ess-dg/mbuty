@@ -10,7 +10,7 @@ import json
 import os
 import sys
 import time 
-# import numpy as np 
+import numpy as np 
 
 # import ipaddress
 
@@ -126,31 +126,33 @@ def _generateTopologyHe3(num_units):
     return unit_config
 
 # FOR NMX
-# # The helper function (renamed from a method)
-# def _generateTopologyNMX(num_units):
-#     unit_config = []
-#     ring     = 0
-#     fen      = 0
-#     hybridsX = [0,1,2,3,4,5]
-#     hybridsY = [0,1,2,3,4,5]
-#     rotation = 0
-#     for i in range(num_units):
-#         unit_config.append({
-#             "ID": i,
-#             "ring": ring,
-#             "fen": fen,
-#             "hybridsX": hybridsX,
-#             "hybridsY": hybridsY,
-#             "serialHW": '',
-#             "serialHG": ''
-#         })
-       
-#         if hybridG >= 4:
-#             ring += 1
-#             hybridW = 0
-#             hybridG = 1
+# The helper function (renamed from a method)
+def _generateTopologyNMX(num_units):
+    unit_config = []
+    # ring     = 0
+    fenX      = 0
+    fenY      = 1
+    hybridsX = [0,1,2,3,4]
+    hybridsY = [0,1,2,3,4]
+    # start_ID = 10
+    for i in range(num_units):
+        currentID = (10*(i//4 + 1) + i % 4)
+   
+        
+        unit_config.append({
+            "ID": currentID,
+            "ring": i,
+            "fenX":  fenX,
+            "fenY":  fenY,
+            "hybridsX": hybridsX,
+            "hybridsY": hybridsY,
+        })
+        # ring += 1
+        # if np.mod(i,4) == 0:
+        #     start_ID += 10
+  
             
-#     return unit_config
+    return unit_config
 ###############################################################################
 ###############################################################################
 
@@ -267,6 +269,18 @@ def generateDefaultDetConfig(path, detectorName, detectorType, instrumentName, u
         })
     
        filePathName = makeFile(path,filePathName,data)
+       
+    elif  detectorType == 'NMX':  
+           
+           # Call the helper function
+          topology = _generateTopologyNMX(units)
+          data.update({
+               "topology": topology,
+               "strips":   640,
+               "monitor" : monitor,
+           })
+       
+          filePathName = makeFile(path,filePathName,data)
        
     else:
         
@@ -413,10 +427,15 @@ if __name__ == '__main__':
     detectorName = "SKADI48"
     detectorType = 'SKADI'
     instrumentName = 'SKADI'
+    
+    
+    detectorName = "NMXtest"
+    detectorType = 'NMX'
+    instrumentName = 'NMX'
  
     
     operationMode = 'normal'
-    units = 48
+    units = 12
     orientation = 'horizontal'
 
     # Call the function directly

@@ -1,0 +1,259 @@
+{
+    "detectorName": "NMXtest",
+    "detectorType": "NMX",
+    "instrumentName": "NMX",
+    "units": 12,
+    "orientation": "horizontal",
+    "topology": [
+        {
+            "ID": 10,
+            "ring": 0,
+            "fenX": 0,
+            "fenY": 1,
+            "hybridsX": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ],
+            "hybridsY": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ]
+        },
+        {
+            "ID": 11,
+            "ring": 1,
+            "fenX": 0,
+            "fenY": 1,
+            "hybridsX": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ],
+            "hybridsY": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ]
+        },
+        {
+            "ID": 12,
+            "ring": 2,
+            "fenX": 0,
+            "fenY": 1,
+            "hybridsX": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ],
+            "hybridsY": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ]
+        },
+        {
+            "ID": 13,
+            "ring": 3,
+            "fenX": 0,
+            "fenY": 1,
+            "hybridsX": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ],
+            "hybridsY": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ]
+        },
+        {
+            "ID": 20,
+            "ring": 4,
+            "fenX": 0,
+            "fenY": 1,
+            "hybridsX": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ],
+            "hybridsY": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ]
+        },
+        {
+            "ID": 21,
+            "ring": 5,
+            "fenX": 0,
+            "fenY": 1,
+            "hybridsX": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ],
+            "hybridsY": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ]
+        },
+        {
+            "ID": 22,
+            "ring": 6,
+            "fenX": 0,
+            "fenY": 1,
+            "hybridsX": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ],
+            "hybridsY": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ]
+        },
+        {
+            "ID": 23,
+            "ring": 7,
+            "fenX": 0,
+            "fenY": 1,
+            "hybridsX": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ],
+            "hybridsY": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ]
+        },
+        {
+            "ID": 30,
+            "ring": 8,
+            "fenX": 0,
+            "fenY": 1,
+            "hybridsX": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ],
+            "hybridsY": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ]
+        },
+        {
+            "ID": 31,
+            "ring": 9,
+            "fenX": 0,
+            "fenY": 1,
+            "hybridsX": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ],
+            "hybridsY": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ]
+        },
+        {
+            "ID": 32,
+            "ring": 10,
+            "fenX": 0,
+            "fenY": 1,
+            "hybridsX": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ],
+            "hybridsY": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ]
+        },
+        {
+            "ID": 33,
+            "ring": 11,
+            "fenX": 0,
+            "fenY": 1,
+            "hybridsX": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ],
+            "hybridsY": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ]
+        }
+    ],
+    "strips": 640,
+    "monitor": [
+        {
+            "ID": 99,
+            "hardwareType": "generic",
+            "connectionType": "ring",
+            "ring": 11,
+            "channel": 0
+        }
+    ]
+}

@@ -94,14 +94,15 @@ INSTRUMENT_TYPE_MAP = {
     "FREIA":    ["MB"],
     "AMOR":     ["MB"],
     "TREX":     ["MG"],
-    "SKADI":    ["SKADI"]
+    "SKADI":    ["SKADI"],
+    "NMX":      ["NMX"]
 }
 
-VALID_DETECTOR_TYPES = ("MB", "MG", "He3", "SKADI")
+VALID_DETECTOR_TYPES = ("MB", "MG", "He3", "SKADI", "NMX")
 VALID_INSTRUMENT_NAMES = (
     "TBL", "AMOR", "ESTIA", "FREIA", "TREX",
     "MIRACLES", "CSPEC", "BIFROST", "VESPA",
-    "SKADI",
+    "SKADI", "NMX",
 )
 
 
