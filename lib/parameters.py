@@ -309,7 +309,14 @@ class parameters():
             
         if not self.MONitor.MONOnOff:
                 self.MONitor.plotMONtofPHS  = False
-                           
+
+        if self.plotting.useDashboard:
+            import platform
+            SYSTEM = platform.system()
+            if SYSTEM == "Darwin":
+                self.plotting.useDashboard = False
+                print(f"\n\t{WARN}WARNING: DASHBOARD switched OFF for Mac OS.{RESET}") 
+                    
 
     def validateHistNotification(self):
         if self.plotting.plottingInSections and self.plotting.histogOutBounds:

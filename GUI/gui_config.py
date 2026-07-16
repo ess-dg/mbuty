@@ -704,7 +704,7 @@ config = {
             "label": "Plot in Dashboard",
             "type": "bool",
             "options": ["True", "False"],
-            "default": "False",
+            "default": "True",
             "info": "If True, plots are shown in dashboard for easier visualization.",
             "set": lambda val: setattr(parameters.plotting, 'useDashboard', val)
         },
