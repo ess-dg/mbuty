@@ -57,6 +57,7 @@ class VMMNormalClusterer:
 
         tw_recursive, tw_max = VMMNormalClusterer._derive_time_windows(time_window_s)
         # Get the wire and strip/grid configuration from config for clustering (error and exit if not found)
+        # Make this more generic based on config
         if 'wires' not in config:
             print('\t [ERROR] Config is missing "wires" — cannot cluster. Check your config file.')
             sys.exit(1)

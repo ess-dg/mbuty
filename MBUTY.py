@@ -275,10 +275,10 @@ if __name__ == '__main__':
     ###############################################################################
     ### read json and create parameters for plotting and analisys ###
 
-    configFileName  = "AMOR.json"
+    # configFileName  = "AMOR.json"
     # configFileName  = "clustered.json"
     
-    # configFileName  = "skadi.json"
+    configFileName  = "skadi48.json"
     
     
     # configFileName  = "MGtestVessels2col.json"
@@ -390,7 +390,7 @@ if __name__ == '__main__':
     
     # parameters.fileManagement.fileName = ['skadiDataQ.pcapng']
     
-    # parameters.fileManagement.fileName = ['skadi_48tiles.pcapng']
+    parameters.fileManagement.fileName = ['skadi_48tiles.pcapng']
     
     parameters.fileManagement.fileSerials = [6,2,4,9]
     # OR
@@ -640,12 +640,12 @@ if __name__ == '__main__':
     readoutsArrayBM  = readoutsBM.get_data_frame()
     eventsBM         = pipeline_orchestrator.events_BM_container
 
-    
-    if parameters.plotting.bareReadoutsCalculation is False:
+    if hits is not None:
         hitsArray     = hits.get_data_frame()
+    if events is not None:
         eventsArray   = events.get_data_frame()
-        if eventsBM is not None:
-            eventsBMArray = eventsBM.get_data_frame()
+    if eventsBM is not None:
+        eventsBMArray = eventsBM.get_data_frame()
         
     
 

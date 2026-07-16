@@ -58,6 +58,7 @@ from lib.container_hits import (
 from lib.container_events import (
     eventsBM,
     eventsIBM,
+    eventsSKADI,
 )
 
 
@@ -769,81 +770,180 @@ class He3Mapper(DetectorMapper):
         return h
     
 # =============================================================================
-# SKADImapper - SKADI
+# SKADIMapper — SKADI pixel detector
+# =============================================================================
+# Standalone — does NOT inherit DetectorMapper. Topology matching here is a
+# single-key match on IP (no ring/fen), and there's no clustering stage —
+# readouts map straight into events. That's different enough that inheriting
+# would mean overriding away most the base class 
 # =============================================================================
 
-# class SkadiMapper():
- 
-#     @staticmethod
-#     def _assign_ids_vectorized(
-#         src: np.ndarray,
-#         topo_arrays: dict,
-#         src_third_field: str = 'IP',  # unused for SKADI, kept for interface consistency
-#     ) -> tuple:
-  
-#         ids      = topo_arrays['ID']
-#         ips      = topo_arrays['IP']
+class SKADIMapper:
+    """
+    Maps SKADI pixel-tile readouts directly to physical coordinates.
+    No clustering stage: readouts -> eventsSKADI in one pass.
 
-#         sip      = src['IP']  # (n,)
+    Topology lookup is single-key on IP (not ring+fen+third like the
+    VMM/He3 mappers). Each topology entry's ID encodes both the bank
+    number and the tile's position within that bank's grid:
 
-#         # Broadcast: (n_readouts, n_topology)
-#         IP_match = sip[:, None] == ips[None, :]    # (n, N)
+        bank     = ID // 1000
+        local_id = ID % 1000
+        x_tile   = local_id % tilesPerRow
+        y_tile   = local_id // tilesPerRow
 
-#         valid_mask   = IP_match.any(axis=1)
-#         topo_idx     = np.where(valid_mask, IP_match.argmax(axis=1), np.int64(-1))
-#         assigned_ids = np.where(valid_mask, ids[topo_idx], np.int64(-1))
+    Each tile is a pix x pix pixel grid. The readout's raw (row, column)
+    address within the tile is rotated per the topology entry's `rotation`
+    (0/1/2/3 = 0/90/180/270 degrees clockwise, driven by cabling) before
+    being placed into the tile's local frame. Indices are 0..pix-1, so
+    the "flip" terms use pix - 1 - x, not pix - x:
 
-#         # Derive plane from which hybrid matched at the resolved column index.
-#         safe_idx = np.where(valid_mask, topo_idx, np.int64(0))
+        rotation 0:  adj_row = row,           adj_col = col
+        rotation 1:  adj_row = col,           adj_col = pix - 1 - row
+        rotation 2:  adj_row = pix - 1 - row, adj_col = pix - 1 - col
+        rotation 3:  adj_row = pix - 1 - col, adj_col = row
 
-#         # is_wire  = valid_mask & (h == hybridWs[safe_idx])
-#         # is_grid  = valid_mask & (h == hybridGs[safe_idx])
+    Final absolute pixel coordinates:
 
-#         plane = np.full(len(src), -1, dtype='int64')
-#         plane[is_wire]  = np.int64(0)
-#         plane[is_grid]  = np.int64(1)
+        coordinate0 = x_tile * pix + adj_col
+        coordinate1 = y_tile * pix + adj_row
+    """
 
-#         return (
-#             assigned_ids.astype('int64'),
-#             topo_idx.astype('int64'),
-#             valid_mask,
-#             plane,
-#         )
+    @staticmethod
+    def _assign_ids_by_ip(src: np.ndarray, topo_arrays: dict) -> tuple:
+        """
+        Map every readout row to a topology unit by matching IP alone.
 
+        Returns
+        -------
+        assigned_ids : int64 array — topology ID, -1 where unmatched
+        rotations    : int64 array — topology rotation, -1 where unmatched
+        valid_mask   : bool  array
+        """
+        ids       = topo_arrays['ID']
+        ips       = topo_arrays['IP']
+        rotations = topo_arrays['rotation']
 
-#     @staticmethod
-#     def map(readouts, config: dict) -> eventsSKADI:
-     
-#         topology = config['topology']
-#         topo = DetectorMapper._build_topology_arrays(topology, ['ID', 'IP'])
-#         n    = readouts.fill_count
-#         src  = readouts.matrix[:n]
+        src_ip = src['IP']
 
-#         # Stage 1: Topology only
-#         assigned_ids, _, valid_mask = DetectorMapper._assign_ids_vectorized(
-#             src, topo, src_third_field='tube'
-#         )
+        # Broadcast: (n_readouts, n_topology)
+        match = (src_ip[:, None] == ips[None, :])
 
-#         # # No Stage 2 or 3 for He3 — index IS the tube number
-#         # index = np.where(valid_mask, src['tube'].astype('int64'), np.int64(-1))
+        valid_mask   = match.any(axis=1)
+        topo_idx     = np.where(valid_mask, match.argmax(axis=1), np.int64(-1))
+        assigned_ids = np.where(valid_mask, ids[topo_idx], np.int64(-1))
+        assigned_rot = np.where(valid_mask, rotations[topo_idx], np.int64(-1))
 
-#         # Stage 4: Absorption
-#         h = hitsR5560(size=n)
-#         h.durations = readouts.durations.copy()
-#         h.instrumentIDs = readouts.instrumentIDs.copy()
-#         h.absorb(
-#             computed_fields={
-#                 'ID': assigned_ids, 
-#                 'counter1': src['counter1'].astype('int64'),
-#                 'ampA': src['ampA'].astype('int64'),
-#                 'ampB': src['ampB'].astype('int64'),
-#                 'counter2': src['counter2'].astype('int64'),
-#             },
-#             timing_src=src,
-#         )
+        return (
+            assigned_ids.astype('int64'),
+            assigned_rot.astype('int64'),
+            valid_mask,
+        )
 
-#         _report_unmapped_units(assigned_ids, topo['ID'], 'tube')
-#         return h
+    @staticmethod
+    def _decode_bank_and_tile(
+        assigned_ids: np.ndarray,
+        valid_mask: np.ndarray,
+        tiles_per_row: int,
+    ) -> tuple:
+        """
+        Decode bank / tile grid position out of the topology ID.
+
+        Unmatched rows are forced to -1 explicitly rather than run through
+        // and % directly on -1: -1 // 1000 == -1 is fine, but
+        -1 % 1000 == 999 would silently masquerade as a valid local_id.
+        """
+        n = len(assigned_ids)
+
+        bank     = np.full(n, -1, dtype='int64')
+        local_id = np.full(n, -1, dtype='int64')
+        x_tile   = np.full(n, -1, dtype='int64')
+        y_tile   = np.full(n, -1, dtype='int64')
+
+        bank[valid_mask]     = assigned_ids[valid_mask] // 1000
+        local_id[valid_mask] = assigned_ids[valid_mask] % 1000
+
+        x_tile[valid_mask] = local_id[valid_mask] % tiles_per_row
+        y_tile[valid_mask] = local_id[valid_mask] // tiles_per_row
+
+        return bank, x_tile, y_tile
+
+    @staticmethod
+    def _apply_rotation(
+        row: np.ndarray,
+        col: np.ndarray,
+        rotation: np.ndarray,
+        pix: int,
+        valid_mask: np.ndarray,
+    ) -> tuple:
+        """
+        Rotate each readout's raw (row, col) tile-local address per that
+        unit's `rotation` (0/1/2/3 -> 0/90/180/270 clockwise). Uses
+        pix - 1 - x for the flipped terms since row/col are 0-indexed
+        (0..pix-1); pix - x alone would be off by one.
+        """
+        n = len(row)
+        adj_row = np.full(n, -1, dtype='int64')
+        adj_col = np.full(n, -1, dtype='int64')
+
+        r0 = valid_mask & (rotation == 0)
+        r1 = valid_mask & (rotation == 1)
+        r2 = valid_mask & (rotation == 2)
+        r3 = valid_mask & (rotation == 3)
+
+        adj_row[r0], adj_col[r0] = row[r0],           col[r0]
+        adj_row[r1], adj_col[r1] = col[r1],           pix - 1 - row[r1]
+        adj_row[r2], adj_col[r2] = pix - 1 - row[r2], pix - 1 - col[r2]
+        adj_row[r3], adj_col[r3] = pix - 1 - col[r3], row[r3]
+
+        return adj_row, adj_col
+
+    @staticmethod
+    def map(readouts, config: dict) -> eventsSKADI:
+        topology      = config['topology']
+        tiles_per_row = int(config['tilesPerRow'])
+        pix           = int(config['pix'])
+
+        topo = DetectorMapper._build_topology_arrays(topology, ['ID', 'IP', 'rotation'])
+        n    = readouts.fill_count
+        src  = readouts.matrix[:n]
+
+        # Stage 1: Topology lookup (IP -> ID + rotation)
+        assigned_ids, rotations, valid_mask = SKADIMapper._assign_ids_by_ip(src, topo)
+
+        # Stage 2: Decode bank / tile grid position from ID
+        bank, x_tile, y_tile = SKADIMapper._decode_bank_and_tile(
+            assigned_ids, valid_mask, tiles_per_row
+        )
+
+        # Stage 3: Rotate raw pixel (row, col) into tile-local frame
+        adj_row, adj_col = SKADIMapper._apply_rotation(
+            src['row'], src['column'], rotations, pix, valid_mask
+        )
+
+        # Stage 4: Absolute pixel coordinates
+        coordinate0 = np.where(valid_mask, x_tile * pix + adj_col, -1).astype('float64')
+        coordinate1 = np.where(valid_mask, y_tile * pix + adj_row, -1).astype('float64')
+
+        # Stage 5: Absorption — timeStamp/pulseT/prevPT come from timing_src=src,
+        # same as every other mapper; instrumentIDs/durations copied the same way too.
+        e = eventsSKADI(size=n)
+        e.durations = readouts.durations.copy()
+        e.instrumentIDs = readouts.instrumentIDs.copy()
+        e.absorb(
+            computed_fields={
+                'ID':          assigned_ids,
+                'bank':        bank,
+                'channel':     src['channel'].astype('int64'),
+                'coordinate0': coordinate0,
+                'coordinate1': coordinate1,
+                'pulseHeight0': src['adc'].astype('int64'),
+            },
+            timing_src=src,
+        )
+
+        _report_unmapped_units(assigned_ids, topo['ID'], 'tile')
+        return e
 
 # ---------------------------------------------------------------------------
 # Base Monitor Mother Class using Standard Absorb Lifecycle

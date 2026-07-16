@@ -530,5 +530,26 @@ class eventsSKADI(events):
        ]
        super().__init__(size, subclass_fields)
         
-        
-        
+    def get_data_frame(self) -> pd.DataFrame:
+         """Convert active matrix block to labeled DataFrame for easy inspection."""
+         
+         columns_to_extract = [
+            'pulseT',
+            'prevPT',
+            'timeStamp',
+            'bank',
+            'ID',
+            'channel',
+            'coordinate0',
+            'coordinate1',
+            'pulseHeight0',
+            'timeBetweenEvents',
+            'absCoordinate0',
+            'absCoordinate1',
+            'ToF',
+            'wavelength'   
+         ]
+
+         df = pd.DataFrame(self.matrix[columns_to_extract])
+
+         return df  

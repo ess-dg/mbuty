@@ -2,247 +2,47 @@
     "detectorName": "SKADI48",
     "detectorType": "SKADI",
     "instrumentName": "SKADI",
-    "units": 48,
+    "units": 8,
     "orientation": "horizontal",
     "topology": [
         {
             "ID": 1000,
-            "IP": 100,
-            "rotation": 0
-        },
-        {
-            "ID": 1001,
-            "IP": 101,
-            "rotation": 0
-        },
-        {
-            "ID": 1002,
-            "IP": 102,
-            "rotation": 0
-        },
-        {
-            "ID": 1003,
-            "IP": 103,
-            "rotation": 0
-        },
-        {
-            "ID": 1004,
-            "IP": 104,
-            "rotation": 0
-        },
-        {
-            "ID": 1005,
-            "IP": 105,
-            "rotation": 0
-        },
-        {
-            "ID": 1006,
-            "IP": 106,
-            "rotation": 0
-        },
-        {
-            "ID": 1007,
-            "IP": 107,
-            "rotation": 0
-        },
-        {
-            "ID": 1008,
-            "IP": 108,
-            "rotation": 0
-        },
-        {
-            "ID": 1009,
-            "IP": 109,
-            "rotation": 0
-        },
-        {
-            "ID": 1010,
-            "IP": 110,
-            "rotation": 0
-        },
-        {
-            "ID": 1011,
-            "IP": 111,
-            "rotation": 0
-        },
-        {
-            "ID": 1012,
-            "IP": 112,
-            "rotation": 0
-        },
-        {
-            "ID": 1013,
-            "IP": 113,
-            "rotation": 0
-        },
-        {
-            "ID": 1014,
-            "IP": 114,
-            "rotation": 0
-        },
-        {
-            "ID": 1015,
-            "IP": 115,
-            "rotation": 0
-        },
-        {
-            "ID": 1016,
-            "IP": 116,
-            "rotation": 0
-        },
-        {
-            "ID": 1017,
-            "IP": 117,
-            "rotation": 0
-        },
-        {
-            "ID": 1018,
-            "IP": 118,
-            "rotation": 0
-        },
-        {
-            "ID": 1019,
-            "IP": 119,
-            "rotation": 0
-        },
-        {
-            "ID": 1020,
-            "IP": 120,
-            "rotation": 0
-        },
-        {
-            "ID": 1021,
-            "IP": 121,
-            "rotation": 0
-        },
-        {
-            "ID": 1022,
-            "IP": 122,
-            "rotation": 0
-        },
-        {
-            "ID": 1023,
             "IP": 123,
             "rotation": 0
         },
         {
-            "ID": 1024,
+            "ID": 1001,
             "IP": 124,
             "rotation": 0
         },
         {
-            "ID": 1025,
+            "ID": 1002,
             "IP": 125,
             "rotation": 0
         },
         {
-            "ID": 1026,
+            "ID": 1003,
             "IP": 126,
             "rotation": 0
         },
         {
-            "ID": 1027,
+            "ID": 1004,
             "IP": 127,
             "rotation": 0
         },
         {
-            "ID": 1028,
-            "IP": 128,
-            "rotation": 0
-        },
-        {
-            "ID": 1029,
-            "IP": 129,
-            "rotation": 0
-        },
-        {
-            "ID": 1030,
-            "IP": 130,
-            "rotation": 0
-        },
-        {
-            "ID": 1031,
-            "IP": 131,
-            "rotation": 0
-        },
-        {
-            "ID": 1032,
-            "IP": 132,
-            "rotation": 0
-        },
-        {
-            "ID": 1033,
+            "ID": 2000,
             "IP": 133,
             "rotation": 0
         },
         {
-            "ID": 1034,
+            "ID": 2099,
             "IP": 134,
             "rotation": 0
         },
         {
-            "ID": 1035,
-            "IP": 135,
-            "rotation": 0
-        },
-        {
-            "ID": 1036,
-            "IP": 136,
-            "rotation": 0
-        },
-        {
-            "ID": 1037,
+            "ID": 2001,
             "IP": 137,
-            "rotation": 0
-        },
-        {
-            "ID": 1038,
-            "IP": 138,
-            "rotation": 0
-        },
-        {
-            "ID": 1039,
-            "IP": 139,
-            "rotation": 0
-        },
-        {
-            "ID": 1040,
-            "IP": 140,
-            "rotation": 0
-        },
-        {
-            "ID": 1041,
-            "IP": 141,
-            "rotation": 0
-        },
-        {
-            "ID": 1042,
-            "IP": 142,
-            "rotation": 0
-        },
-        {
-            "ID": 1043,
-            "IP": 143,
-            "rotation": 0
-        },
-        {
-            "ID": 1044,
-            "IP": 144,
-            "rotation": 0
-        },
-        {
-            "ID": 1045,
-            "IP": 145,
-            "rotation": 0
-        },
-        {
-            "ID": 1046,
-            "IP": 146,
-            "rotation": 0
-        },
-        {
-            "ID": 1047,
-            "IP": 147,
             "rotation": 0
         }
     ],

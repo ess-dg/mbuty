@@ -421,7 +421,13 @@ class SkadiPipeline(BasePipeline):
     """SKADI detector layout streams -- not yet implemented."""
 
     def analyze(self) -> None:
-        print(f'{INFO}SKADI pipeline not yet implemented...{RESET}')
+        self.check_empty()
+        # Mapping
+        from lib.mapping_engine import SKADIMapper
+        print(f"{INFO}Mapping SKADI detector (units mapped according to IDs){RESET}")
+        self.hits_container = SKADIMapper.map(self.readouts_container, self.config)
+        
+        print(f'{INFO}Rest of SKADI pipeline not yet implemented...{RESET}')
 
     def build_plotters(self,unit_ids) -> None:
         pass
