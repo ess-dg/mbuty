@@ -15,13 +15,11 @@ from collections import defaultdict
 from types import SimpleNamespace
 import matplotlib.pyplot as plt
 # Ingest new high-performance architecture modules
-from lib.reader import PcapngFileReader
 from lib.colors import INFO, OK, WARN, ERR, RESET
 import lib.checks_and_helpers as checks
 from lib.config_validator import validate_config
 # Ingest object-oriented pipeline tracks and their factory dispatchers
 from lib.pipelines import build_detector_pipeline, build_bm_pipeline
-import lib.save_reduced_file as saveH5
 
 # Ingest legacy file resolver as an isolated asset
 from lib.file_managment import fileDialogue
@@ -101,8 +99,8 @@ class MBUTYOrchestrator():
         if self.parameters.acqMode == 'kafka':
             # check kafka packages are installed, exit if not
             checks.checkPackageKafka()
-            
             from lib.kafka_reader import KafkaReader
+            
             reader = KafkaReader(
                 parameters = self.parameters,
                 config     = self.config,  
@@ -112,6 +110,7 @@ class MBUTYOrchestrator():
         else:
             # check pcapng packages are installed, exit if not
             checks.checkPackagePcap()
+            from lib.reader import PcapngFileReader
             
             file_resolver = fileDialogue(self.parameters)
             file_resolver.openFile()
@@ -197,6 +196,7 @@ class MBUTYOrchestrator():
         ### save reduced data to hdf5
         if self.parameters.fileManagement.saveReducedFileONOFF is True:
 
+            import lib.save_reduced_file as saveH5
             fileNameSave = saveH5.prepareReducedFileBaseName(file_resolver.fileName)
 
             if (self.parameters.MONitor.MONOnOff is True) and self.bm_pipeline:
@@ -545,12 +545,12 @@ if __name__ == '__main__':
     parameters.plotting.bareReadoutsCalculation = False
 
     ###############     
-    parameters.plotting.useDashboard = False
+    parameters.plotting.useDashboard = True
     ###############   
     
     ###############   
     ### plotting in sections of cassettes to ease the visualization if True and in blocks of ...  
-    parameters.plotting.plottingInSections       = False 
+    parameters.plotting.plottingInSections       = True 
     parameters.plotting.plottingInSectionsBlocks = 5
 
     ###############     
