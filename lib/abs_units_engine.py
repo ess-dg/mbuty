@@ -279,7 +279,50 @@ class R5560AbsUnitsCalculator(BaseAbsUnitsCalculator):
         self.events.matrix['absCoordinate0'][:self.events.fill_count] = pos_mm
         self.events.matrix['absCoordinate1'][:self.events.fill_count] = tube_mm
         # print('done')
-        
+# =============================================================================
+# SKADI Abs Units Calculator
+# =============================================================================
+
+class SKADIAbsUnitsCalculator(BaseAbsUnitsCalculator):
+    """
+    Position conversion for SKADI pixel detector.
+
+    coordinate0 = x_tile * pix + adj_col  (absolute pixel column within this
+                                           bank's tile grid, from mapping stage)
+    coordinate1 = y_tile * pix + adj_row  (absolute pixel row, same grid)
+
+    Physical mm position isn't a flat coordinate * pix_size_mm scaling
+    because there's a gap between tiles. Each tile occupies
+    (pix * pix_size_mm + gap_mm) of physical space, which expands to:
+
+        absCoordinate0 = coordinate0 * pix_size_mm + x_tile * gapX_mm
+
+    where x_tile = coordinate0 // pix (recovered with the same divmod
+    relationship the mapping stage used to build coordinate0 in the first
+    place). Same logic for absCoordinate1 with gapY_mm and y_tile.
+    """
+
+    def calculate_positions(self) -> None:
+        print(f"{INFO}Calculating SKADI absolute coordinates ... {RESET}")
+
+        m           = self.events.matrix[:self.events.fill_count]
+        pix         = int(self.config['pix'])
+        pix_size_mm = float(self.config['pix_size_mm'])
+        gap_x_mm    = float(self.config['gapX_mm'])
+        gap_y_mm    = float(self.config['gapY_mm'])
+
+        x_tile = np.floor_divide(m['coordinate0'].astype('int64'), pix)
+        y_tile = np.floor_divide(m['coordinate1'].astype('int64'), pix)
+
+        x_mm = np.round(m['coordinate0'] * pix_size_mm + x_tile * gap_x_mm, 2)
+        y_mm = np.round(m['coordinate1'] * pix_size_mm + y_tile * gap_y_mm, 2)
+
+        self.events.matrix['absCoordinate0'][:self.events.fill_count] = x_mm
+        self.events.matrix['absCoordinate1'][:self.events.fill_count] = y_mm
+      
+    def calculate_wavelength(self) -> None:
+        print("Calculate wavelength not yet implemented for skadi")
+  
 # =============================================================================
 # Standalone Monitor Function
 # =============================================================================

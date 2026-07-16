@@ -426,13 +426,18 @@ class SkadiPipeline(BasePipeline):
         from lib.mapping_engine import SKADIMapper
         print(f"{INFO}Mapping SKADI detector (units mapped according to IDs){RESET}")
         self.hits_container = SKADIMapper.map(self.readouts_container, self.config)
-        
+        # No clustering for skadi
+        # Absolute units 
+        from lib.abs_units_engine import SKADIAbsUnitsCalculator
+        SKADIAbsUnitsCalculator(self.events_container, self.config, self.parameters).process_pipeline(remove_invalid_tofs=self.parameters.plotting.removeInvalidToFs)
+        # No thresholds for skadi (yet)
         print(f'{INFO}Rest of SKADI pipeline not yet implemented...{RESET}')
 
     def build_plotters(self,unit_ids) -> None:
         pass
 
     def plot(self) -> None:
+        print("plotting not yet implemented for skadi")
         pass
 
 
