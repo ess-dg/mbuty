@@ -10,9 +10,9 @@ libReader for CAEN R5560, SKADI and VMM
 Plots and analysis for VMM MG (TREX) and MB (ESTIA, FREIA, TBL) detectors and for He3 tubes (TBL, MIRACLES, CSPEC, BIFROST  and VESPA)
 Beam Monitors are also included, both generic and IBMs.
  
+--------------------------------------------------
+--------------------------------------------------
 
---------------------------------------------------
---------------------------------------------------
 INSTALLATION:
 
 the repository is cloned via git as git clone https://gitlab.esss.lu.se/detectorgroup/multiblade/mbuty.git
@@ -90,6 +90,13 @@ To test it, from terminal try to ssh to the remote computer from your local mach
 --------------------------------------------------
 PACKAGES
 
+requirements.txt  contains all the packages needed. 
+To install all of them at once run: 
+
+pip install -r requirements.txt 
+
+If you want to isntall them one by one see below.
+
 PYTHON of course is required and extra PACKAGES needed:
 NOTE: MBUTY checks for those packages and raises an error and ask to install them. 
 
@@ -115,7 +122,7 @@ Other packages (included in anaconda):
     PyQt5
     h5py
 
-The GUI uses tkinter so no Qt needed. 
+The GUI uses Qt. 
 
 --------------------------------------------------
 --------------------------------------------------
