@@ -695,7 +695,23 @@ class MBUTY_GUI_App:
                             if i == len(blocks) - 1:
                                 break
 
-                            plt.pause(0.5)
+                            # plt.pause(0.5)
+                            # Redraw using the active backend 
+                            plt.draw()
+                            
+                            # ONLY flush events if we are NOT on a Qt backend to prevent the crash
+                            try:
+                                fig = plt.gcf()
+                                if fig and fig.canvas:
+                                    backend_name = matplotlib.get_backend().lower()
+                                    # If Qt somehow still snuck in, do NOT call flush_events()
+                                    if 'qt' not in backend_name:
+                                        fig.canvas.flush_events()
+                                    else:
+                                        # Alternative non-crashing update for Qt
+                                        fig.canvas.draw_idle()
+                            except Exception:
+                                pass
                             answer = messagebox.askquestion(
                                 "Plot Next Section?",
                                 f"Section {i + 1}/{len(blocks)} done.\n\n"
