@@ -22,7 +22,7 @@ from typing import Iterable, NamedTuple, Sequence
 
 import numpy as np
 import os
-os.environ["QT_API"] = "pyside6"
+# os.environ["QT_API"] = "pyside6"
 
 # CHANGED: Replaced PySide6 imports with qtpy equivalents for clean cross-IDE & cross-platform portability
 from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex, QSortFilterProxyModel, QTimer

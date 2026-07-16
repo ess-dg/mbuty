@@ -125,7 +125,32 @@ def _generateTopologyHe3(num_units):
      
     return unit_config
 
-
+# FOR NMX
+# # The helper function (renamed from a method)
+# def _generateTopologyNMX(num_units):
+#     unit_config = []
+#     ring     = 0
+#     fen      = 0
+#     hybridsX = [0,1,2,3,4,5]
+#     hybridsY = [0,1,2,3,4,5]
+#     rotation = 0
+#     for i in range(num_units):
+#         unit_config.append({
+#             "ID": i,
+#             "ring": ring,
+#             "fen": fen,
+#             "hybridsX": hybridsX,
+#             "hybridsY": hybridsY,
+#             "serialHW": '',
+#             "serialHG": ''
+#         })
+       
+#         if hybridG >= 4:
+#             ring += 1
+#             hybridW = 0
+#             hybridG = 1
+            
+#     return unit_config
 ###############################################################################
 ###############################################################################
 

@@ -7,7 +7,7 @@ High-Performance Master Ingestion Orchestrator for ESS Neutron Detectors.
 """
 
 import os
-os.environ["QT_API"] = "pyside6"
+# os.environ["QT_API"] = "pyside6"
 import sys
 import numpy as np
 import json
@@ -545,7 +545,7 @@ if __name__ == '__main__':
     parameters.plotting.bareReadoutsCalculation = False
 
     ###############     
-    parameters.plotting.useDashboard = True
+    parameters.plotting.useDashboard = False
     ###############   
     
     ###############   

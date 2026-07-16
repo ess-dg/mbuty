@@ -14,6 +14,11 @@ import glob
 import sys
 # from PyQt5.QtWidgets import QFileDialog, QApplication
 from qtpy.QtWidgets import QFileDialog, QApplication
+
+app = QApplication.instance()
+if app is None:
+    app = QApplication(sys.argv)
+
 _workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
@@ -247,12 +252,7 @@ class fileDialogue():
 ###############################################################################
 if __name__ == '__main__' :
     import json
-    # Initialized QApplication right here at the start of execution.
-    # This acts safely whether it's run via terminal/VS Code, or within Spyder.
-    # It checks if an instance already exists, preventing collisions inside Spyder.
-    app = QApplication.instance()
-    if app is None:
-        app = QApplication(sys.argv)
+
     current_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__))) + os.sep
     params = para.parameters(current_dir)
 
