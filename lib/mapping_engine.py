@@ -864,7 +864,7 @@ class SKADIMapper:
         local_id[valid_mask] = assigned_ids[valid_mask] % 1000
 
         x_tile[valid_mask] = local_id[valid_mask] % tiles_per_row
-        y_tile[valid_mask] = local_id[valid_mask] // tiles_per_row
+        y_tile[valid_mask] = (tiles_per_row - 1) - (local_id[valid_mask] // tiles_per_row)
 
         return bank, x_tile, y_tile
 

@@ -603,7 +603,39 @@ class R5560AxisSet(BaseAxisSet):
         self.ax_tubes_mm = Axis(min_id*tube_spacing, max_id*tube_spacing, (max_id-min_id+1))  
 
 
+class SKADIAxisSet(BaseAxisSet):
+    def build_specific_axes(self) -> None:
+        pix           = int(self.config['pix'])
+        tiles_per_row = int(self.config['tilesPerRow'])
+        # Pull tilesPerCol from config if available; otherwise safely default to a balanced square configuration
+        tiles_per_col = int(self.config.get('tilesPerCol', tiles_per_row))
         
+        pix_size_mm   = float(self.config['pix_size_mm'])
+        gap_x_mm      = float(self.config['gapX_mm'])
+        gap_y_mm      = float(self.config['gapY_mm'])
+
+        # 1. Pixel index boundaries (0-indexed global grid matrices)
+        max_pix_x = (tiles_per_row * pix) - 1
+        max_pix_y = (tiles_per_col * pix) - 1
+
+        self.ax_pix_x = Axis(0, max_pix_x, tiles_per_row * pix)
+        self.ax_pix_y = Axis(0, max_pix_y, tiles_per_col * pix)
+
+        # 2. Absolute physical millimeter boundaries (including inter-tile gaps)
+        stop_x_mm = (tiles_per_row * pix * pix_size_mm) + ((tiles_per_row - 1) * gap_x_mm)
+        stop_y_mm = (tiles_per_col * pix * pix_size_mm) + ((tiles_per_col - 1) * gap_y_mm)
+
+        # FIX: Calculate total gap bins collectively to prevent cumulative rounding drift
+        total_gap_bins_x = int(round(((tiles_per_row - 1) * gap_x_mm) / pix_size_mm))
+        total_gap_bins_y = int(round(((tiles_per_col - 1) * gap_y_mm) / pix_size_mm))
+
+        # Sum the baseline pixel bins with the globally rounded gap bins
+        steps_x_mm = (tiles_per_row * pix) + total_gap_bins_x
+        steps_y_mm = (tiles_per_col * pix) + total_gap_bins_y
+
+        # Define the clean, un-drifted physical axes
+        self.ax_pix_x_mm = Axis(0, stop_x_mm, steps_x_mm)
+        self.ax_pix_y_mm = Axis(0, stop_y_mm, steps_y_mm)
         
 ###############################################################################
 ###############################################################################

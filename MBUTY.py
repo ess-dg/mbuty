@@ -179,8 +179,8 @@ class MBUTYOrchestrator():
                 plt.draw() 
                 plt.pause(0.1)
                 plt.show(block=False)
-                # input(f"{INFO}\nPress Enter to close all figures...{RESET}")
-                # plt.close('all')
+                input(f"{INFO}\nPress Enter to close all figures...{RESET}")
+                plt.close('all')
             
             # self.timing.lap()
         
@@ -388,9 +388,9 @@ if __name__ == '__main__':
     
     # parameters.fileManagement.fileName = ['skadi_1tile.pcapng']
     
-    # parameters.fileManagement.fileName = ['skadiDataQ.pcapng']
+    parameters.fileManagement.fileName = ['skadiDataQ.pcapng']
     
-    parameters.fileManagement.fileName = ['skadi_48tiles.pcapng']
+    # parameters.fileManagement.fileName = ['skadi_48tiles.pcapng']
     
     parameters.fileManagement.fileSerials = [6,2,4,9]
     # OR
@@ -494,7 +494,7 @@ if __name__ == '__main__':
     parameters.wavelength.distance  = 32000
 
     ##ON/OFF
-    parameters.wavelength.calculateLambda = False
+    parameters.wavelength.calculateLambda = True
 
     ### ON/OFF plot X vs Lambda 2D plot
     parameters.wavelength.plotXLambda     = True
@@ -561,9 +561,9 @@ if __name__ == '__main__':
     parameters.plotting.plotADCvsChlog          = True 
     parameters.plotting.plotChopperResets       = True 
 
-    parameters.plotting.plotRawHits             = False
-    parameters.plotting.plotHitsTimeStamps      = False
-    parameters.plotting.plotHitsTimeStampsVSChannels = False
+    parameters.plotting.plotRawHits             = True
+    parameters.plotting.plotHitsTimeStamps      = True
+    parameters.plotting.plotHitsTimeStampsVSChannels = True
 
     ###############
     ### time between events 
@@ -588,7 +588,7 @@ if __name__ == '__main__':
     # parameters.plotting.positionReconstruction = 'W.cog-S.cog'
 
     ### if True plot XY and XtoF plot in absolute unit (mm), if False plot in wire and strip ch no.
-    parameters.plotting.plotABSunits = False
+    parameters.plotting.plotABSunits = True
      
     ### plot XY and XToF in log scale 
     parameters.plotting.plotIMGlog   = False
@@ -598,7 +598,7 @@ if __name__ == '__main__':
     parameters.plotting.coincidenceWS_ONOFF = True
 
     ### ON/OFF, if  invalid ToFs Tofare included in the plots or removed from events 
-    parameters.plotting.removeInvalidToFs   = True
+    parameters.plotting.removeInvalidToFs   = False
 
     ### histogram outBounds param set as True as default (Events out of bounds stored in first and last bin)
     parameters.plotting.histogOutBounds = True

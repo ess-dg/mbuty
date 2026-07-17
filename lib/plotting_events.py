@@ -979,3 +979,177 @@ class MonitorEventsPlotter(BasePlotter):
         ax1.set_xlabel('wavelength (A)')
         ax1.set_ylabel('counts')
         ax1.set_title('WAVELENGTH')
+        
+        
+        
+# ============================================================================
+# SKADI pixel detector
+# ============================================================================
+
+class SKADIEventsPlotter(BaseEventsPlotter):
+    """
+    Event-level plots for SKADI. plot_tof/plot_lambda/plot_time_between_events
+    mirror R5560EventsPlotter exactly (single curve per unit, no wire/strip
+    coincidence concept -- SKADI has nothing analogous to split on). plot_phs
+    reuses the readout-level ADC-vs-channel shape but on pulseHeight0/matrix
+    instead of adc/readouts. plot_xy is bank-grouped rather than tile-grouped,
+    since "the detector image" here means the full assembled tile mosaic per
+    bank, not one panel per tile.
+
+    plot_x_lambda and plot_tof_xy are intentionally NOT overridden -- they
+    fall through to BaseEventsPlotter's stub (prints a "not implemented"
+    warning and returns) until there's a concrete spec for them.
+    """
+
+    def plot_tof(self, fig_num=333):
+        """ToF distribution per tile (single curve, no coincidence overlay)."""
+        if self.is_empty:
+            return
+        grid = PlotGrid(fig_num, 1, len(self.unit_ids))
+        grid.fig.suptitle('ToF distr per tile')
+        ax_tof = self.axis_set.ax_tof
+        m = self.matrix
+
+        for k, uid in enumerate(self.unit_ids):
+            sel = self.select_unit(uid)
+            hist_tt = self.hist.hist1d(ax_tof.centers, m['ToF'][sel] / 1e9)
+
+            grid.ax[0][k].step(ax_tof.centers * 1e3, hist_tt, 'b', where='mid')
+            grid.ax[0][k].set_xlabel('ToF (ms)')
+            grid.ax[0][k].set_title(f'Tile ID {uid}')
+            if k == 0:
+                grid.ax[0][k].set_ylabel('counts')
+
+    def plot_lambda(self, fig_num=339):
+        """Wavelength distribution per tile (single curve, no coincidence overlay)."""
+        if self.is_empty:
+            return
+        grid = PlotGrid(fig_num, 1, len(self.unit_ids))
+        grid.fig.suptitle('Wavelength distr per tile')
+        ax_lambda = self.axis_set.ax_lambda
+        m = self.matrix
+
+        for k, uid in enumerate(self.unit_ids):
+            sel = self.select_unit(uid)
+            hist_wa = self.hist.hist1d(ax_lambda.centers, m['wavelength'][sel])
+
+            grid.ax[0][k].step(ax_lambda.centers, hist_wa, 'r', where='mid')
+            grid.ax[0][k].set_xlabel('wavelength (A)')
+            grid.ax[0][k].set_title(f'Tile ID {uid}')
+            if k == 0:
+                grid.ax[0][k].set_ylabel('counts')
+
+    def plot_time_between_events(self, fig_num=209):
+        """Delta-time between consecutive events, per tile. Linear-binned (out_of_bounds forced off)."""
+        if self.is_empty:
+            return
+        grid = PlotGrid(fig_num, 1, len(self.unit_ids))
+        grid.fig.suptitle('Time between events')
+        ax_rate = self.axis_set.ax_time_between_ev
+        m = self.matrix
+        forced_hist = Histogrammer(out_of_bounds=False)
+
+        for k, uid in enumerate(self.unit_ids):
+            sel = self.select_unit(uid)
+            diff_time = np.diff(m['timeStamp'][sel])
+            hist_rate = forced_hist.hist1d(ax_rate.centers, diff_time / 1e9)
+
+            grid.ax[0][k].step(ax_rate.centers * 1e6, hist_rate, 'k', where='mid')
+            grid.ax[0][k].set_xlabel('delta time between events (us)')
+            grid.ax[0][k].set_title(f'Tile ID {uid}')
+            if k == 0:
+                grid.ax[0][k].set_ylabel('num of events')
+
+    def plot_phs(self, fig_num=601):
+        """Pulse-height vs channel, 2D histogram per tile, post-threshold."""
+        if self.is_empty:
+            return
+        norm_colors = log_scale_norm(self.parameters.pulseHeigthSpect.plotPHSlog)
+
+        pix = int(self.config['pix'])
+        n_channels = pix * pix
+        xbins = np.linspace(0, n_channels - 1, n_channels)
+
+        grid = PlotGrid(fig_num, 1, len(self.unit_ids))
+        grid.fig.suptitle('Pulse Heigth Spectra')
+        ax_energy = self.axis_set.ax_energy
+        m = self.matrix
+
+        for k, uid in enumerate(self.unit_ids):
+            sel = self.select_unit(uid)
+            histoch, _, _ = self.hist.hist2d(
+                ax_energy.centers, m['pulseHeight0'][sel], xbins, m['channel'][sel]
+            )
+
+            grid.ax[0][k].imshow(
+                histoch, aspect='auto', norm=norm_colors, interpolation='none',
+                extent=[ax_energy.start, ax_energy.stop, xbins[0], xbins[-1]],
+                origin='lower', cmap='jet',
+            )
+            grid.ax[0][k].set_xlabel('pulse height (a.u.)')
+            grid.ax[0][k].set_title(f'Tile ID {uid}')
+            if k == 0:
+                grid.ax[0][k].set_ylabel('ch no.')
+
+    def plot_xy(self, fig_num=101):
+        if self.is_empty:
+            return
+        log_scale   = self.parameters.plotting.plotIMGlog
+        abs_units   = self.parameters.plotting.plotABSunits
+        norm_colors = log_scale_norm(log_scale)
+
+        m = self.matrix
+
+        if not abs_units:
+            ax_x, ax_y = self.axis_set.ax_pix_x, self.axis_set.ax_pix_y
+            x_values, y_values = m['coordinate0'], m['coordinate1']
+            xlabel, ylabel = 'X pixel', 'Y pixel'
+        else:
+            ax_x, ax_y = self.axis_set.ax_pix_x_mm, self.axis_set.ax_pix_y_mm
+            x_values, y_values = m['absCoordinate0'], m['absCoordinate1']
+            xlabel, ylabel = 'X (mm)', 'Y (mm)'
+
+        extent = [ax_x.start, ax_x.stop, ax_y.start, ax_y.stop]
+
+        bank_ids = sorted(np.unique(m['bank']))
+        
+        # FIX: Added height_ratios and explicit column sharing to optimize spatial balance
+        grid = PlotGrid(
+            fig_num, 2, len(bank_ids), 
+            sharex=True, sharey=False,
+            gridspec_kw={'height_ratios': [3, 1]}
+        )
+        grid.fig.suptitle('DET image')
+
+        for k, bank in enumerate(bank_ids):
+            sel_bank = m['bank'] == bank
+            sel_valid = (m['coordinate0'] >= 0) & (m['coordinate1'] >= 0)
+            sel = sel_bank & sel_valid
+
+            h2d, _, _ = self.hist.hist2d(ax_x.centers, x_values[sel], ax_y.centers, y_values[sel])
+
+            # Row 0: Large 2D Detector Image View
+            pos = grid.ax[0][k].imshow(
+                h2d, aspect='equal', norm=norm_colors, interpolation='none',
+                extent=extent, origin='lower', cmap='viridis',
+            )
+            grid.ax[0][k].set_title(f'Bank {bank}')
+            if k == 0:
+                grid.ax[0][k].set_ylabel(ylabel)
+            _safe_colorbar(grid.fig, pos, grid.ax[0][k], f'Bank {bank}',
+                            orientation='vertical', fraction=0.07, anchor=(1.0, 0.0))
+
+            # Row 1: Slimmed 1D Projections
+            sel_x_valid = sel_bank & (m['coordinate0'] >= 0)
+            h_proj_all = self.hist.hist1d(ax_x.centers, x_values[sel_x_valid])
+            h_proj_2d  = np.sum(h2d, axis=0)
+
+            grid.ax[1][k].step(ax_x.centers, h_proj_all, 'r', where='mid', label='1D')
+            grid.ax[1][k].step(ax_x.centers, h_proj_2d, 'b', where='mid', label='2D')
+            if log_scale:
+                grid.ax[1][k].set_yscale('log')
+            grid.ax[1][k].set_xlabel(xlabel)
+            grid.ax[1][k].set_xlim(ax_x.start, ax_x.stop)
+            grid.ax[1][k].legend(loc='upper right', shadow=False, fontsize='large')
+            if k == 0:
+                grid.ax[1][k].set_ylabel('counts')

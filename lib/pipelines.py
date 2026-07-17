@@ -172,6 +172,7 @@ class BasePipeline:
             if w.plotXLambda:
                 self.event_plotter.plot_x_lambda()
             if w.plotLambdaDistr:
+                print("should be plotting lambda")
                 self.event_plotter.plot_lambda()
             if p.plotMultiplicity:
                 self.event_plotter.plot_multiplicity()
@@ -425,7 +426,7 @@ class SkadiPipeline(BasePipeline):
         # Mapping
         from lib.mapping_engine import SKADIMapper
         print(f"{INFO}Mapping SKADI detector (units mapped according to IDs){RESET}")
-        self.hits_container = SKADIMapper.map(self.readouts_container, self.config)
+        self.events_container = SKADIMapper.map(self.readouts_container, self.config)
         # No clustering for skadi
         # Absolute units 
         from lib.abs_units_engine import SKADIAbsUnitsCalculator
@@ -434,11 +435,16 @@ class SkadiPipeline(BasePipeline):
         print(f'{INFO}Rest of SKADI pipeline not yet implemented...{RESET}')
 
     def build_plotters(self,unit_ids) -> None:
-        pass
+        from lib.histograms import SKADIAxisSet
+        self.axis_set = SKADIAxisSet(self.parameters, self.config)
+        
+        from lib.plotting_readouts import SKADIReadoutsPlotter
+        self.readout_plotter = SKADIReadoutsPlotter(self.readouts_container, self.parameters,self.config, self.axis_set,unit_ids)
 
-    def plot(self) -> None:
-        print("plotting not yet implemented for skadi")
-        pass
+        if self.events_container is not None:
+            from lib.plotting_events import SKADIEventsPlotter
+            self.event_plotter = SKADIEventsPlotter(self.events_container, self.parameters,self.config, self.axis_set,unit_ids)
+  
 
 
 # =============================================================================

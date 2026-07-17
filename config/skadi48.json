@@ -7,8 +7,8 @@
     "topology": [
         {
             "ID": 1000,
-            "IP": 123,
-            "rotation": 0
+            "IP": 100,
+            "rotation": 3
         },
         {
             "ID": 1001,

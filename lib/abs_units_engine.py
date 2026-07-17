@@ -320,8 +320,6 @@ class SKADIAbsUnitsCalculator(BaseAbsUnitsCalculator):
         self.events.matrix['absCoordinate0'][:self.events.fill_count] = x_mm
         self.events.matrix['absCoordinate1'][:self.events.fill_count] = y_mm
       
-    def calculate_wavelength(self) -> None:
-        print("Calculate wavelength not yet implemented for skadi")
   
 # =============================================================================
 # Standalone Monitor Function

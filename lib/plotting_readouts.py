@@ -446,3 +446,98 @@ class R5560ReadoutsPlotter(BaseReadoutsPlotter):
     def plot_adc_vs_channel(self, fig_num=None):
         """ADC vs channel is not supported for R5560 -- use raw hits for ADC vs ADC instead."""
         print(f'\n\t{WARN}WARNING: ADC vs Ch not supported for R5560 -> SKIPPING PLOT (use raw hits for ADC VS ADC).{RESET}')
+        
+        
+# ============================================================================
+# SKADI pixel detector
+# ============================================================================
+
+class SKADIReadoutsPlotter(BaseReadoutsPlotter):
+    """
+    Raw pixel-channel diagnostics for SKADI readouts. Like R5560, SKADI has
+    no VMM ASIC/plane structure to split subplots by -- one readout stream
+    per tile ID -- so this mirrors R5560ReadoutsPlotter's shape (1 row of
+    subplots, one column per unit_id) rather than MB/MG's 2-or-4-row ASIC
+    split. Topology match is IP-only (mirrors the mapping stage), not
+    ring/fen/hybrid or ring/fen/tube.
+    """
+
+    def __init__(self, container, parameters, config, axis_set, unit_ids):
+        super().__init__(container, parameters, config, axis_set, unit_ids)
+
+        # each tile is a pix x pix pixel grid -> pix**2 raw channels
+        pix = int(config['pix'])
+        self.n_channels = pix * pix
+        self.xbins = np.linspace(0, self.n_channels - 1, self.n_channels)
+
+    def select_tile_from_unit_id(self, unit_id):
+        """Boolean row mask for the tile belonging to this unit ID (IP match)."""
+        entry = self._topology_entry(unit_id)
+        return self.matrix['IP'] == entry['IP']
+
+    def plot_channels_raw(self, fig_num=1001):
+        """Raw pixel-channel occupancy per tile: 1D histogram, one per unit ID."""
+        if self.is_empty:
+            return
+
+        ploth = PlotGrid(fig_num, 1, len(self.unit_ids))
+        ploth.fig.suptitle('Readouts - raw channels')
+        m = self.matrix
+
+        for k, uid in enumerate(self.unit_ids):
+            sel = self.select_tile_from_unit_id(uid)
+            histo = self.hist.hist1d(self.xbins, m['channel'][sel])
+
+            ploth.ax[0][k].bar(self.xbins, histo, 0.8, color='b')
+            ploth.ax[0][k].set_xlabel('ch no.')
+            ploth.ax[0][k].set_title(f'tile.{uid}')
+            if k == 0:
+                ploth.ax[0][k].set_ylabel('counts')
+
+    def plot_timestamps(self, fig_num=1002):
+        """Raw trigger timestamps per tile."""
+        if self.is_empty:
+            return
+        plotht = PlotGrid(fig_num, 1, len(self.unit_ids))
+        plotht.fig.suptitle('Readouts - raw tiles time stamps')
+        m = self.matrix
+
+        for k, uid in enumerate(self.unit_ids):
+            sel = self.select_tile_from_unit_id(uid)
+            timeStamp0 = m['timeStamp'][sel]
+            xx0 = np.arange(0, len(timeStamp0), 1)
+
+            plotht.ax[0][k].scatter(xx0, timeStamp0, 0.8, color='r', marker='+')
+            plotht.ax[0][k].set_xlabel('trigger no.')
+            plotht.ax[0][k].set_ylabel('time (ns)')
+            plotht.ax[0][k].set_title(f'Tile ID.{uid}')
+            plotht.ax[0][k].grid(axis='x', alpha=0.75)
+            plotht.ax[0][k].grid(axis='y', alpha=0.75)
+
+    def plot_adc_vs_channel(self, fig_num=1006):
+        """ADC vs channel 2D occupancy per tile: 1 histogram, one per unit ID."""
+        if self.is_empty:
+            return
+        norm_colors = log_scale_norm(self.parameters.pulseHeigthSpect.plotPHSlog)
+
+        plothtch = PlotGrid(fig_num, 1, len(self.unit_ids))
+        plothtch.fig.suptitle('ADC vs CH')
+        ax_e = self.axis_set.ax_energy
+        m = self.matrix
+
+        for k, uid in enumerate(self.unit_ids):
+            sel = self.select_tile_from_unit_id(uid)
+            histoch, _, _ = self.hist.hist2d(
+                ax_e.centers, m['adc'][sel], self.xbins, m['channel'][sel]
+            )
+
+            plothtch.ax[0][k].imshow(
+                histoch, aspect='auto', norm=norm_colors, interpolation='none',
+                extent=[ax_e.start, ax_e.stop, self.xbins[0], self.xbins[-1]],
+                origin='lower', cmap='jet',
+            )
+            plothtch.ax[0][k].set_xlabel('ADC')
+            plothtch.ax[0][k].set_title(f'tile.{uid}')
+
+            if k == 0:
+                plothtch.ax[0][k].set_ylabel('ch no.')
