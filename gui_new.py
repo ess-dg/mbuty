@@ -71,9 +71,24 @@ class MBUTYMainWindow(QMainWindow):
         self.console_writer = None
         self.output_panel = None
         self.stop_button = None
-        self.close_plots_button = None
+        self.next_section_button = None
+        self.exit_plotting_button = None
         self.run_button = None
         self.buttons_row = None
+
+        # Section flow state -- drives both the dashboard and loose-plot
+        # "plot in sections" paths through one shared controller. See
+        # _start_section_flow / _show_current_section below.
+        self._section_blocks = []
+        self._section_idx = 0
+        self._section_mode = None       # 'dashboard' or 'loose'
+        self._section_backend = None
+        self._current_dashboard = None
+        self._advancing = False         # guards the reentrant case where
+                                         # closing the dashboard ourselves
+                                         # (Next Section / Exit Plotting)
+                                         # would otherwise re-trigger
+                                         # _on_section_window_closed
 
         self.setWindowTitle("MBUTY GUI")
         self.resize(680, 720)  # Snug default fit for parameter panel on startup
@@ -337,18 +352,19 @@ class MBUTYMainWindow(QMainWindow):
         self.stop_button.setVisible(False)
         buttons_layout.addWidget(self.stop_button)
 
-        self.close_plots_button = QPushButton("Close Plots")
-        self.close_plots_button.clicked.connect(self._close_plots)
-        self.close_plots_button.setVisible(False)
-        buttons_layout.addWidget(self.close_plots_button)
+        self.next_section_button = QPushButton("Next Section")
+        self.next_section_button.clicked.connect(self._next_section)
+        self.next_section_button.setVisible(False)
+        buttons_layout.addWidget(self.next_section_button)
+
+        self.exit_plotting_button = QPushButton("Exit Plotting")
+        self.exit_plotting_button.clicked.connect(self._exit_plotting)
+        self.exit_plotting_button.setVisible(False)
+        buttons_layout.addWidget(self.exit_plotting_button)
 
         layout.addWidget(self.buttons_row)
         layout.addStretch(1)
         return row
-
-    def _close_plots(self):
-        plt.close("all")
-        self.close_plots_button.setVisible(False)
 
     # ------------------------------------------------------------------
     # Stop handling (unchanged from the Tk version - this is a plain
@@ -506,18 +522,7 @@ class MBUTYMainWindow(QMainWindow):
                 backend.run_pipeline()
                 print("\nAnalysis complete. Dispatching plots to main thread...")
 
-                if parameters.plotting.useDashboard:
-                    def show_dashboard():
-                        from lib.mbuty_dashboard import launch_dashboard
-                        self._dashboard = launch_dashboard(
-                            backend.detector_pipeline, backend.bm_pipeline, parameters,
-                            theme_mode=self.theme_manager.mode,
-                        )
-                        self.close_plots_button.setVisible(True)
-
-                    self.dispatcher.post(show_dashboard)
-                else:
-                    self.dispatcher.post(lambda: self._plot_all_sections(backend))
+                self.dispatcher.post(lambda: self._start_section_flow(backend))
 
                 if self.stop_button.isVisible():
                     self.dispatcher.post(lambda: self.stop_button.setVisible(False))
@@ -532,43 +537,131 @@ class MBUTYMainWindow(QMainWindow):
         self.backend_thread = threading.Thread(target=backend_work, daemon=True)
         self.backend_thread.start()
 
-    def _plot_all_sections(self, backend):
-        """
-        Runs on the GUI thread (dispatched via _MainThreadDispatcher). Plots
-        one block at a time; between blocks shows the same Yes/No prompt the
-        Tk version used via messagebox.askquestion - QMessageBox.question
-        pumps Qt's event loop the same way while it waits for the click, so
-        the app stays responsive without any backend-detection workaround.
-        """
-        blocks = backend.detector_pipeline.get_unit_id_blocks() if backend.detector_pipeline else []
+    # ------------------------------------------------------------------
+    # Section flow: one controller for both dashboard and loose-plot
+    # modes. Next Section / Exit Plotting drive everything from here;
+    # closing the dashboard's own window (the X button) is treated
+    # identically to clicking Next Section -- see
+    # _on_section_window_closed. There is no blocking loop anywhere in
+    # this path, unlike the old modal QMessageBox / nested QEventLoop
+    # approaches, so the plot windows stay fully interactive between
+    # sections.
+    # ------------------------------------------------------------------
+    def _start_section_flow(self, backend):
+        # apply_mpl_theme() sets the matplotlib rcParams every Figure picks
+        # up (background/text colors) and patches the Qt toolbar class so
+        # icons get tinted to match -- previously this only ran inside
+        # launch_dashboard(), which this controller bypasses (it calls
+        # build_dashboard_section directly), so theming silently stopped
+        # applying to both the dashboard and the loose-plot path. Must
+        # happen before any Figure/canvas/toolbar is built below.
+        theme.apply_mpl_theme(self.theme_manager.mode)
 
-        for i, block in enumerate(blocks):
-            backend.detector_pipeline.plot_section(block)
+        self._section_backend = backend
+        self._section_mode = "dashboard" if parameters.plotting.useDashboard else "loose"
+        self._current_dashboard = None
+        self._section_idx = 0
 
-            if i == len(blocks) - 1:
-                break
+        if backend.detector_pipeline:
+            self._section_blocks = backend.detector_pipeline.get_unit_id_blocks()
+        else:
+            self._section_blocks = []
 
-            plt.draw()
+        bm_active = bool(backend.bm_pipeline) and parameters.MONitor.MONOnOff
+        if self._section_mode == "dashboard" and bm_active:
+            backend.bm_pipeline.build_plotter()  # construction only; BM isn't sectioned
+
+        has_anything = bool(self._section_blocks) or bm_active
+        self.next_section_button.setVisible(len(self._section_blocks) > 1)
+        self.exit_plotting_button.setVisible(has_anything)
+        self._show_current_section()
+
+    def _show_current_section(self):
+        blocks = self._section_blocks
+        backend = self._section_backend
+
+        if self._section_idx >= len(blocks):
+            self._finish_sections()
+            return
+
+        block = blocks[self._section_idx]
+        if len(blocks) > 1:
+            print(f"\n\tSection {self._section_idx + 1}/{len(blocks)} "
+                  f"-- unit IDs {block[0]} to {block[-1]}.")
+
+        if self._section_mode == "dashboard":
             try:
-                fig = plt.gcf()
-                if fig and fig.canvas:
-                    fig.canvas.draw_idle()
-            except Exception:
-                pass
+                from lib.mbuty_dashboard import build_dashboard_section
+                bm_active = bool(backend.bm_pipeline) and parameters.MONitor.MONOnOff
+                dashboard = build_dashboard_section(
+                    backend.detector_pipeline, backend.bm_pipeline, parameters, block, bm_active
+                )
+                dashboard.closing.connect(self._on_section_window_closed)
+                self._current_dashboard = dashboard
+                dashboard.show()
+                dashboard.raise_()
+                dashboard.activateWindow()
+                return
+            except Exception as e:
+                print(f" Dashboard failed ({e}) -- falling back to standard plotting.")
+                self._section_mode = "loose"
+                # fall through to the loose-plot branch below for this section
 
-            answer = QMessageBox.question(
-                self, "Plot Next Section?",
-                f"Section {i + 1}/{len(blocks)} done.\n\nClick Yes to plot the next section, No to stop here.",
-            )
-            if answer != QMessageBox.Yes:
-                plt.close("all")
-                break
+        backend.detector_pipeline.plot_section(block)
+        plt.draw()
+        try:
+            fig = plt.gcf()
+            if fig and fig.canvas:
+                fig.canvas.draw_idle()
+                if fig.canvas.manager:
+                    fig.canvas.manager.window.raise_()
+                    fig.canvas.manager.window.activateWindow()
+        except Exception:
+            pass
+        plt.show(block=False)
 
-        if backend.bm_pipeline and parameters.MONitor.MONOnOff:
+        if self._section_idx == 0 and backend.bm_pipeline and parameters.MONitor.MONOnOff:
             backend.bm_pipeline.plot()
 
-        plt.show(block=False)
-        self.close_plots_button.setVisible(True)
+    def _on_section_window_closed(self):
+        """The dashboard's own close (X button) is treated identically to
+        clicking Next Section. _advancing guards the reentrant case: if
+        Next Section (or Exit Plotting) triggered this close() itself,
+        skip -- otherwise a single button click would advance twice."""
+        if self._advancing:
+            return
+        self._next_section()
+
+    def _next_section(self):
+        self._advancing = True
+        try:
+            if self._current_dashboard is not None:
+                self._current_dashboard.close()
+                self._current_dashboard = None
+            else:
+                plt.close("all")
+            self._section_idx += 1
+        finally:
+            self._advancing = False
+        self._show_current_section()
+
+    def _exit_plotting(self):
+        self._advancing = True
+        try:
+            if self._current_dashboard is not None:
+                self._current_dashboard.close()
+                self._current_dashboard = None
+            plt.close("all")
+        finally:
+            self._advancing = False
+        self._finish_sections()
+
+    def _finish_sections(self):
+        self.next_section_button.setVisible(False)
+        self.exit_plotting_button.setVisible(False)
+        self._section_blocks = []
+        self._section_idx = 0
+        self._section_backend = None
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -591,6 +684,9 @@ class MBUTYMainWindow(QMainWindow):
 
     def closeEvent(self, event):
         self.stop_back_end()
+        if self._current_dashboard is not None:
+            self._current_dashboard.close()
+            self._current_dashboard = None
         plt.close("all")
         sys.stdout = self.original_stdout
         super().closeEvent(event)

@@ -25,7 +25,7 @@ import os
 # os.environ["QT_API"] = "pyside6"
 
 # CHANGED: Replaced PySide6 imports with qtpy equivalents for clean cross-IDE & cross-platform portability
-from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex, QSortFilterProxyModel, QTimer, QEventLoop
+from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex, QSortFilterProxyModel, QTimer, QEventLoop, Signal
 from qtpy.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -43,34 +43,14 @@ from qtpy.QtWidgets import (
 )
 
 # RESTORED: Standard Matplotlib Agg backend that automatically resolves Qt5 vs Qt6
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 
-from qtpy.QtGui import QIcon, QPixmap, QPainter, QColor
-from qtpy.QtCore import QSize
-
-
-class ThemedNavigationToolbar(NavigationToolbar2QT):
-    """matplotlib's own dark-mode icon inversion checks the widget's
-    QPalette, not our QSS stylesheet -- since theming here is
-    setStyleSheet()-only, the palette never actually changes and mpl's
-    detection never fires, so icons stay dark-on-dark. Recolor them
-    ourselves using whatever apply_mpl_theme() last set as the
-    foreground color, so toolbar icons stay in sync with the rest of
-    the theme automatically."""
-
-    def _icon(self, name):
-        icon = super()._icon(name)
-        pixmap = icon.pixmap(QSize(24, 24))
-        tinted = QPixmap(pixmap.size())
-        tinted.fill(Qt.transparent)
-        painter = QPainter(tinted)
-        painter.drawPixmap(0, 0, pixmap)
-        painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
-        import matplotlib as mpl
-        painter.fillRect(tinted.rect(), QColor(mpl.rcParams.get("text.color", "#000000")))
-        painter.end()
-        return QIcon(tinted)
+# ThemedNavigationToolbar lives in gui_qt/theme.py now (shared with the
+# standalone plt.show() / loose-plot path, not dashboard-only) -- see
+# theme.apply_mpl_theme()/_patch_qt_toolbar() for why it needs to live
+# centrally rather than here.
+from gui_qt.theme import ThemedNavigationToolbar
 # --------------------------------------------------------------------------
 # Data source interface — implemented by the real pipeline, not by this file
 # --------------------------------------------------------------------------
@@ -230,28 +210,19 @@ def launch_dashboard(detector_pipeline, bm_pipeline, parameters, theme_mode="dar
         bm_pipeline.build_plotter()  # construction only, doesn't draw; BM isn't sectioned
 
     app = QApplication.instance() or QApplication(sys.argv)
-    selected = _selected_plot_names_by_tab(parameters)
 
     def _show_section(unit_ids) -> MbutyDashboard:
-        detector_pipeline.build_plotters(unit_ids=unit_ids)
-        data_source = OrchestratorDataSource(detector_pipeline, bm_pipeline if bm_active else None)
-        config = {
-            "readouts_active_plots": [n for n in data_source.get_available_plots("readouts")
-                                    if n in selected["readouts"]],
-            "hits_active_plots":     [n for n in data_source.get_available_plots("mapped_hits")
-                                    if n in selected["mapped_hits"]],
-            "events_active_plots":   [n for n in data_source.get_available_plots("coincidence_events")
-                                    if n in selected["coincidence_events"]],
-            "bm_active_plots":       [n for n in data_source.get_available_plots("beam_monitor")
-                                    if n in selected["beam_monitor"]],
-        }
-        dashboard = MbutyDashboard(data_source, config=config)
-        dashboard.resize(1300, 800)
+        dashboard = build_dashboard_section(
+            detector_pipeline, bm_pipeline, parameters, unit_ids, bm_active
+        )
         dashboard.show()
 
-        # Block until this window closes using a local QEventLoop
+        # Block until this window actually closes. `closing` is emitted from
+        # closeEvent (see MbutyDashboard) -- unlike `destroyed`, it fires the
+        # moment the user clicks the X, since close() only hides the window
+        # by default and never destroys the underlying Qt object.
         loop = QEventLoop()
-        dashboard.destroyed.connect(loop.quit)
+        dashboard.closing.connect(loop.quit)
         loop.exec()
         return dashboard
 
@@ -270,6 +241,32 @@ def launch_dashboard(detector_pipeline, bm_pipeline, parameters, theme_mode="dar
         print(f'\n\tSection {i + 1}/{len(blocks)} -- unit IDs {block[0]} to {block[-1]}'
               f' -- close this window to continue.')
         dashboard = _show_section(block)
+    return dashboard
+
+
+def build_dashboard_section(detector_pipeline, bm_pipeline, parameters, unit_ids, bm_active) -> MbutyDashboard:
+    """Builds (but does not show) a single dashboard window scoped to one
+    block of unit_ids. Split out of launch_dashboard()'s internal loop so a
+    GUI can drive section-by-section display itself (e.g. Next Section /
+    Exit Plotting buttons) instead of relying on launch_dashboard()'s own
+    blocking event loop -- that blocking loop is still what the CLI path in
+    MBUTY.py uses, unchanged, via launch_dashboard() above.
+    """
+    detector_pipeline.build_plotters(unit_ids=unit_ids)
+    data_source = OrchestratorDataSource(detector_pipeline, bm_pipeline if bm_active else None)
+    selected = _selected_plot_names_by_tab(parameters)
+    config = {
+        "readouts_active_plots": [n for n in data_source.get_available_plots("readouts")
+                                   if n in selected["readouts"]],
+        "hits_active_plots":     [n for n in data_source.get_available_plots("mapped_hits")
+                                   if n in selected["mapped_hits"]],
+        "events_active_plots":   [n for n in data_source.get_available_plots("coincidence_events")
+                                   if n in selected["coincidence_events"]],
+        "bm_active_plots":       [n for n in data_source.get_available_plots("beam_monitor")
+                                   if n in selected["beam_monitor"]],
+    }
+    dashboard = MbutyDashboard(data_source, config=config)
+    dashboard.resize(1300, 800)
     return dashboard
 
 
@@ -712,6 +709,14 @@ class ComparisonMatrixView(QWidget):
 # --------------------------------------------------------------------------
 
 class MbutyDashboard(QMainWindow):
+    # Emitted from closeEvent. QMainWindow.close() only *hides* the window
+    # by default (Qt.WA_DeleteOnClose isn't set), so the C++-level
+    # `destroyed` signal never fires when a user clicks the X -- this gives
+    # callers (the GUI's section controller, or launch_dashboard()'s own
+    # blocking loop) something that actually reflects "the user closed
+    # *this* window", independent of object-deletion timing.
+    closing = Signal()
+
     def __init__(self, data_source: DashboardDataSource, config: dict, parent=None):
         super().__init__(parent)
         self._data_source = data_source
@@ -818,6 +823,10 @@ class MbutyDashboard(QMainWindow):
         """Refresh dataframes only for tabs that have actually been opened."""
         for view in self.views.values():
             view.refresh_dataframe()
+
+    def closeEvent(self, event):
+        super().closeEvent(event)
+        self.closing.emit()
 
 
 # --------------------------------------------------------------------------
