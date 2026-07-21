@@ -7,9 +7,6 @@ import sys
 import ctypes
 import threading
 
-# --- CHANGE: Set Matplotlib backend BEFORE importing pyplot to prevent Qt thread locks on Linux shell execution ---
-import matplotlib
-matplotlib.use('QtAgg')  # Forces Matplotlib to reuse Qt's event loop clean state
 import matplotlib.pyplot as plt
 
 from qtpy.QtCore import Qt, QObject, Signal
@@ -697,20 +694,19 @@ class MBUTYMainWindow(QMainWindow):
 
 def main():
     import sys as _sys
-    # --- CHANGE: Force XCB platform integration for Linux environments to avoid display server hang ---
-    if _sys.platform.startswith("linux"):
-        os.environ.setdefault("QT_QPA_PLATFORM", "xcb")
-
     from qtpy.QtWidgets import QApplication
 
+    print("creating QApplication", flush=True)
     app = QApplication(_sys.argv)
+    print("creating ThemeManager", flush=True)
     theme_manager = theme.ThemeManager(app, mode="dark")
+    print("creating MBUTYMainWindow", flush=True)
     window = MBUTYMainWindow(theme_manager)
+    print("calling show()", flush=True)
     window.show()
-    
-    # --- CHANGE: Flush initial render queue to prevent frozen/black window state on startup ---
+    print("calling processEvents()", flush=True)
     app.processEvents()
-    
+    print("entering exec()", flush=True)
     _sys.exit(app.exec())
 
 
