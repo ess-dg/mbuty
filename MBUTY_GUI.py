@@ -696,17 +696,11 @@ def main():
     import sys as _sys
     from qtpy.QtWidgets import QApplication
 
-    print("creating QApplication", flush=True)
     app = QApplication(_sys.argv)
-    print("creating ThemeManager", flush=True)
+    app.setStyle("Fusion")
     theme_manager = theme.ThemeManager(app, mode="dark")
-    print("creating MBUTYMainWindow", flush=True)
     window = MBUTYMainWindow(theme_manager)
-    print("calling show()", flush=True)
     window.show()
-    print("calling processEvents()", flush=True)
-    app.processEvents()
-    print("entering exec()", flush=True)
     _sys.exit(app.exec())
 
 
