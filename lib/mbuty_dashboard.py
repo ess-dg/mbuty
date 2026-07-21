@@ -50,7 +50,7 @@ from matplotlib.figure import Figure
 # standalone plt.show() / loose-plot path, not dashboard-only) -- see
 # theme.apply_mpl_theme()/_patch_qt_toolbar() for why it needs to live
 # centrally rather than here.
-from gui_qt.theme import ThemedNavigationToolbar
+from GUI.theme import ThemedNavigationToolbar
 # --------------------------------------------------------------------------
 # Data source interface — implemented by the real pipeline, not by this file
 # --------------------------------------------------------------------------
@@ -202,7 +202,7 @@ def launch_dashboard(detector_pipeline, bm_pipeline, parameters, theme_mode="dar
     """
     import sys
     from lib.pipelines import _chunk
-    from gui_qt import theme
+    from GUI import theme
     theme.apply_mpl_theme(theme_mode)   # before any Figure() is constructed
 
     bm_active = bool(bm_pipeline) and parameters.MONitor.MONOnOff

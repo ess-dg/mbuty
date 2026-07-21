@@ -125,7 +125,6 @@ Notes:
 import os
 import sys
 import subprocess
-from tkinter import messagebox
 
 # Fix import path to allow access to lib from GUI folder
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -147,26 +146,25 @@ def dataFileOptions(widgets):
     
 def open_config_creator_standalone():
     """
-    Launches configGenGUI.py as a completely separate, standalone Python process.
-    This will create a new, independent window for the Config Creator.
+    Launches configGen_GUI.py as a completely separate, standalone Python process.
+    This will create a new, independent Qt window for the Config Creator.
     """
+    from qtpy.QtWidgets import QMessageBox
+
     python_executable = sys.executable
     config_gui_path = os.path.join(currentPath, 'MBUTYconfigGen_GUI.py')
 
     # Verify that the script exists before trying to run it
     if not os.path.exists(config_gui_path):
-        messagebox.showerror("Error", f"Config Creator script not found at: {config_gui_path}")
+        QMessageBox.critical(None, "Error", f"Config Creator script not found at:\n{config_gui_path}")
         return
 
     try:
-        subprocess.Popen([python_executable, config_gui_path])#,
-                         # stdout=subprocess.DEVNULL, # Suppress stdout
-                         # stderr=subprocess.DEVNULL) # Suppress stderr
-
+        subprocess.Popen([python_executable, config_gui_path])
     except FileNotFoundError:
-        messagebox.showerror("Error", "Python executable not found. Make sure Python is installed and in your system's PATH.")
+        QMessageBox.critical(None, "Error", "Python executable not found. Make sure Python is installed and in system PATH.")
     except Exception as e:
-        messagebox.showerror("Error", f"Failed to launch Config Creator:\n{e}")
+        QMessageBox.critical(None, "Error", f"Failed to launch Config Creator:\n{e}")
         
 # Define configuration structure
 config = {

@@ -1,86 +1,56 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Jun  9 09:30:32 2025
+expandable_section.py
 
-@author: sheilamonera
+qtpy replacement for the Tk ExpandableSection (collapsible frame with a
+toggle header).
 """
-import tkinter as tk
-import tkinter.font as tkfont 
-from . import base_constants as const 
+from qtpy.QtCore import Qt
+from qtpy.QtWidgets import QWidget, QVBoxLayout, QPushButton, QFrame, QSizePolicy
 
-class ExpandableSection(tk.Frame): # Inherits from tk.Frame
+
+class ExpandableSection(QWidget):
     """
-    A collapsible/expandable section frame with a toggleable header.
-
-    Parameters:
-        parent (tk.Widget): Parent container widget.
-        title_text (str): Title text displayed on the section header.
-        *args, **kwargs: Standard tk.Frame arguments.
+    A collapsible/expandable section with a toggleable header.
     """
 
-    def __init__(self, parent, title_text, *args, **kwargs):
-        # Call the constructor of the parent class (tk.Frame)
-        super().__init__(parent, *args, **kwargs)
-
+    def __init__(self, parent, title_text, expanded=False):
+        super().__init__(parent)
         self.title_text = title_text
-        self.is_expanded = False # Initial state: collapsed
 
-        # Create a tkinter.font.Font object for dynamic font updates
-        self.header_font = tkfont.Font(
-            family=const.gui_font,
-            size=const.param_font_size + 2, # Initial size, slightly larger than param_font_size
-            weight="bold"
-        )
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
 
-        # Header button with arrow indicator (using tk.Button as requested)
-        self.toggle_button = tk.Button(
-            self, # Parent is self (the ExpandableSection frame itself)
-            text="> " + self.title_text, # Initial text (collapsed arrow)
-            command=self.toggle,
-            font=self.header_font, # Apply the font directly to tk.Button
-            anchor="w", # Align text to the left
-            relief="raised", # Set relief to "raised" for a pop-out effect
-            borderwidth=1, # Add a thin border to the button
-            padx=5, # Add some internal padding to the button
-            pady=2
-        )
-        self.toggle_button.pack(fill="x", expand=True)
+        self.toggle_button = QPushButton()
+        self.toggle_button.setProperty("role", "section-header")
+        self.toggle_button.setCheckable(True)
+        self.toggle_button.setChecked(expanded)
+        self.toggle_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.toggle_button.setStyleSheet("text-align: left; padding-left: 10px;")
+        self.toggle_button.clicked.connect(self.toggle)
+        layout.addWidget(self.toggle_button)
 
-        # Content area (initially hidden)
-        self.content_frame = tk.Frame(self) # Use self as parent
-        # content_frame is initially packed, but then forgotten to hide it
-        self.content_frame.pack(fill="x", expand=True)
-        self.content_frame.pack_forget() # Initially hidden
+        self.content_frame = QFrame()
+        self.content_layout = QVBoxLayout(self.content_frame)
+        self.content_layout.setContentsMargins(8, 8, 8, 8)
+        layout.addWidget(self.content_frame)
 
-        # Call update_font once at initialization to set the correct initial size
-        self.update_font()
+        self._set_arrow_text()
+        self.content_frame.setVisible(expanded)
 
     def toggle(self):
-        """
-        Toggle the section between expanded and collapsed states.
-        """
-        if self.is_expanded:
-            self.content_frame.pack_forget() # Use pack_forget to hide
-            self.toggle_button.config(text="> " + self.title_text) # Collapsed arrow
-        else:
-            self.content_frame.pack(fill="x", expand=True) # Use pack to show
-            self.toggle_button.config(text="V " + self.title_text) # Expanded arrow
-        self.is_expanded = not self.is_expanded
+        expanded = self.toggle_button.isChecked()
+        self.content_frame.setVisible(expanded)
+        self._set_arrow_text()
+
+    def _set_arrow_text(self):
+        arrow = "\u25bc " if self.toggle_button.isChecked() else "\u25b6 "  # ▼ / ▶
+        self.toggle_button.setText(arrow + self.title_text)
 
     def get_content_frame(self):
-        """
-        Return the internal content frame where widgets should be placed.
-        Returns:
-            tk.Frame: The content frame for placing widgets.
-        """
         return self.content_frame
 
-    def update_font(self):
-        """
-        Update the font size of the expandable section's title (header button).
-        This method will be called by the main GUI when the global font size changes.
-        """
-        # Update the size of the tkfont.Font object.
-        # The toggle_button (which uses this font) will update automatically.
-        self.header_font.config(size=const.param_font_size + 2) # Maintain +2 offset
-
+    @property
+    def is_expanded(self):
+        return self.toggle_button.isChecked()

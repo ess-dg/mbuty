@@ -1,214 +1,209 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jun 11 14:55:22 2025
+console_widgets.py
 
-@author: sheilamonera
+qtpy replacement for the Tk ANSIColorTextWidget + ConsoleRedirector pair.
+
+One change here is not just cosmetic: in the Tk version, ConsoleRedirector.write()
+could be called from backend_thread (since MBUTY_GUI's pipeline prints directly
+via redirected stdout while running in a worker thread) and wrote straight into
+the Tk Text widget from that thread. Tk mostly tolerates this in practice, but
+it's not actually safe, and Qt is much less forgiving about it — touching a
+QWidget from a non-GUI thread can corrupt state or crash outright, not just
+misbehave. So ConsoleWriter here emits a Signal instead of touching the widget
+directly. Qt signal emission is thread-safe by design, and connecting it with
+Qt.QueuedConnection guarantees the slot that actually inserts text always runs
+on the GUI thread — regardless of which thread called .write(). This is the
+same class of problem as the dashboard-threading discussion earlier, solved
+the same way (never touch GUI objects off the GUI thread), just via Qt's
+native mechanism instead of a manual queue + polling loop.
+
+Also folds in what used to be the separate `line_numbered_text.py` widget.
+That module existed specifically to show line numbers next to the
+redirected-stdout console — i.e. it was never a general-purpose text
+editor, it was *this* widget's gutter. So rather than keep two widgets in
+sync, the gutter lives directly on ANSIConsole. It uses the standard Qt
+"code editor" pattern: a small side QWidget whose paintEvent is driven by
+ANSIConsole's own blockCountChanged/updateRequest signals, so it always
+repaints in step with scrolling and new output — no manual redraw calls
+needed anywhere else in the app.
 """
-import tkinter as tk
-import sys
 import re
 
-class ANSIColorTextWidget(tk.Text):
+from qtpy.QtCore import QObject, Signal, Qt, QRect, QSize
+from qtpy.QtGui import QTextCharFormat, QColor, QTextCursor, QPainter
+from qtpy.QtWidgets import QPlainTextEdit, QWidget
+
+from . import theme
+
+
+ANSI_ESCAPE_PATTERN = re.compile(r'\x1b\[([0-9;]+)m')
+
+COLOR_MAP = {
+    '30': 'black', '31': 'red', '32': 'green', '33': 'yellow',
+    '34': 'blue', '35': 'magenta', '36': 'cyan', '37': 'white',
+    '90': 'gray', '91': 'lightcoral', '92': 'lightgreen', '93': 'lightyellow',
+    '94': 'lightblue', '95': 'plum', '96': 'lightcyan', '97': 'white',
+}
+
+
+class _LineNumberArea(QWidget):
+    """Thin side widget that just forwards paint events back to the console —
+    it has no state of its own, ANSIConsole owns the drawing logic."""
+
+    def __init__(self, console):
+        super().__init__(console)
+        self.console = console
+
+    def sizeHint(self):
+        return QSize(self.console.line_number_area_width(), 0)
+
+    def paintEvent(self, event):
+        self.console.line_number_area_paint_event(event)
+
+
+class ANSIConsole(QPlainTextEdit):
     """
-    A custom Tkinter Text widget designed to interpret and display text
-    containing basic ANSI color escape codes. This widget is configured
-    to be read-only for the user, acting primarily as a display console.
+    A read-only console widget that interprets basic ANSI color/bold escape
+    codes, styled as a monospace log panel via theme.py's "console" role.
+
+    Parameters:
+        show_line_numbers (bool): show the line-number gutter (default True,
+            since this widget's main job is displaying redirected stdout
+            and line numbers make it much easier to reference/report a
+            specific line of pipeline output).
+        theme_manager (ThemeManager, optional): if given, the gutter's
+            colors follow light/dark mode changes automatically.
     """
-    # Regular expression to find ANSI escape sequences (e.g., '\x1b[...m').
-    # This pattern captures the numeric parameters within the escape code.
-    ANSI_ESCAPE_PATTERN = re.compile(r'\x1b\[([0-9;]+)m')
 
-    # A mapping from standard ANSI foreground color codes to Tkinter color names.
-    # Includes both standard and bright (high-intensity) colors.
-    COLOR_MAP = {
-        '30': 'black',
-        '31': 'red',
-        '32': 'green',
-        '33': 'yellow',
-        '34': 'blue',
-        '35': 'magenta',
-        '36': 'cyan',
-        '37': 'white',
-        '90': 'gray',
-        '91': 'lightcoral',
-        '92': 'lightgreen',
-        '93': 'lightyellow',
-        '94': 'lightblue',
-        '95': 'plum',
-        '96': 'lightcyan',
-        '97': 'white',
-    }
-    # A mapping from ANSI style codes to internal style names.
-    # Currently supports 'bold' and 'reset' for styles.
-    STYLE_MAP = {
-        '1': 'bold',  # ANSI code for bold text
-        '0': 'reset', # ANSI code for resetting all attributes
-    }
+    def __init__(self, parent=None, max_block_count=10000, show_line_numbers=True, theme_manager=None):
+        super().__init__(parent)
+        self.setReadOnly(True)
+        self.setProperty("role", "console")
+        self.setMaximumBlockCount(max_block_count)  # caps memory growth on long runs
+        self._default_format = QTextCharFormat()
 
-    def __init__(self, master=None, initial_font_size=10, **kwargs):
-        """
-        Initializes the ANSIColorTextWidget.
+        self.show_line_numbers = show_line_numbers
+        self._gutter_bg = QColor(theme.LIGHT["surface_alt"])
+        self._gutter_fg = QColor(theme.LIGHT["text_secondary"])
 
-        Args:
-            master (tk.Widget, optional): The parent widget. Defaults to None.
-            initial_font_size (int): The initial font size for the text. Defaults to 10.
-            **kwargs: Arbitrary keyword arguments passed to the tk.Text constructor.
-        """
-        super().__init__(master, **kwargs)
-        self.font_size = initial_font_size
-        self._configure_tags()     # Set up Tkinter text tags based on color and style maps.
-        self.insert_index = tk.END # Tracks where new text should be inserted (always at the end).
-        self.config(state="disabled") # Make the widget read-only by default.
+        if self.show_line_numbers:
+            self._line_number_area = _LineNumberArea(self)
+            self.blockCountChanged.connect(self._update_line_number_area_width)
+            self.updateRequest.connect(self._update_line_number_area)
+            self._update_line_number_area_width(0)
 
-    def update_font_size(self, new_size):
-        """
-        Updates the font size of the text widget and reconfigures all tags
-        to reflect the new size.
+        if theme_manager is not None:
+            theme_manager.theme_changed.connect(self._on_theme_changed)
+            self._on_theme_changed(theme_manager.mode)
 
-        Args:
-            new_size (int): The new font size to apply.
-        """
-        self.font_size = new_size
-        self._configure_tags()       # Reconfigure tags with the new font size.
-        self.update_idletasks()      # Force an immediate update of the display.
+    def _on_theme_changed(self, mode):
+        palette = theme.LIGHT if mode == "light" else theme.DARK
+        self._gutter_bg = QColor(palette["surface_alt"])
+        self._gutter_fg = QColor(palette["text_secondary"])
+        if self.show_line_numbers:
+            self._line_number_area.update()
 
-    def _configure_tags(self):
-        """
-        Configures or reconfigures the Tkinter Text widget tags.
-        This method creates tags for default text (reset), foreground colors,
-        and text styles (e.g., bold) based on the `COLOR_MAP` and `STYLE_MAP`.
-        """
-        # Default tag for resetting text attributes (foreground color and font).
-        self.tag_configure("reset", foreground="white", font=("Courier New", self.font_size))
+    # ------------------------------------------------------------------
+    # line-number gutter (standard QPlainTextEdit pattern)
+    # ------------------------------------------------------------------
+    def line_number_area_width(self):
+        digits = len(str(max(1, self.blockCount())))
+        return 10 + self.fontMetrics().horizontalAdvance('9') * digits
 
-        # Configure tags for each ANSI foreground color.
-        for code, color_name in self.COLOR_MAP.items():
-            self.tag_configure(f"fg_{code}", foreground=color_name)
+    def _update_line_number_area_width(self, _new_block_count):
+        self.setViewportMargins(self.line_number_area_width(), 0, 0, 0)
 
-        # Configure tags for text styles (e.g., bold font).
-        self.tag_configure("bold", font=("Courier New", self.font_size, "bold"))
+    def _update_line_number_area(self, rect, dy):
+        if dy:
+            self._line_number_area.scroll(0, dy)
+        else:
+            self._line_number_area.update(0, rect.y(), self._line_number_area.width(), rect.height())
+        if rect.contains(self.viewport().rect()):
+            self._update_line_number_area_width(0)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if self.show_line_numbers:
+            cr = self.contentsRect()
+            self._line_number_area.setGeometry(
+                QRect(cr.left(), cr.top(), self.line_number_area_width(), cr.height())
+            )
+
+    def line_number_area_paint_event(self, event):
+        painter = QPainter(self._line_number_area)
+        painter.fillRect(event.rect(), self._gutter_bg)
+
+        block = self.firstVisibleBlock()
+        block_number = block.blockNumber()
+        top = round(self.blockBoundingGeometry(block).translated(self.contentOffset()).top())
+        bottom = top + round(self.blockBoundingRect(block).height())
+
+        painter.setPen(self._gutter_fg)
+        while block.isValid() and top <= event.rect().bottom():
+            if block.isVisible() and bottom >= event.rect().top():
+                painter.drawText(
+                    0, top, self._line_number_area.width() - 4, self.fontMetrics().height(),
+                    Qt.AlignRight, str(block_number + 1),
+                )
+            block = block.next()
+            top = bottom
+            bottom = top + round(self.blockBoundingRect(block).height())
+            block_number += 1
 
     def write(self, string):
         """
-        Processes the incoming string, parsing ANSI escape codes to apply
-        appropriate Tkinter tags for color and style, then inserts the
-        formatted text into the widget. This method temporarily enables
-        the widget for writing and then disables it again.
-
-        Args:
-            string (str): The string to be written, potentially containing ANSI escape codes.
+        Parse `string` for ANSI escape codes and append it with matching
+        formatting. Safe to call only from the GUI thread — use ConsoleWriter
+        below if output originates on a worker thread.
         """
-        self.config(state="normal") # Temporarily enable the widget for modification.
+        cursor = self.textCursor()
+        cursor.movePosition(QTextCursor.End)
 
-        # Split the input string by ANSI escape sequences. 
-        parts = self.ANSI_ESCAPE_PATTERN.split(string)
+        parts = ANSI_ESCAPE_PATTERN.split(string)
+        current_format = QTextCharFormat(self._default_format)
 
-        # Initialize variables to keep track of the currently active color and style tags.
-        current_color_tag = None
-        current_style_tag = None
-
-        # Iterate through the parts of the split string.
-        # Even-indexed parts are text segments; odd-indexed parts are ANSI code parameters.
         for i, part in enumerate(parts):
-            if i % 2 == 0:  # This is a text segment.
-                if part:    # Only insert if there's actual text content.
-                    tags_to_apply = []
-                    # Add the active color tag if one is set.
-                    if current_color_tag:
-                        tags_to_apply.append(current_color_tag)
-                    # Add the active style tag if one is set.
-                    if current_style_tag:
-                        tags_to_apply.append(current_style_tag)
-
-                    # If no specific color or style tags are active, apply the "reset" tag
-                    # to ensure default formatting.
-                    if not tags_to_apply:
-                        tags_to_apply.append("reset")
-
-                    # Insert the text part with the determined tags at the end of the widget.
-                    self.insert(tk.END, part, tuple(tags_to_apply))
-            else:  # This is an ANSI escape code parameter string (e.g., '1' or '32' or '1;32').
-                # Split the parameters by semicolon to handle multiple codes in one sequence.
+            if i % 2 == 0:
+                if part:
+                    cursor.insertText(part, current_format)
+            else:
                 codes = part.split(';')
                 for code in codes:
-                    if code == '0':  # ANSI code '0' signifies a reset of all attributes.
-                        current_color_tag = None
-                        current_style_tag = None
-                    elif code in self.COLOR_MAP:
-                        # If the code corresponds to a known color, set the current color tag.
-                        current_color_tag = f"fg_{code}"
-                    elif code in self.STYLE_MAP:
-                        # If the code corresponds to a known style.
-                        style_name = self.STYLE_MAP[code]
-                        if style_name == 'bold':
-                            current_style_tag = 'bold'
-                        elif style_name == 'reset':
-                            # Although '0' handles full reset, this ensures style-only reset too.
-                            current_style_tag = None
+                    if code == '0':
+                        current_format = QTextCharFormat(self._default_format)
+                    elif code in COLOR_MAP:
+                        current_format.setForeground(QColor(COLOR_MAP[code]))
+                    elif code == '1':
+                        current_format.setFontWeight(700)
 
-        self.see(tk.END)           # Scroll the text widget to ensure the latest output is visible.
-        self.update_idletasks()    # Force Tkinter to process all pending events, updating the display immediately.
-        self.config(state="disabled") # Re-disable the widget to maintain its read-only nature.
+        self.setTextCursor(cursor)
+        self.ensureCursorVisible()
 
     def clear_console(self):
-        """
-        Clears all text content from the Tkinter Text widget.
-        Temporarily enables the widget for deletion and then disables it again.
-        """
-        self.config(state="normal")  # Temporarily enable the widget for modification.
-        self.delete("1.0", tk.END)   # Delete all text from the first character ("1.0") to the end.
-        self.config(state="disabled") # Re-disable the widget.
+        self.clear()
 
-class ConsoleRedirector:
-    """
-    A utility class to redirect the standard output (sys.stdout) to a
-    given Tkinter Text widget (specifically, an ANSIColorTextWidget).
-    This allows console print statements to appear within the GUI.
-    """
-    def __init__(self, text_widget):
-        """
-        Initializes the ConsoleRedirector.
 
-        Args:
-            text_widget (ANSIColorTextWidget): The Tkinter Text widget to which
-                                               stdout will be redirected.
-        """
-        self.text_widget = text_widget
-        # Store a direct reference to Python's actual original stdout stream (`sys.__stdout__`)
-        self.original_stdout_fallback = sys.__stdout__
+class ConsoleWriter(QObject):
+    """
+    A drop-in `sys.stdout` replacement. Unlike the Tk ConsoleRedirector,
+    this is safe to install while the pipeline is running in a background
+    thread — write() only emits a signal, the connected slot does the
+    actual widget update on the GUI thread.
+
+        console = ANSIConsole()
+        writer = ConsoleWriter()
+        writer.text_written.connect(console.write, Qt.QueuedConnection)
+        sys.stdout = writer
+    """
+    text_written = Signal(str)
+
+    def __init__(self, original_stdout=None):
+        super().__init__()
+        self._fallback = original_stdout
 
     def write(self, string):
-        """
-        Writes the given string to the associated Tkinter Text widget.
-        Includes error handling and a fallback to the original stdout
-        if the widget is no longer valid or an error occurs during writing.
-
-        Args:
-            string (str): The string to write.
-        """
-        try:
-            # Check if the text_widget still exists and is mapped (visible) before writing.
-            # `winfo_exists()` is critical here to prevent errors if the widget
-            # has been destroyed (e.g., when the GUI window is closed).
-            if self.text_widget and self.text_widget.winfo_exists():
-                self.text_widget.write(string)
-            else:
-                # If the widget is gone (e.g., window closed), print to the actual
-                # console stdout as a fallback to prevent loss of output.
-                self.original_stdout_fallback.write(string)
-        except Exception as e:
-            # Catch any other potential errors during writing to the widget
-            # and fall back to the original stdout, also printing the error.
-            self.original_stdout_fallback.write(f"GUI Console Error: {e} - Original string: {string}")
-            self.original_stdout_fallback.flush() # Ensure error message is immediately visible.
+        self.text_written.emit(string)
 
     def flush(self):
-        """
-        Required for stdout redirection. This method ensures that any buffered
-        output is immediately written to the text widget. It forces Tkinter
-        to update its display. If the widget is gone, it flushes the original stdout.
-        """
-        if self.text_widget and self.text_widget.winfo_exists():
-            self.text_widget.update_idletasks() # Force update of the Tkinter display.
-        else:
-            self.original_stdout_fallback.flush() # Flush the original stdout if the widget is gone.
+        pass  # nothing to flush; Qt's event loop delivers the queued signal
