@@ -163,7 +163,7 @@ class MBUTYOrchestrator():
             if self.parameters.plotting.useDashboard:
                 try: # launch dashboard
                     from lib.mbuty_dashboard import launch_dashboard
-                    self._dashboard = launch_dashboard(self.detector_pipeline, self.bm_pipeline, self.parameters)
+                    self._dashboard = launch_dashboard(self.detector_pipeline, self.bm_pipeline, self.parameters, theme_mode='light')
                     dashboard_shown = True
                 except Exception as e:
                     print(f"{WARN}Dashboard failed ({e}) -- falling back to standard plotting.{RESET}")
@@ -545,12 +545,12 @@ if __name__ == '__main__':
     parameters.plotting.bareReadoutsCalculation = False
 
     ###############     
-    parameters.plotting.useDashboard = False
+    parameters.plotting.useDashboard = True
     ###############   
     
     ###############   
     ### plotting in sections of cassettes to ease the visualization if True and in blocks of ...  
-    parameters.plotting.plottingInSections       = False 
+    parameters.plotting.plottingInSections       = True 
     parameters.plotting.plottingInSectionsBlocks = 5
 
     ###############     

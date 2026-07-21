@@ -12,7 +12,7 @@ Architectural contract:
     (tab_key, item_name); no parallel/disconnected metadata lists.
   * Per-instrument-tab plots are fixed at construction time from config
     (whatever the user selected before running). No add/remove/toggle at
-    runtime, no checkboxes on Readouts / Mapped Hits / Coincidence Events /
+    runtime, no checkboxes on Readouts / Hits / Events /
     Beam Monitor. Only the Comparison Matrix tab is interactive.
 """
 
@@ -81,8 +81,8 @@ class OrchestratorDataSource(DashboardDataSource):
     def __init__(self, detector_pipeline, bm_pipeline):
         self._plotters = {
             "readouts":           detector_pipeline.readout_plotter,
-            "mapped_hits":        detector_pipeline.hit_plotter,
-            "coincidence_events": detector_pipeline.event_plotter,
+            "hits":        detector_pipeline.hit_plotter,
+            "events": detector_pipeline.event_plotter,
             "beam_monitor":       bm_pipeline.event_plotter if bm_pipeline else None,
         }
         # Same keys as _plotters -- the container backing each tab's
@@ -90,8 +90,8 @@ class OrchestratorDataSource(DashboardDataSource):
         # caller (MBUTYOrchestrator._launch_dashboard), same as above.
         self._containers = {
             "readouts":              detector_pipeline.readouts_container,
-            "mapped_hits":           detector_pipeline.hits_container,
-            "coincidence_events":    detector_pipeline.events_container,
+            "hits":           detector_pipeline.hits_container,
+            "events":    detector_pipeline.events_container,
             "beam_monitor":          bm_pipeline.events_container if bm_pipeline else None,
             "beam_monitor_readouts": bm_pipeline.readouts_container if bm_pipeline else None,
         }
@@ -171,8 +171,8 @@ def _selected_plot_names_by_tab(parameters) -> dict:
 
     return {
         "readouts":           readouts,
-        "mapped_hits":        hits,
-        "coincidence_events": events,
+        "hits":        hits,
+        "events": events,
         "beam_monitor":       beam_monitor,
     }
 
@@ -210,6 +210,18 @@ def launch_dashboard(detector_pipeline, bm_pipeline, parameters, theme_mode="dar
         bm_pipeline.build_plotter()  # construction only, doesn't draw; BM isn't sectioned
 
     app = QApplication.instance() or QApplication(sys.argv)
+
+    # The GUI path stays in sync because MBUTYMainWindow's own
+    # ThemeManager already applies this stylesheet before anything gets
+    # built. The CLI path (MBUTY.py calling launch_dashboard() directly)
+    # has no ThemeManager at all, so without this the QApplication is
+    # left with zero stylesheet -- default light Qt chrome -- while
+    # apply_mpl_theme() above still forces the plots and toolbar icons
+    # dark, producing exactly the "light window, dark plots, invisible
+    # icons" mismatch. Setting it here (idempotent -- harmless if a
+    # ThemeManager already set the same one) keeps both paths consistent
+    # with only theme_mode as the single source of truth.
+    app.setStyleSheet(theme.build_stylesheet(theme_mode))
 
     def _show_section(unit_ids) -> MbutyDashboard:
         dashboard = build_dashboard_section(
@@ -258,10 +270,10 @@ def build_dashboard_section(detector_pipeline, bm_pipeline, parameters, unit_ids
     config = {
         "readouts_active_plots": [n for n in data_source.get_available_plots("readouts")
                                    if n in selected["readouts"]],
-        "hits_active_plots":     [n for n in data_source.get_available_plots("mapped_hits")
-                                   if n in selected["mapped_hits"]],
-        "events_active_plots":   [n for n in data_source.get_available_plots("coincidence_events")
-                                   if n in selected["coincidence_events"]],
+        "hits_active_plots":     [n for n in data_source.get_available_plots("hits")
+                                   if n in selected["hits"]],
+        "events_active_plots":   [n for n in data_source.get_available_plots("events")
+                                   if n in selected["events"]],
         "bm_active_plots":       [n for n in data_source.get_available_plots("beam_monitor")
                                    if n in selected["beam_monitor"]],
     }
@@ -755,8 +767,8 @@ class MbutyDashboard(QMainWindow):
 
         tab_specs: list[TabSpec] = []
         for spec in (
-            _maybe_tab("coincidence_events", "Coincidence Events", "events_index_fields", "events_active_plots"),
-            _maybe_tab("mapped_hits", "Mapped Hits", "hits_index_fields", "hits_active_plots"),
+            _maybe_tab("events", "Events", "events_index_fields", "events_active_plots"),
+            _maybe_tab("hits", "Hits", "hits_index_fields", "hits_active_plots"),
             _maybe_tab("readouts", "Readouts", "readouts_index_fields", "readouts_active_plots"),
         ):
             if spec is not None:
