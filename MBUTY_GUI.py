@@ -22,7 +22,6 @@ from GUI.console_widgets import ANSIConsole, ConsoleWriter
 from GUI import theme
 from GUI import gui_utils
 from GUI.gui_config import config, parameters
-from MBUTY import MBUTYOrchestrator
 from lib import terminal as ta
 
 
@@ -470,6 +469,8 @@ class MBUTYMainWindow(QMainWindow):
     # Analysis
     # ------------------------------------------------------------------
     def run_analysis(self):
+        from MBUTY import MBUTYOrchestrator
+
         if self.analysis_running:
             QMessageBox.warning(
                 self, "Please Wait",
@@ -697,7 +698,6 @@ def main():
     from qtpy.QtWidgets import QApplication
 
     app = QApplication(_sys.argv)
-    app.setStyle("Fusion")
     theme_manager = theme.ThemeManager(app, mode="dark")
     window = MBUTYMainWindow(theme_manager)
     window.show()
