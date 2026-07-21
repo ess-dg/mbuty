@@ -23,8 +23,7 @@ if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
 from lib.colors import WARN, RESET
 from lib.histograms import Histogrammer
-from lib.plotting_base import PlotGrid, BasePlotter, log_scale_norm, _safe_colorbar
-
+from lib.plotting_base import PlotGrid, BasePlotter, log_scale_norm, _safe_colorbar, fg_color
 
 # ============================================================================
 # Detector-agnostic base
@@ -343,7 +342,7 @@ class VMMEventsPlotter(BaseEventsPlotter):
 
             grid.ax[3][k].step(ax_energy.centers, phs_gw, 'r', where='mid', label='w')
             grid.ax[3][k].step(ax_energy.centers, phs_gs, 'b', where='mid', label='s')
-            grid.ax[3][k].step(ax_energy.centers, phs_gwc, 'k', where='mid', label='w/s or w/g')
+            grid.ax[3][k].step(ax_energy.centers, phs_gwc, fg_color(), where='mid', label='w/s or w/g')
             grid.ax[3][k].set_xlabel('pulse height (a.u.)')
             grid.ax[3][k].legend(loc='upper right', shadow=False, fontsize='large')
             if k == 0:
@@ -748,7 +747,7 @@ class R5560EventsPlotter(BaseEventsPlotter):
             diff_time = np.diff(m['timeStamp'][sel])
             hist_rate = forced_hist.hist1d(ax_rate.centers, diff_time / 1e9)
 
-            grid.ax[0][k].step(ax_rate.centers * 1e6, hist_rate, 'k', where='mid', label='w')
+            grid.ax[0][k].step(ax_rate.centers * 1e6, hist_rate, fg_color(), where='mid', label='w')
             grid.ax[0][k].set_xlabel('delta time between events (us)')
             grid.ax[0][k].set_title(f'Tube ID {uid}')
             if k == 0:
@@ -878,7 +877,7 @@ class R5560EventsPlotter(BaseEventsPlotter):
             sel = self.select_unit(uid)
             h1d = self.hist.hist1d(ax_length.centers, pos0_values[sel])
 
-            grid1d.ax[0][k].step(ax_length.centers, h1d, 'k', where='mid')
+            grid1d.ax[0][k].step(ax_length.centers, h1d, fg_color(), where='mid')
             grid1d.ax[0][k].set_xlabel(pos0_label)
             grid1d.ax[0][k].set_title(f'Tube ID {uid}')
             if log_scale:
@@ -952,12 +951,12 @@ class MonitorEventsPlotter(BasePlotter):
         ax1, ax2 = grid.ax[0]
         fig.suptitle('MONITOR')
 
-        ax1.step(ax_tof.centers * 1e3, hist_tof, 'k', where='mid', label='MON')
+        ax1.step(ax_tof.centers * 1e3, hist_tof, fg_color(), where='mid', label='MON')
         ax1.set_xlabel('ToF (ms)')
         ax1.set_ylabel('counts')
         ax1.set_title('ToF')
 
-        ax2.step(ax_energy_mon.centers, hist_phs, 'k', where='mid', label='MON')
+        ax2.step(ax_energy_mon.centers, hist_phs, fg_color(), where='mid', label='MON')
         ax2.set_xlabel('Pulse Heigth (a.u.)')
         ax2.set_ylabel('counts')
         ax2.set_title('PHS')
@@ -975,7 +974,7 @@ class MonitorEventsPlotter(BasePlotter):
         ax1 = grid.ax[0][0]
         fig.suptitle('MONITOR')
 
-        ax1.step(ax_lambda.centers, hist_lambda, 'k', where='mid', label='MON')
+        ax1.step(ax_lambda.centers, hist_lambda, fg_color(), where='mid', label='MON')
         ax1.set_xlabel('wavelength (A)')
         ax1.set_ylabel('counts')
         ax1.set_title('WAVELENGTH')
@@ -1054,7 +1053,7 @@ class SKADIEventsPlotter(BaseEventsPlotter):
             diff_time = np.diff(m['timeStamp'][sel])
             hist_rate = forced_hist.hist1d(ax_rate.centers, diff_time / 1e9)
 
-            grid.ax[0][k].step(ax_rate.centers * 1e6, hist_rate, 'k', where='mid')
+            grid.ax[0][k].step(ax_rate.centers * 1e6, hist_rate, fg_color(), where='mid')
             grid.ax[0][k].set_xlabel('delta time between events (us)')
             grid.ax[0][k].set_title(f'Tile ID {uid}')
             if k == 0:
@@ -1153,3 +1152,9 @@ class SKADIEventsPlotter(BaseEventsPlotter):
             grid.ax[1][k].legend(loc='upper right', shadow=False, fontsize='large')
             if k == 0:
                 grid.ax[1][k].set_ylabel('counts')
+                
+        # def plot_tof_xy(self, *args, **kwargs): 
+        #     Not implemented yet - use pythagoras to get radial distance?
+    
+        # def plot_x_lambda(self, *args, **kwargs): self._skip('plot_x_lambda')
+        #     Not implemented yet - use pythagoras to get radial distance?

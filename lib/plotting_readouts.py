@@ -17,7 +17,7 @@ _workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
 from lib.colors import WARN, RESET
-from lib.plotting_base import PlotGrid, BasePlotter, log_scale_norm
+from lib.plotting_base import PlotGrid, BasePlotter, log_scale_norm, fg_color
 
 
 # ============================================================================
@@ -63,13 +63,13 @@ class BaseReadoutsPlotter(BasePlotter):
         xax = np.arange(0, len(self.matrix['pulseT']))
         resets_time = (self.matrix['pulseT'] - self.matrix['pulseT'][0]) / 1e9
 
-        grid.ax[0][0].scatter(xax, resets_time, 0.8, color='k', marker='+')
+        grid.ax[0][0].scatter(xax, resets_time, 0.8, color=fg_color(), marker='+')
         grid.ax[0][0].set_xlabel('trigger no.')
         grid.ax[0][0].set_ylabel('time (s)')
 
         delta_time = np.concatenate((np.diff(resets_time), [0]), axis=0)
 
-        grid.ax[0][1].scatter(xax, delta_time, 0.8, color='k', marker='+')
+        grid.ax[0][1].scatter(xax, delta_time, 0.8, color=fg_color(), marker='+')
         grid.ax[0][1].set_xlabel('trigger no.')
         grid.ax[0][1].set_ylabel('delta time betweeen resets (s)')
         

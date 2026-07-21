@@ -25,7 +25,7 @@ import os
 # os.environ["QT_API"] = "pyside6"
 
 # CHANGED: Replaced PySide6 imports with qtpy equivalents for clean cross-IDE & cross-platform portability
-from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex, QSortFilterProxyModel, QTimer
+from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex, QSortFilterProxyModel, QTimer, QEventLoop
 from qtpy.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -46,7 +46,31 @@ from qtpy.QtWidgets import (
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.figure import Figure
 
+from qtpy.QtGui import QIcon, QPixmap, QPainter, QColor
+from qtpy.QtCore import QSize
 
+
+class ThemedNavigationToolbar(NavigationToolbar2QT):
+    """matplotlib's own dark-mode icon inversion checks the widget's
+    QPalette, not our QSS stylesheet -- since theming here is
+    setStyleSheet()-only, the palette never actually changes and mpl's
+    detection never fires, so icons stay dark-on-dark. Recolor them
+    ourselves using whatever apply_mpl_theme() last set as the
+    foreground color, so toolbar icons stay in sync with the rest of
+    the theme automatically."""
+
+    def _icon(self, name):
+        icon = super()._icon(name)
+        pixmap = icon.pixmap(QSize(24, 24))
+        tinted = QPixmap(pixmap.size())
+        tinted.fill(Qt.transparent)
+        painter = QPainter(tinted)
+        painter.drawPixmap(0, 0, pixmap)
+        painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
+        import matplotlib as mpl
+        painter.fillRect(tinted.rect(), QColor(mpl.rcParams.get("text.color", "#000000")))
+        painter.end()
+        return QIcon(tinted)
 # --------------------------------------------------------------------------
 # Data source interface — implemented by the real pipeline, not by this file
 # --------------------------------------------------------------------------
@@ -173,7 +197,7 @@ def _selected_plot_names_by_tab(parameters) -> dict:
     }
 
 
-def launch_dashboard(detector_pipeline, bm_pipeline, parameters):
+def launch_dashboard(detector_pipeline, bm_pipeline, parameters, theme_mode="dark"):
     """The one call MBUTY.py needs to make. Builds the plotters
     (construction only -- no eager drawing, see BasePipeline.build_plotters /
     BeamMonitorPipeline.build_plotter), wraps them in OrchestratorDataSource,
@@ -198,6 +222,8 @@ def launch_dashboard(detector_pipeline, bm_pipeline, parameters):
     """
     import sys
     from lib.pipelines import _chunk
+    from gui_qt import theme
+    theme.apply_mpl_theme(theme_mode)   # before any Figure() is constructed
 
     bm_active = bool(bm_pipeline) and parameters.MONitor.MONOnOff
     if bm_active:
@@ -208,25 +234,25 @@ def launch_dashboard(detector_pipeline, bm_pipeline, parameters):
 
     def _show_section(unit_ids) -> MbutyDashboard:
         detector_pipeline.build_plotters(unit_ids=unit_ids)
-        # Fresh data source every section -- build_plotters() just replaced
-        # detector_pipeline.readout_plotter/hit_plotter/event_plotter with
-        # new instances scoped to this block, and OrchestratorDataSource
-        # snapshots those references at construction time.
         data_source = OrchestratorDataSource(detector_pipeline, bm_pipeline if bm_active else None)
         config = {
             "readouts_active_plots": [n for n in data_source.get_available_plots("readouts")
-                                       if n in selected["readouts"]],
+                                    if n in selected["readouts"]],
             "hits_active_plots":     [n for n in data_source.get_available_plots("mapped_hits")
-                                       if n in selected["mapped_hits"]],
+                                    if n in selected["mapped_hits"]],
             "events_active_plots":   [n for n in data_source.get_available_plots("coincidence_events")
-                                       if n in selected["coincidence_events"]],
+                                    if n in selected["coincidence_events"]],
             "bm_active_plots":       [n for n in data_source.get_available_plots("beam_monitor")
-                                       if n in selected["beam_monitor"]],
+                                    if n in selected["beam_monitor"]],
         }
         dashboard = MbutyDashboard(data_source, config=config)
         dashboard.resize(1300, 800)
         dashboard.show()
-        app.exec()  # blocks until this section's window is closed
+
+        # Block until this window closes using a local QEventLoop
+        loop = QEventLoop()
+        dashboard.destroyed.connect(loop.quit)
+        loop.exec()
         return dashboard
 
     topology = detector_pipeline.config.get('topology', [])
@@ -353,7 +379,7 @@ def _build_dataframe_pane(index_fields: Iterable[str]) -> tuple[QWidget, Structu
     # Bump the font a notch -- the default point size reads cramped/tiny,
     # especially on Readouts with its wider column count.
     font = view.font()
-    font.setPointSize(font.pointSize() + 2)
+    font.setPointSize(font.pointSize() + 1)
     view.setFont(font)
     view.horizontalHeader().setFont(font)
 
@@ -375,7 +401,7 @@ def _build_plot_pane(tab_key: str, plot_name: str, data_source: DashboardDataSou
     page = QWidget()
     page_layout = QVBoxLayout(page)
     page_layout.setContentsMargins(0, 0, 0, 0)
-    page_layout.addWidget(NavigationToolbar2QT(canvas, page))
+    page_layout.addWidget(ThemedNavigationToolbar(canvas, page))
     page_layout.addWidget(canvas)
     data_source.render_plot(tab_key, plot_name, canvas.figure)
     canvas.draw_idle()

@@ -148,3 +148,10 @@ class BasePlotter:
         stub, which just prints and returns -- so BasePipeline.plot() can
         call any plot_* method on any plotter unconditionally, safely."""
         print(f"\t{WARN}'{name}' is not supported for {type(self).__name__} -- skipping.{RESET}")
+        
+        
+def fg_color() -> str:
+    """Neutral foreground color for plot elements that need to read
+    against either theme -- follows whatever apply_mpl_theme() last
+    set, so 'k' literals don't go invisible on a dark canvas."""
+    return plt.rcParams.get("text.color", "black")

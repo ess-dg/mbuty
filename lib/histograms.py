@@ -625,7 +625,7 @@ class SKADIAxisSet(BaseAxisSet):
         stop_x_mm = (tiles_per_row * pix * pix_size_mm) + ((tiles_per_row - 1) * gap_x_mm)
         stop_y_mm = (tiles_per_col * pix * pix_size_mm) + ((tiles_per_col - 1) * gap_y_mm)
 
-        # FIX: Calculate total gap bins collectively to prevent cumulative rounding drift
+        # Calculate total gap bins collectively to prevent cumulative rounding drift
         total_gap_bins_x = int(round(((tiles_per_row - 1) * gap_x_mm) / pix_size_mm))
         total_gap_bins_y = int(round(((tiles_per_col - 1) * gap_y_mm) / pix_size_mm))
 
