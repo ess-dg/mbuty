@@ -9,11 +9,11 @@ import importlib.metadata
 import sys, time
 ###############################################################################
 
-MIN_PYTHON_VERSION = (3, 12)
+MIN_PYTHON_VERSION = (3, 11) 
 
 def checkPythonVersion():
     if sys.version_info < MIN_PYTHON_VERSION:
-        print('\n \033[1;31mPython version too old, use at least Python 3.12! \033[1;37m\n')
+        print('\n \033[1;31mPython version too old, use at least Python 3.11! \033[1;37m\n')
         print(' ---> Exiting ... \n')
         print('------------------------------------------------------------- \n')
         time.sleep(2)

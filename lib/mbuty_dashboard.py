@@ -253,6 +253,13 @@ def launch_dashboard(detector_pipeline, bm_pipeline, parameters, theme_mode="dar
         print(f'\n\tSection {i + 1}/{len(blocks)} -- unit IDs {block[0]} to {block[-1]}'
               f' -- close this window to continue.')
         dashboard = _show_section(block)
+
+        if i == len(blocks) - 1:
+            continue
+
+        answer = input('press (enter) to continue to the next section, or (q + enter) to quit: ')
+        if answer.strip().lower() == 'q':
+            break
     return dashboard
 
 

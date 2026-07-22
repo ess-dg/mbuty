@@ -275,11 +275,11 @@ if __name__ == '__main__':
     ###############################################################################
     ### read json and create parameters for plotting and analisys ###
 
-    # configFileName  = "AMOR.json"
+    configFileName  = "AMOR.json"
     # configFileName  = "clustered.json"
     
     # configFileName  = "skadi48.json"
-    configFileName  = "skadi_full.json"
+    # configFileName  = "skadi_full.json"
     
     # configFileName  = "MGtestVessels2col.json"
     
@@ -371,7 +371,7 @@ if __name__ == '__main__':
    
     ### folder and file to open (file can be a list of files)
 
-    # parameters.fileManagement.fileName = ['ESSmask2023.pcapng']
+    parameters.fileManagement.fileName = ['ESSmask2023.pcapng']
     
     # parameters.fileManagement.fileName = ['20260522_153423_duration_s_5_fullyOpenAgain_00000_vkjaa.pcapng']
     
@@ -390,7 +390,7 @@ if __name__ == '__main__':
     
     # parameters.fileManagement.fileName = ['skadiDataQ.pcapng']
     
-    parameters.fileManagement.fileName = ['triggertime-1000V-30a11_July8th.pcapng']
+    # parameters.fileManagement.fileName = ['triggertime-1000V-30a11_July8th.pcapng']
     
     # parameters.fileManagement.fileName = ['skadi_48tiles.pcapng']
     
@@ -552,7 +552,7 @@ if __name__ == '__main__':
     
     ###############   
     ### plotting in sections of cassettes to ease the visualization if True and in blocks of ...  
-    parameters.plotting.plottingInSections       = False 
+    parameters.plotting.plottingInSections       = True 
     parameters.plotting.plottingInSectionsBlocks = 5
 
     ###############     
