@@ -626,7 +626,10 @@ if __name__ == '__main__':
 
     
     pipeline_orchestrator = MBUTYOrchestrator(parameters)
-    pipeline_orchestrator.run_pipeline()
+    try:
+        pipeline_orchestrator.run_pipeline()
+    except KeyboardInterrupt:
+        print("\nPipeline interrupted by user or window closure.")
     
     config = pipeline_orchestrator.config
     

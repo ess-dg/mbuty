@@ -168,14 +168,21 @@ class MBUTYMainWindow(QMainWindow):
             right_logo.setPixmap(pix2.scaled(120, 60, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         else:
             print(f"Right logo not found: {right_logo_path}")
-        layout.addWidget(right_logo, 0, 2, Qt.AlignRight)
 
-        # Theme toggle - new, since ThemeManager existed but nothing in the UI drove it yet
+        # Theme toggle - sits next to the right logo, same row
         theme_btn = QToolButton()
         theme_btn.setText("\u263d")  # crescent moon
         theme_btn.setToolTip("Toggle light/dark mode")
+        theme_btn.setStyleSheet("font-size: 20pt;")
         theme_btn.clicked.connect(self.theme_manager.toggle)
-        layout.addWidget(theme_btn, 1, 2, Qt.AlignRight)
+
+        right_box = QWidget()
+        right_layout = QHBoxLayout(right_box)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(8)
+        right_layout.addWidget(theme_btn)
+        right_layout.addWidget(right_logo)
+        layout.addWidget(right_box, 0, 2, Qt.AlignRight)
 
         return header
 

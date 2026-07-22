@@ -19,6 +19,7 @@ from qtpy.QtWidgets import (
     QGroupBox,
     QLabel,
     QPushButton,
+    QToolButton,
     QPlainTextEdit,
     QMessageBox,
     QSplitter,
@@ -123,8 +124,9 @@ ui_config = {
 class ConfigCreatorWidget(QWidget):
     """Qt widget for creating, loading, and editing detector configuration JSON files."""
 
-    def __init__(self, parent=None):
+    def __init__(self, theme_manager=None, parent=None):
         super().__init__(parent)
+        self.theme_manager = theme_manager
         self.widgets = {}
         self.json_file_path = None
         self.after_widgets_created_tasks = []
@@ -157,6 +159,15 @@ class ConfigCreatorWidget(QWidget):
         title_label.setFont(theme.base_font(size=theme.FONT_SIZE_HEADER + 8, bold=True))
         title_label.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
         self.params_grid.addWidget(title_label, 0, 0, 1, 2, alignment=Qt.AlignHCenter)
+
+        if self.theme_manager is not None:
+            theme_btn = QToolButton()
+            theme_btn.setText("\u263d")  # crescent moon
+            theme_btn.setToolTip("Toggle light/dark mode")
+            theme_btn.setStyleSheet("font-size: 20pt;")
+            theme_btn.clicked.connect(self.theme_manager.toggle)
+            self.params_grid.addWidget(theme_btn, 0, 2, alignment=Qt.AlignRight)
+
         self.params_grid.setRowMinimumHeight(1, 14)  # breathing room below the title
 
         current_row = 2
@@ -402,7 +413,7 @@ class ConfigCreatorWidget(QWidget):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     theme_manager = theme.ThemeManager(app, mode="dark")
-    window = ConfigCreatorWidget()
+    window = ConfigCreatorWidget( theme_manager=theme_manager)
     window.setWindowTitle("Detector Configuration Management")
     # Set initial snug size for single-panel mode
     window.resize(640, 640)
