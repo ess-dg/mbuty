@@ -278,8 +278,8 @@ if __name__ == '__main__':
     # configFileName  = "AMOR.json"
     # configFileName  = "clustered.json"
     
-    configFileName  = "skadi48.json"
-    
+    # configFileName  = "skadi48.json"
+    configFileName  = "skadi_full.json"
     
     # configFileName  = "MGtestVessels2col.json"
     
@@ -371,7 +371,7 @@ if __name__ == '__main__':
    
     ### folder and file to open (file can be a list of files)
 
-    parameters.fileManagement.fileName = ['ESSmask2023.pcapng']
+    # parameters.fileManagement.fileName = ['ESSmask2023.pcapng']
     
     # parameters.fileManagement.fileName = ['20260522_153423_duration_s_5_fullyOpenAgain_00000_vkjaa.pcapng']
     
@@ -388,7 +388,9 @@ if __name__ == '__main__':
     
     # parameters.fileManagement.fileName = ['skadi_1tile.pcapng']
     
-    parameters.fileManagement.fileName = ['skadiDataQ.pcapng']
+    # parameters.fileManagement.fileName = ['skadiDataQ.pcapng']
+    
+    parameters.fileManagement.fileName = ['triggertime-1000V-30a11_July8th.pcapng']
     
     # parameters.fileManagement.fileName = ['skadi_48tiles.pcapng']
     
@@ -550,7 +552,7 @@ if __name__ == '__main__':
     
     ###############   
     ### plotting in sections of cassettes to ease the visualization if True and in blocks of ...  
-    parameters.plotting.plottingInSections       = True 
+    parameters.plotting.plottingInSections       = False 
     parameters.plotting.plottingInSectionsBlocks = 5
 
     ###############     
@@ -591,7 +593,7 @@ if __name__ == '__main__':
     parameters.plotting.plotABSunits = True
      
     ### plot XY and XToF in log scale 
-    parameters.plotting.plotIMGlog   = False
+    parameters.plotting.plotIMGlog   = True
 
     ### ON/OFF, if  Tof  and Lambdaplot needs to include only events with strip present (2D) is True otherwise all events also without strip set to False
     

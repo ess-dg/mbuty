@@ -14,6 +14,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys, os
 import matplotlib.figure
+import matplotlib.colors as colors
 
 # =============================================================================
 # RUNTIME PATH BOOTSTRAP
@@ -1091,81 +1092,79 @@ class SKADIEventsPlotter(BaseEventsPlotter):
                 grid.ax[0][k].set_ylabel('ch no.')
 
     def plot_xy(self, fig_num=101):
-            if self.is_empty:
-                return
-            log_scale   = self.parameters.plotting.plotIMGlog
-            abs_units   = self.parameters.plotting.plotABSunits
-            norm_colors = log_scale_norm(log_scale)
+        if self.is_empty:
+            return
+        log_scale   = self.parameters.plotting.plotIMGlog
+        abs_units   = self.parameters.plotting.plotABSunits
 
-            m = self.matrix
+        m = self.matrix
 
-            if not abs_units:
-                ax_x, ax_y = self.axis_set.ax_pix_x, self.axis_set.ax_pix_y
-                x_values, y_values = m['coordinate0'], m['coordinate1']
-                xlabel, ylabel = 'X pixel', 'Y pixel'
+        if not abs_units:
+            ax_x, ax_y = self.axis_set.ax_pix_x, self.axis_set.ax_pix_y
+            x_values, y_values = m['coordinate0'], m['coordinate1']
+            xlabel, ylabel = 'X pixel', 'Y pixel'
+        else:
+            ax_x, ax_y = self.axis_set.ax_pix_x_mm, self.axis_set.ax_pix_y_mm
+            x_values, y_values = m['absCoordinate0'], m['absCoordinate1']
+            xlabel, ylabel = 'X (mm)', 'Y (mm)'
+
+        extent = [ax_x.start, ax_x.stop, ax_y.start, ax_y.stop]
+
+        bank_ids = sorted(np.unique(m['bank']))
+        
+        # FIX: Added height_ratios and explicit column sharing to optimize spatial balance
+        grid = PlotGrid(
+            fig_num, 2, len(bank_ids), 
+            sharex=True, sharey=False,
+            gridspec_kw={'height_ratios': [3, 1]}
+        )
+        grid.fig.suptitle('DET image')
+
+        for k, bank in enumerate(bank_ids):
+            sel_bank = m['bank'] == bank
+            sel_valid = (m['coordinate0'] >= 0) & (m['coordinate1'] >= 0)
+            sel = sel_bank & sel_valid
+
+            h2d, _, _ = self.hist.hist2d(ax_x.centers, x_values[sel], ax_y.centers, y_values[sel])
+
+            # Define explicit logarithmic/linear normalization per iteration to avoid vmin=0 auto-scaling bugs
+            if log_scale:
+                max_val = np.max(h2d) if np.max(h2d) > 0 else 1
+                norm_colors = colors.LogNorm(vmin=1, vmax=max_val)
             else:
-                ax_x, ax_y = self.axis_set.ax_pix_x_mm, self.axis_set.ax_pix_y_mm
-                x_values, y_values = m['absCoordinate0'], m['absCoordinate1']
-                xlabel, ylabel = 'X (mm)', 'Y (mm)'
+                norm_colors = colors.Normalize()
 
-            extent = [ax_x.start, ax_x.stop, ax_y.start, ax_y.stop]
-
-            bank_ids = sorted(np.unique(m['bank']))
-            
-            # FIX: Added height_ratios and explicit column sharing to optimize spatial balance
-            grid = PlotGrid(
-                fig_num, 2, len(bank_ids), 
-                sharex=True, sharey=False,
-                gridspec_kw={'height_ratios': [3, 1]}
+            # Row 0: Large 2D Detector Image View
+            pos = grid.ax[0][k].imshow(
+                h2d, aspect='equal', norm=norm_colors, interpolation='none',
+                extent=extent, origin='lower', cmap='viridis',
             )
-            grid.fig.suptitle('DET image')
+            grid.ax[0][k].set_title(f'Bank {bank}')
+            if k == 0:
+                grid.ax[0][k].set_ylabel(ylabel)
+            _safe_colorbar(grid.fig, pos, grid.ax[0][k], f'Bank {bank}',
+                            orientation='vertical', fraction=0.07, anchor=(1.0, 0.0),
+                            panchor=(0.5, 0.5))
 
-            for k, bank in enumerate(bank_ids):
-                sel_bank = m['bank'] == bank
-                sel_valid = (m['coordinate0'] >= 0) & (m['coordinate1'] >= 0)
-                sel = sel_bank & sel_valid
+            grid.fig.canvas.draw()
+            img_pos = grid.ax[0][k].get_position()
+            proj_pos = grid.ax[1][k].get_position()
+            grid.ax[1][k].set_position([img_pos.x0, proj_pos.y0, img_pos.width, proj_pos.height])
 
-                h2d, _, _ = self.hist.hist2d(ax_x.centers, x_values[sel], ax_y.centers, y_values[sel])
+            # Row 1: Slimmed 1D Projections
+            sel_x_valid = sel_bank & (m['coordinate0'] >= 0)
+            h_proj_all = self.hist.hist1d(ax_x.centers, x_values[sel_x_valid])
+            h_proj_2d  = np.sum(h2d, axis=0)
 
-                # Row 0: Large 2D Detector Image View
-                pos = grid.ax[0][k].imshow(
-                    h2d, aspect='equal', norm=norm_colors, interpolation='none',
-                    extent=extent, origin='lower', cmap='viridis',
-                )
-                grid.ax[0][k].set_title(f'Bank {bank}')
-                if k == 0:
-                    grid.ax[0][k].set_ylabel(ylabel)
-                _safe_colorbar(grid.fig, pos, grid.ax[0][k], f'Bank {bank}',
-                                orientation='vertical', fraction=0.07, anchor=(1.0, 0.0),
-                                panchor=(0.5, 0.5))
-
-                # imshow's aspect='equal' locks the image to a 1:1 pixel box,
-                # which (given the tall 3:1 height_ratios) ends up
-                # height-constrained rather than filling the column width --
-                # so it no longer matches the full-width projection row below
-                # it. Force a draw so matplotlib resolves that aspect
-                # adjustment (get_position() only reflects it after a draw),
-                # then copy the image's actual x0/width onto the projection
-                # axes so the two line up.
-                grid.fig.canvas.draw()
-                img_pos = grid.ax[0][k].get_position()
-                proj_pos = grid.ax[1][k].get_position()
-                grid.ax[1][k].set_position([img_pos.x0, proj_pos.y0, img_pos.width, proj_pos.height])
-
-                # Row 1: Slimmed 1D Projections
-                sel_x_valid = sel_bank & (m['coordinate0'] >= 0)
-                h_proj_all = self.hist.hist1d(ax_x.centers, x_values[sel_x_valid])
-                h_proj_2d  = np.sum(h2d, axis=0)
-
-                grid.ax[1][k].step(ax_x.centers, h_proj_all, 'r', where='mid', label='1D')
-                grid.ax[1][k].step(ax_x.centers, h_proj_2d, 'b', where='mid', label='2D')
-                if log_scale:
-                    grid.ax[1][k].set_yscale('log')
-                grid.ax[1][k].set_xlabel(xlabel)
-                grid.ax[1][k].set_xlim(ax_x.start, ax_x.stop)
-                grid.ax[1][k].legend(loc='upper right', shadow=False, fontsize='large')
-                if k == 0:
-                    grid.ax[1][k].set_ylabel('counts')
+            grid.ax[1][k].step(ax_x.centers, h_proj_all, 'r', where='mid', label='1D')
+            grid.ax[1][k].step(ax_x.centers, h_proj_2d, 'b', where='mid', label='2D')
+            if log_scale:
+                grid.ax[1][k].set_yscale('log')
+            grid.ax[1][k].set_xlabel(xlabel)
+            grid.ax[1][k].set_xlim(ax_x.start, ax_x.stop)
+            grid.ax[1][k].legend(loc='upper right', shadow=False, fontsize='large')
+            if k == 0:
+                grid.ax[1][k].set_ylabel('counts')
                 
         # def plot_tof_xy(self, *args, **kwargs): 
         #     Not implemented yet - use pythagoras to get radial distance?
