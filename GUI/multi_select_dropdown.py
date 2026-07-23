@@ -114,6 +114,7 @@ class MultiSelectDropDown(QWidget):
         self._checked = []
         self.pathToOptions = None
         self._popup = None
+        self.reverse = False # make this True to sort filenames Z to A, instead False A -> Z
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -139,7 +140,7 @@ class MultiSelectDropDown(QWidget):
 
         layout.addWidget(self.field, stretch=1)
 
-        self.set_options(sorted(options, key=str.lower), default)
+        self.set_options(sorted(options, key=str.lower, reverse=self.reverse), default)
 
     def eventFilter(self, obj, event):
         if obj is self.field and event.type() == QEvent.MouseButtonRelease:

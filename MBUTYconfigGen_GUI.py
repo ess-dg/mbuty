@@ -20,6 +20,7 @@ from qtpy.QtWidgets import (
     QLabel,
     QPushButton,
     QToolButton,
+    QSlider,
     QPlainTextEdit,
     QMessageBox,
     QSplitter,
@@ -168,6 +169,23 @@ class ConfigCreatorWidget(QWidget):
             theme_btn.clicked.connect(self.theme_manager.toggle)
             self.params_grid.addWidget(theme_btn, 0, 2, alignment=Qt.AlignRight)
 
+        # Font-size control row
+        font_row = QWidget()
+        font_row_layout = QHBoxLayout(font_row)
+        font_row_layout.setContentsMargins(0, 0, 0, 8)
+        font_row_layout.addWidget(QLabel("Font Size:"))
+        font_slider = QSlider(Qt.Horizontal)
+        font_slider.setMinimum(8)
+        font_slider.setMaximum(18)
+        font_slider.setValue(theme.FONT_SIZE_BASE)
+        font_size_label = QLabel(f"{theme.FONT_SIZE_BASE} pt")
+        font_slider.valueChanged.connect(lambda v: font_size_label.setText(f"{v} pt"))
+        font_slider.sliderReleased.connect(lambda: self._apply_font_size(font_slider.value()))
+        font_row_layout.addWidget(font_slider)
+        font_row_layout.addWidget(font_size_label)
+        font_row_layout.addStretch(1)
+        self.params_grid.addWidget(font_row, 1, 0, 1, 3)
+
         self.params_grid.setRowMinimumHeight(1, 14)  # breathing room below the title
 
         current_row = 2
@@ -208,6 +226,11 @@ class ConfigCreatorWidget(QWidget):
         for task in self.after_widgets_created_tasks:
             task()
         self.after_widgets_created_tasks.clear()
+
+    def _apply_font_size(self, new_size):
+        theme.FONT_SIZE_BASE = new_size
+        if self.theme_manager is not None:
+            self.theme_manager.apply(self.theme_manager.mode)
 
     def _build_section(self, config_dict, start_row=0):
         current_row = start_row
