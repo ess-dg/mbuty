@@ -55,8 +55,7 @@ def checkPathCreate(path):
                 print(' --> folder created.')
             else:    
                 print(' --> exiting.')
-                time.sleep(2)
-                sys.exit()
+                raise RuntimeError(f"Folder '{path}' does not exist and creation was cancelled.")
             
 
 ############################################################################### 
@@ -225,8 +224,7 @@ def pcapConverter(pcapFile_PathAndFileName_IN,pathToTshark='/usr/sbin/'):
         print('\n NOTE: file name must contain extension, e.g. *.pcapng\n')
         print(' ---> Exiting ... \n')
         print('------------------------------------------------------------- \n')
-        time.sleep(2)
-        sys.exit()
+        raise FileNotFoundError(f"File {pcapFileNameExt} does not exist in folder {pcapFilePath}.")
 
     return pcapngFile_PathAndFileName_OUT
           
@@ -285,8 +283,7 @@ def verifyTsharkInstallation(initial_pathToTshark):
             if flag is False:  
                 print('\n \033[1;31mFile Tshark not found in your system, either set right path to Thark in parameters or install it.\033[1;37m\n')
                 print('... exiting.')
-                time.sleep(2)
-                sys.exit()
+                raise RuntimeError("Tshark binary not found in system paths.")
  
         return verified_pathToTshark
     
@@ -356,8 +353,7 @@ def dumpToPcapng(interface='en0', destPath='./', fileName='temp',typeOfCapture='
                     
                 else:
                     print(' \033[1;31mERROR ... \033[1;37m type of capture ' + typeOfCapture + ' not supported or typo! -> exiting!')
-                    time.sleep(2)
-                    sys.exit()
+                    raise ValueError(f"Unsupported type of capture: {typeOfCapture}")
                 
                 temp = fileName.split('.', 1)
         
@@ -389,11 +385,8 @@ def dumpToPcapng(interface='en0', destPath='./', fileName='temp',typeOfCapture='
                 status.append(temp_status)
                 
                 if temp_status != 0:
-                    print(f"\033[1;31mERROR: interface does not exist or you do not have the rights to record -> exiting. \033[1;37m")
-                    print(f"\033[1;31mIf you are running from GUI: PRESS STOP to return!\033[1;37m")
-                    time.sleep(2)
-                    return 
-                    # sys.exit()
+                    print(f"\033[1;31mERROR: interface does not exist or you do not have the rights to record -> exiting.\033[1;37m")
+                    raise RuntimeError("pcap capture failed: interface does not exist or insufficient permissions.")
                     
             allStatus = sum(status)      
             if allStatus == 0: 

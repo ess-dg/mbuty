@@ -94,133 +94,126 @@ class MBUTYOrchestrator():
 
     def run_pipeline(self) -> None:
         """Executes data frame ingestion and routes targeted tracks via explicit type matching gates."""
-        
-        # 1. Pipeline Data Ingestion Pass (Network Stream vs Disk Storage)
-        if self.parameters.acqMode == 'kafka':
-            # check kafka packages are installed, exit if not
-            checks.checkPackageKafka()
-            from lib.kafka_reader import KafkaReader
-            
-            reader = KafkaReader(
-                parameters = self.parameters,
-                config     = self.config,  
-                testing    = False
-            )
-            reader.run()
-        else:
-            # check pcapng packages are installed, exit if not
-            checks.checkPackagePcap()
-            from lib.reader import PcapngFileReader
-            
-            file_resolver = fileDialogue(self.parameters)
-            file_resolver.openFile()
-
-            if not file_resolver.fileName:
-                print(f'{ERR}Pipeline Aborted: No valid target files found.{RESET}')
-                return
-
-            container_lists = defaultdict(list)
-
-            for idx, filename in enumerate(file_resolver.fileName):
-                print(f'{INFO}\nProcessing file [{idx + 1}/{len(file_resolver.fileName)}]: {filename}{RESET}')
-                full_file_path = os.path.join(file_resolver.filePath, filename)
-
-                reader = PcapngFileReader(
-                    file_path  = full_file_path,
+        try:
+            # 1. Pipeline Data Ingestion Pass (Network Stream vs Disk Storage)
+            if self.parameters.acqMode == 'kafka':
+                checks.checkPackageKafka()
+                from lib.kafka_reader import KafkaReader
+                
+                reader = KafkaReader(
                     parameters = self.parameters,
-                    config     = self.config
+                    config     = self.config,  
+                    testing    = False
                 )
+                reader.run()
+            else:
+                checks.checkPackagePcap()
+                from lib.reader import PcapngFileReader
                 
-                readout_containers = reader.run()
-                for name, container in readout_containers.items():
-                    container_lists[name].append(container)
-                    # save containers, ovewrite reader in each pass   
-            
-            merged = { # merge the lists of saved containers if you had multiple files
-                name: containers[0] if len(containers) == 1 else type(containers[0]).merge(containers)
-                for name, containers in container_lists.items()
-            }
+                file_resolver = fileDialogue(self.parameters)
+                file_resolver.openFile()
 
-            reader = SimpleNamespace(**merged)
-   
-        # NOTE --- split this into analyze then plot!!!!
-        # 2. Detector Pipeline Track Instantiation & Execution Pass via Factory
+                if not file_resolver.fileName:
+                    print(f'{ERR}Pipeline Aborted: No valid target files found.{RESET}')
+                    return
 
-        self.parameters.validateDependencies()
-        self.detector_pipeline = build_detector_pipeline(self.config, reader, self.parameters)
-        if self.detector_pipeline:
-            if not self.parameters.plotting.bareReadoutsCalculation:
-                self.detector_pipeline.analyze()
+                container_lists = defaultdict(list)
+
+                for idx, filename in enumerate(file_resolver.fileName):
+                    print(f'{INFO}\nProcessing file [{idx + 1}/{len(file_resolver.fileName)}]: {filename}{RESET}')
+                    full_file_path = os.path.join(file_resolver.filePath, filename)
+
+                    reader = PcapngFileReader(
+                        file_path  = full_file_path,
+                        parameters = self.parameters,
+                        config     = self.config
+                    )
+                    
+                    readout_containers = reader.run()
+                    for name, container in readout_containers.items():
+                        container_lists[name].append(container)
                 
-        # 3. Conditionally Dispatch Beam Monitor Tracking Stream
-        self.bm_pipeline = build_bm_pipeline(self.config, reader, self.parameters)
-        if self.bm_pipeline and self.parameters.MONitor.MONOnOff:
-            if not self.parameters.plotting.bareReadoutsCalculation:
-                self.bm_pipeline.analyze()
-                
-        if self.plottingOnOff == 'on':
-            dashboard_shown = False
-            if self.parameters.plotting.useDashboard:
-                try: # launch dashboard
-                    from lib.mbuty_dashboard import launch_dashboard
-                    self._dashboard = launch_dashboard(self.detector_pipeline, self.bm_pipeline, self.parameters, theme_mode='light')
-                    dashboard_shown = True
-                except Exception as e:
-                    print(f"{WARN}Dashboard failed ({e}) -- falling back to standard plotting.{RESET}")
+                merged = {
+                    name: containers[0] if len(containers) == 1 else type(containers[0]).merge(containers)
+                    for name, containers in container_lists.items()
+                }
+
+                reader = SimpleNamespace(**merged)
+       
+            # 2. Detector Pipeline Track Instantiation & Execution Pass via Factory
+            self.parameters.validateDependencies()
+            self.detector_pipeline = build_detector_pipeline(self.config, reader, self.parameters)
+            if self.detector_pipeline:
+                if not self.parameters.plotting.bareReadoutsCalculation:
+                    self.detector_pipeline.analyze()
+                    
+            # 3. Conditionally Dispatch Beam Monitor Tracking Stream
+            self.bm_pipeline = build_bm_pipeline(self.config, reader, self.parameters)
+            if self.bm_pipeline and self.parameters.MONitor.MONOnOff:
+                if not self.parameters.plotting.bareReadoutsCalculation:
+                    self.bm_pipeline.analyze()
+                    
+            if self.plottingOnOff == 'on':
+                dashboard_shown = False
+                if self.parameters.plotting.useDashboard:
+                    try:
+                        from lib.mbuty_dashboard import launch_dashboard
+                        self._dashboard = launch_dashboard(self.detector_pipeline, self.bm_pipeline, self.parameters, theme_mode='light')
+                        dashboard_shown = True
+                    except Exception as e:
+                        print(f"{WARN}Dashboard failed ({e}) -- falling back to standard plotting.{RESET}")
+                        self.detector_pipeline.plot()
+                        if self.bm_pipeline and self.parameters.MONitor.MONOnOff:
+                            self.bm_pipeline.plot()
+                else:
                     self.detector_pipeline.plot()
                     if self.bm_pipeline and self.parameters.MONitor.MONOnOff:
                         self.bm_pipeline.plot()
-            else:
-                self.detector_pipeline.plot()
-                if self.bm_pipeline and self.parameters.MONitor.MONOnOff:
-                    self.bm_pipeline.plot()
 
-            if not dashboard_shown and (self.detector_pipeline or (self.bm_pipeline and self.parameters.MONitor.MONOnOff)): 
-                plt.draw() 
-                plt.pause(0.1)
-                plt.show(block=False)
-                input(f"{INFO}\nPress Enter to close all figures...{RESET}")
-                plt.close('all')
+                if not dashboard_shown and (self.detector_pipeline or (self.bm_pipeline and self.parameters.MONitor.MONOnOff)): 
+                    plt.draw() 
+                    plt.pause(0.1)
+                    plt.show(block=False)
+                    input(f"{INFO}\nPress Enter to close all figures...{RESET}")
+                    plt.close('all')
             
+            self.readouts_container = self.detector_pipeline.readouts_container
+            self.hits_container     = self.detector_pipeline.hits_container
+            self.events_container   = self.detector_pipeline.events_container
+            
+            self.readouts_BM_container = self.bm_pipeline.readouts_container
+            self.events_BM_container   = self.bm_pipeline.events_container
+            
+            self.axis_set = self.detector_pipeline.axis_set
+            
+            ### save reduced data to hdf5
+            if self.parameters.fileManagement.saveReducedFileONOFF is True:
+                import lib.save_reduced_file as saveH5
+                fileNameSave = saveH5.prepareReducedFileBaseName(file_resolver.fileName)
+
+                if (self.parameters.MONitor.MONOnOff is True) and self.bm_pipeline:
+                    saveH5.saveReducedDataToHDF(
+                        self.parameters,
+                        self.events_container,
+                        self.bm_pipeline.events_container,
+                        self.parameters.fileManagement.saveReducedPath,
+                        fileNameSave
+                    )
+                else:
+                    saveH5.saveReducedDataToHDF(
+                        self.parameters,
+                        self.events_container,
+                        saveReducedPath=self.parameters.fileManagement.saveReducedPath,
+                        fileName=fileNameSave
+                    )
+
+            self.timing.stop()
+            print('----------------------------------------------------------------------')
+
+        except Exception as e:
+            print(f"\n{ERR}Analysis aborted due to error: {e}{RESET}")
+            raise e  # Re-raise so MBUTY_GUI worker thread catches it and stops cleanly
             # self.timing.lap()
-        
-        self.readouts_container = self.detector_pipeline.readouts_container
-        self.hits_container     = self.detector_pipeline.hits_container
-        self.events_container   = self.detector_pipeline.events_container
-        
-        self.readouts_BM_container = self.bm_pipeline.readouts_container
-        self.events_BM_container   = self.bm_pipeline.events_container
-        
-        self.axis_set = self.detector_pipeline.axis_set
-        
-        ### save reduced data to hdf5
-        if self.parameters.fileManagement.saveReducedFileONOFF is True:
-
-            import lib.save_reduced_file as saveH5
-            fileNameSave = saveH5.prepareReducedFileBaseName(file_resolver.fileName)
-
-            if (self.parameters.MONitor.MONOnOff is True) and self.bm_pipeline:
-                saveH5.saveReducedDataToHDF(
-                    self.parameters,
-                    self.events_container,
-                    self.bm_pipeline.events_container,
-                    self.parameters.fileManagement.saveReducedPath,
-                    fileNameSave
-                )
-            else:
-                saveH5.saveReducedDataToHDF(
-                    self.parameters,
-                    self.events_container,
-                    saveReducedPath=self.parameters.fileManagement.saveReducedPath,
-                    fileName=fileNameSave
-                )
-            # self.timing.lap()
-
-        ###############################################################################
-        ###############################################################################
-        # plt.show(block= False)
-        self.timing.stop()
-        print('----------------------------------------------------------------------')
         ###############################################################################
         ###############################################################################
     
@@ -318,10 +311,10 @@ if __name__ == '__main__':
     ### can only be only one of these 5 options: off, pcap-sync, pcap-local, pcap-local-overwrite or kafka
 
     # parameters.acqMode = 'pcap-sync'
-    # parameters.acqMode = 'pcap-local'
+    parameters.acqMode = 'pcap-local'
     # parameters.acqMode = 'pcap-local-overwrite'
     # parameters.acqMode = 'kafka'
-    parameters.acqMode = 'off'
+    # parameters.acqMode = 'off'
 
     ###  then check parameters.fileManagement.openMode = 'window' for the open mode ...
     ###############################################################################

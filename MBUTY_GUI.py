@@ -522,25 +522,27 @@ class MBUTYMainWindow(QMainWindow):
         self._setup_output_console(clear_content=True)
         plt.close("all")
 
-        backend = MBUTYOrchestrator(parameters, plottingOnOff="gui", main_thread_queue=self.dispatcher)
-
         def backend_work():
             try:
+                print("\nInitializing Master Ingestion Pipeline...\n")
+                # Move instantiation inside thread so any config/validation errors happen here
+                backend = MBUTYOrchestrator(parameters, plottingOnOff="gui", main_thread_queue=self.dispatcher)
+                
                 print("\nRunning Master Ingestion Pipeline...\n")
                 backend.run_pipeline()
                 print("\nAnalysis complete. Dispatching plots to main thread...")
 
                 self.dispatcher.post(lambda: self._start_section_flow(backend))
 
-                if self.stop_button.isVisible():
-                    self.dispatcher.post(lambda: self.stop_button.setVisible(False))
+            except KeyboardInterrupt:
+                print("\nAnalysis was interrupted by user.")
             except Exception as e:
-                if isinstance(e, KeyboardInterrupt):
-                    print("\nAnalysis was interrupted by user.")
-                else:
-                    print(f" Error during analysis: {e}")
+                print(f"\n Error during analysis execution: {e}")
+                print("\nAnalysis aborted.")
             finally:
                 self.analysis_running = False
+                if self.stop_button.isVisible():
+                    self.dispatcher.post(lambda: self.stop_button.setVisible(False))
 
         self.backend_thread = threading.Thread(target=backend_work, daemon=True)
         self.backend_thread.start()
