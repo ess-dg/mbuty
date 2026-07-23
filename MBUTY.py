@@ -618,12 +618,15 @@ if __name__ == '__main__':
     ###############################################################################
 
     
-    pipeline_orchestrator = MBUTYOrchestrator(parameters)
     try:
+        pipeline_orchestrator = MBUTYOrchestrator(parameters)
         pipeline_orchestrator.run_pipeline()
     except KeyboardInterrupt:
         print("\nPipeline interrupted by user or window closure.")
-    
+    except Exception as e:
+        print(f"\n{ERR}Execution aborted: {e}{RESET}")
+        sys.exit(1)
+
     config = pipeline_orchestrator.config
     
     axis_set = pipeline_orchestrator.axis_set
