@@ -114,7 +114,7 @@ class MultiSelectDropDown(QWidget):
         self._checked = []
         self.pathToOptions = None
         self._popup = None
-        self.reverse = False # make this True to sort filenames Z to A, instead False A -> Z
+        self.reverse = True # make this True to sort filenames Z to A, instead False A -> Z
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -211,7 +211,7 @@ class MultiSelectDropDown(QWidget):
         try:
             if path and os.path.isdir(path):
                 new_options = sorted(
-                    [f for f in os.listdir(path) if f.endswith(file_filter)], key=str.lower
+                    [f for f in os.listdir(path) if f.endswith(file_filter)], key=str.lower, reverse=self.reverse
                 )
             else:
                 new_options = []
@@ -237,7 +237,7 @@ class MultiSelectDropDown(QWidget):
         self._rebuild_chips()
 
     def set_options(self, new_options, default_to_apply=None):
-        self._set_option_list(sorted(new_options, key=str.lower))
+        self._set_option_list(sorted(new_options, key=str.lower, reverse=self.reverse))
 
         final_default = default_to_apply if default_to_apply is not None else self._initial_default
         valid_default = [v for v in (final_default or []) if v in self.options]
