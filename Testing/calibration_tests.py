@@ -55,14 +55,19 @@ sys.modules["lib.colors"] = _fake_colors
 # =============================================================================
 # RUNTIME PATH BOOTSTRAP (Ensures absolute imports always work)
 # =============================================================================
-_workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _workspace not in sys.path:
-    sys.path.insert(0, _workspace)
-from lib import calibration  # noqa: E402  (import after sys.modules stub, intentional)
+import os
+import sys
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-CALIB_FILE = os.path.join(HERE, "ill_efu_time_calib.json")
-CONFIG_FILE = os.path.join(HERE, "AMOR_test_config.json")
+_workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_lib_path = os.path.join(_workspace, "lib")
+
+if _lib_path not in sys.path:
+    sys.path.insert(0, _lib_path)
+
+import calibration  # noqa: E402 # noqa: E402  (import after sys.modules stub, intentional)
+
+CALIB_FILE = r"C:\Projects\mbuty\calib\ill_efu_time_calib.json"
+CONFIG_FILE = r"C:\Projects\mbuty\config\AMOR_TEST.json"
 
 PASS = 0
 FAIL = 0
