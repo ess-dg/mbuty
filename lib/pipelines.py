@@ -262,10 +262,9 @@ class MBPipeline(BasePipeline):
     def analyze(self) -> None:
         
         self.check_empty()
-        if getattr(self.parameters.dataReduction, 'calibrateVMM_ADC_ONOFF', False):
-            # Calibrate readouts 
-            self.readouts_container.calibrate(self.parameters, self.config)
-
+        # Calibrating
+        from lib.calibration import VMMCalibrationEngine
+        VMMCalibrationEngine(self.readouts_container, self.config, self.parameters).process_pipeline()
         # Mapping
         from lib.mapping_engine import MBMapper
         print(f"{INFO}Mapping MB detector (units mapped according to IDs){RESET}")
@@ -345,9 +344,9 @@ class MGPipeline(BasePipeline):
 
     def analyze(self) -> None:
         self.check_empty()
-        if getattr(self.parameters.dataReduction, 'calibrateVMM_ADC_ONOFF', False):
-            # Calibrate readouts 
-            self.readouts_container.calibrate(self.parameters, self.config)
+        # Calibrating
+        from lib.calibration import VMMCalibrationEngine
+        VMMCalibrationEngine(self.readouts_container, self.config, self.parameters).process_pipeline()
         # Mapping
         from lib.mapping_engine import MGMapper
         print(f"{INFO}Mapping MG detector (units mapped according to IDs){RESET}")

@@ -8,7 +8,6 @@ _workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
 
-from lib.calibration import load_calibration_map
 from lib.colors import WARN, RESET, INFO, OK
 # =============================================================================
 
@@ -66,7 +65,6 @@ class readouts():
         Designed for instant, interactive spreadsheet visualization inside 
         Spyder's Variable Explorer or terminal debugging sessions.
         """
-        # Explicit Change: Slice exactly up to fill_count to avoid viewing trailing unpopulated rows
         active_data = self.matrix[:self.fill_count]
         return pd.DataFrame(active_data)
 
@@ -110,10 +108,6 @@ class readouts():
 
         self.durations = np.array([t_stop - t_start], dtype='int64')
         
-    def calibrate(self, parameters, config: dict) -> None:
-        """No-op. Non-VMM containers have no calibration."""
-        pass
-    
     def check_invalid_tofs(self) -> tuple[int, int, int]:
         """
         Evaluates readouts relative to Pulse Time and falls back to Previous Pulse Time 
@@ -292,98 +286,6 @@ class readoutsVMMnormal(readoutsVMM):
             self.matrix['timeStamp'] = self.matrix['timeCoarse']
 
         super().clean_and_sort(parameters)
-        
-    def calibrate(self, parameters, config: dict) -> None:
-        if self.fill_count == 0:
-            return
-
-        adc_calib_on = getattr(getattr(parameters, 'dataReduction', None), 'calibrateVMM_ADC_ONOFF', False)
-        tdc_calib_on = getattr(getattr(parameters, 'dataReduction', None), 'calibrateVMM_TDC_ONOFF', False)
-
-        if not adc_calib_on and not tdc_calib_on:
-            return
-
-        calib_path = getattr(getattr(parameters, 'fileManagement', None), 'calibFilePath', '')
-        calib_name = getattr(getattr(parameters, 'fileManagement', None), 'calibFileName', '')
-        calib_map  = load_calibration_map(calib_path + calib_name, config, parameters)
-
-        if adc_calib_on:
-            self._calibrate_adc(calib_map)
-        if tdc_calib_on:
-            self._calibrate_tdc(calib_map, parameters)
-            
-        
-    def _calibrate_adc(self, calib_map: dict) -> None:
-        """Applies per-channel linear ADC calibrations to the matrix."""
-        if not calib_map:
-            return
-        print(f'{INFO}Calibrating ADC ...{RESET}')
-        
-        ring_col   = self.matrix['ring']
-        fen_col    = self.matrix['fen']
-        hybrid_col = self.matrix['hybrid']
-        asic_col   = self.matrix['asic']
-        chan_col   = self.matrix['channel']
-        adc_col    = self.matrix['adc']
-
-        for (ring, fen, hybrid), entry in calib_map.items():
-            mask = (ring_col == ring) & (fen_col == fen) & (hybrid_col == hybrid)
-            if not np.any(mask):
-                continue
-
-            for asic_idx, offset_arr, slope_arr in (
-                (0, entry.vmm0_adc_offset, entry.vmm0_adc_slope),
-                (1, entry.vmm1_adc_offset, entry.vmm1_adc_slope),
-            ):
-                asic_mask = mask & (asic_col == asic_idx)
-                if not np.any(asic_mask):
-                    continue
-
-                adc_float   = adc_col[asic_mask].astype(np.float64, copy=True)
-                channel_idx = chan_col[asic_mask].astype(np.intp)
-                calibrated  = np.around((adc_float - offset_arr[channel_idx]) * slope_arr[channel_idx])
-                self.matrix['adc'][asic_mask] = np.clip(calibrated, 0, 1023).astype(np.int64)
-
-    def _calibrate_tdc(self, calib_map: dict, parameters) -> None:
-        """Applies per-channel TDC fine-time calibration across the full matrix."""
-        time_res_type     = getattr(getattr(parameters, 'timeSettings', None), 'timeResolutionType', 'coarse')
-        ns_per_clock_tick = float(getattr(getattr(parameters, 'clockTicks', None), 'NSperClockTick', 11.35))
-
-        if time_res_type != 'fine':
-            print(f'\t {WARN}WARNING: calibrateVMM_TDC_ONOFF is True but timeResolutionType is coarse → TDC calibration skipped.{RESET}')
-            return
-
-        if not calib_map:
-            return
-        
-        print(f'{INFO}Calibrating TDC and recalculating time stamp ...{RESET}')
-        
-        ring_col   = self.matrix['ring']
-        fen_col    = self.matrix['fen']
-        hybrid_col = self.matrix['hybrid']
-        asic_col   = self.matrix['asic']
-        chan_col   = self.matrix['channel']
-
-        for (ring, fen, hybrid), entry in calib_map.items():
-            mask = (ring_col == ring) & (fen_col == fen) & (hybrid_col == hybrid)
-            if not np.any(mask):
-                continue
-
-            for asic_idx, offset_arr, slope_arr in (
-                (0, entry.vmm0_tdc_offset, entry.vmm0_tdc_slope),
-                (1, entry.vmm1_tdc_offset, entry.vmm1_tdc_slope),
-            ):
-                asic_mask = mask & (asic_col == asic_idx)
-                if not np.any(asic_mask):
-                    continue
-
-                self._calculate_fine_timestamp(
-                    ns_per_clock_tick,
-                    mask=asic_mask,
-                    tdc_offset_array=offset_arr,
-                    tdc_slope_array=slope_arr,
-                )
-
 
     def _calculate_fine_timestamp(
         self,
@@ -417,7 +319,6 @@ class readoutsVMMnormal(readoutsVMM):
         Designed for instant, interactive spreadsheet visualization inside 
         Spyder's Variable Explorer or terminal debugging sessions.
         """
-        # Explicit Change: Slice exactly up to fill_count to avoid viewing trailing unpopulated rows
         active_data = self.matrix[:self.fill_count]
         
         columns_to_extract = [
@@ -486,7 +387,6 @@ class readoutsVMMclustered(readoutsVMM):
         Designed for instant, interactive spreadsheet visualization inside 
         Spyder's Variable Explorer or terminal debugging sessions.
         """
-        # Explicit Change: Slice exactly up to fill_count to avoid viewing trailing unpopulated rows
         active_data = self.matrix[:self.fill_count]
         
         columns_to_extract = [
@@ -535,7 +435,6 @@ class readoutsR5560(readouts):
         Designed for instant, interactive spreadsheet visualization inside 
         Spyder's Variable Explorer or terminal debugging sessions.
         """
-        # Explicit Change: Slice exactly up to fill_count to avoid viewing trailing unpopulated rows
         active_data = self.matrix[:self.fill_count]
         
         columns_to_extract = [
@@ -614,7 +513,6 @@ class readoutsBM(readouts):
         Designed for instant, interactive spreadsheet visualization inside 
         Spyder's Variable Explorer or terminal debugging sessions.
         """
-        # Explicit Change: Slice exactly up to fill_count to avoid viewing trailing unpopulated rows
         active_data = self.matrix[:self.fill_count]
         
         columns_to_extract = [
@@ -689,7 +587,6 @@ class readoutsIBM(readouts):
         Designed for instant, interactive spreadsheet visualization inside 
         Spyder's Variable Explorer or terminal debugging sessions.
         """
-        # Explicit Change: Slice exactly up to fill_count to avoid viewing trailing unpopulated rows
         active_data = self.matrix[:self.fill_count]
         
         columns_to_extract = [
@@ -736,7 +633,6 @@ class readoutsSKADI(readouts):
         Designed for instant, interactive spreadsheet visualization inside 
         Spyder's Variable Explorer or terminal debugging sessions.
         """
-        # Explicit Change: Slice exactly up to fill_count to avoid viewing trailing unpopulated rows
         active_data = self.matrix[:self.fill_count]
         
         columns_to_extract = [
@@ -759,5 +655,4 @@ class readoutsSKADI(readouts):
 
         df = pd.DataFrame(active_data[columns_to_extract])
 
-        return df             
-        
+        return df

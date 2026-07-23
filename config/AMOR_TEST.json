@@ -1,0 +1,123 @@
+{
+    "detectorName": "AMOR_TEST",
+    "detectorType": "MB",
+    "instrumentName": "AMOR_TEST",
+    "units": 14,
+    "orientation": "horizontal",
+    "operationMode": "normal",
+    "topology": [
+        {
+            "ID": 0,
+            "ring": 0,
+            "fen": 0,
+            "hybrid": 0,
+            "serial": "a080004128ada0803410082106704410"
+        },
+        {
+            "ID": 1,
+            "ring": 0,
+            "fen": 0,
+            "hybrid": 1,
+            "serial": "a080007f2050a0803410082006704410"
+        },
+        {
+            "ID": 2,
+            "ring": 0,
+            "fen": 0,
+            "hybrid": 2,
+            "serial": "a08000f7402ea0803410082006704410"
+        },
+        {
+            "ID": 3,
+            "ring": 0,
+            "fen": 0,
+            "hybrid": 3,
+            "serial": "a08000ed549ea0803410082006704410"
+        },
+        {
+            "ID": 4,
+            "ring": 0,
+            "fen": 0,
+            "hybrid": 4,
+            "serial": "a0800072c8a8a0803410082006704410"
+        },
+        {
+            "ID": 5,
+            "ring": 1,
+            "fen": 0,
+            "hybrid": 0,
+            "serial": "a08000500403a0803410082106704410"
+        },
+        {
+            "ID": 6,
+            "ring": 1,
+            "fen": 0,
+            "hybrid": 1,
+            "serial": "a080000208e3a0803410082106704410"
+        },
+        {
+            "ID": 7,
+            "ring": 1,
+            "fen": 0,
+            "hybrid": 2,
+            "serial": "a080006714a0a0803410082106704410"
+        },
+        {
+            "ID": 8,
+            "ring": 1,
+            "fen": 0,
+            "hybrid": 3,
+            "serial": "a08000513c67a0803410082006704410"
+        },
+        {
+            "ID": 9,
+            "ring": 1,
+            "fen": 0,
+            "hybrid": 4,
+            "serial": "a08000f6fccaa0803410082006704410"
+        },
+        {
+            "ID": 10,
+            "ring": 2,
+            "fen": 0,
+            "hybrid": 0,
+            "serial": "a08000deb48ea0803410082006704410"
+        },
+        {
+            "ID": 11,
+            "ring": 2,
+            "fen": 0,
+            "hybrid": 1,
+            "serial": "a08000150475a0803410082106704410"
+        },
+        {
+            "ID": 12,
+            "ring": 2,
+            "fen": 0,
+            "hybrid": 2,
+            "serial": ""
+        },
+        {
+            "ID": 13,
+            "ring": 2,
+            "fen": 0,
+            "hybrid": 3,
+            "serial": "SERIAL-NOT-IN-CALIB-FILE"
+        }
+    ],
+    "wires": 32,
+    "strips": 64,
+    "wirePitch_mm": 4,
+    "stripPitch_mm": 4,
+    "bladesInclination_deg": 5.1,
+    "offset1stWires_mm": 10.5,
+    "monitor": [
+        {
+            "ID": 99,
+            "hardwareType": "generic",
+            "connectionType": "ring",
+            "ring": 11,
+            "channel": 1
+        }
+    ]
+}

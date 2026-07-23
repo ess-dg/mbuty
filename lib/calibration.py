@@ -5,20 +5,32 @@ calibration.py
 ==============
 Self-contained VMM3A ADC/TDC calibration engine for MB/MG detector readouts.
 
+Mirrors the abs_units_engine / threshold_engine convention used elsewhere
+in the pipeline: instantiate with (readouts, config, parameters) and call
+process_pipeline(). The engine reads its own on/off flags internally, so
+callers in pipelines.py invoke it unconditionally, same as the other
+per-stage engines.
+
 Calibration file formats supported
 ----------------------------------
 LEGACY  : HybridId directly encodes logical position, e.g. "FEN0_3".
           Ring/fen/hybrid are parsed straight out of the string.
-NEW     : HybridId is the physical hybrid board's serial number. Every
-          entry also carries a 'HybridIndex' field, which is what we use
-          to detect this format. The serial is resolved against this
-          run's topology (config['topology'][i]['serial']) to find which
-          (ring, fen, hybrid) slot that physical board is plugged into.
+NEW     : HybridId is the physical hybrid board's serial number, resolved
+          against this run's topology (config['topology'][i]['serial']) to
+          find which (ring, fen, hybrid) slot that physical board is
+          plugged into.
+
+Format is detected ONCE per file (_detect_calib_file_format), by whether
+the first entry's HybridId matches the legacy 'FEN<n>_<m>' pattern — a real
+file is always one format or the other, never a mix. Whichever it is, the
+WHOLE file is then resolved through exactly one of two fully independent
+pipelines (_resolve_legacy_pipeline / _resolve_new_pipeline); neither one
+ever falls back to or consults the other.
 
 Once the legacy format is fully retired, delete everything marked
-"OLD CALIB FORMAT" below (the branch in _resolve_hybrid_key and the
-_parse_hybrid_id_legacy helper) and this file collapses to serial-only
-resolution.
+"OLD CALIB FORMAT" below (_resolve_legacy_pipeline, _build_fen_lookup_from_file,
+_parse_hybrid_id_legacy, and the 'legacy' branch in _detect_calib_file_format)
+and this file collapses to serial-only resolution.
 """
 
 from __future__ import annotations
@@ -71,7 +83,12 @@ def _default_entry(hybrid_id: str) -> VMMCalibrationEntry:
 
 
 # =============================================================================
-# 2. HYBRID KEY RESOLUTION — legacy FEN format vs new serial format
+# 2. HYBRID KEY RESOLUTION — the CONFIG topology is the source of truth.
+#    For each configured hybrid we ask the calibration file "do you have
+#    an entry for this?" — never the other way around. Otherwise a
+#    calibration file covering more hybrids than this instrument's
+#    topology (very likely — one shared lab-wide file, many instruments)
+#    would spam warnings about hybrids that aren't this run's business.
 # =============================================================================
 
 def _parse_hybrid_id_legacy(hybrid_id_text: str) -> tuple[int, int, int]:
@@ -91,44 +108,169 @@ def _parse_hybrid_id_legacy(hybrid_id_text: str) -> tuple[int, int, int]:
         ) from exc
 
 
-def _build_serial_lookup(config: dict) -> dict[str, tuple[int, int, int]]:
-    """Map each configured hybrid's serial -> (ring, fen, hybrid) for this run's topology."""
-    lookup: dict[str, tuple[int, int, int]] = {}
-    for unit in config['topology']:
-        serial = unit.get('serial', '')
-        if serial:
-            lookup[serial] = (int(unit['ring']), int(unit['fen']), int(unit['hybrid']))
+def _build_fen_lookup_from_file(calibrations_raw: list) -> dict[tuple[int, int, int], dict]:
+    """
+    --- OLD CALIB FORMAT — delete this function once new format fully in use ---
+    Index calibration file entries by (ring, fen, hybrid), parsed straight out
+    of the legacy 'FEN<n>_<m>' HybridId. Entries using the new serial-style
+    HybridId simply fail to parse this way and are skipped here — they're
+    indexed by _build_serial_lookup_from_file instead.
+    """
+    lookup: dict[tuple[int, int, int], dict] = {}
+    for item in calibrations_raw:
+        block = item.get('VMMHybridCalibration', {})
+        try:
+            key = _parse_hybrid_id_legacy(block.get('HybridId', ''))
+        except ValueError:
+            continue
+        lookup[key] = block
     return lookup
 
 
-def _resolve_hybrid_key(hybrid_id_text: str, block: dict, serial_lookup: dict) -> tuple[int, int, int] | None:
+def _build_serial_lookup_from_file(calibrations_raw: list) -> dict[str, dict]:
+    """Index calibration file entries by their own HybridId (the physical serial), verbatim."""
+    lookup: dict[str, dict] = {}
+    for item in calibrations_raw:
+        block = item.get('VMMHybridCalibration', {})
+        hybrid_id_text = block.get('HybridId', '')
+        if hybrid_id_text:
+            lookup[hybrid_id_text] = block
+    return lookup
+
+
+def _is_legacy_hybrid_id(hybrid_id_text: str) -> bool:
+    """True if this HybridId matches the legacy 'FEN<n>_<m>' position-encoded pattern."""
+    try:
+        _parse_hybrid_id_legacy(hybrid_id_text)
+        return True
+    except ValueError:
+        return False
+
+
+def _detect_calib_file_format(calibrations_raw: list) -> str:
     """
-    Resolve one calibration entry's HybridId to a (ring, fen, hybrid) key.
-    Returns None if the entry cannot be resolved (caller skips it and the
-    hybrid falls back to identity calibration further down the pipeline).
-
-    Format is detected by the presence of 'HybridIndex', which only the
-    new (serial-based) format carries.
+    Decide ONCE, for the whole file, whether this is the OLD (legacy
+    'FEN<n>_<m>' position-encoded HybridId) format or the NEW (physical
+    serial number HybridId) format. A real calibration file is one or the
+    other, never a mix, so checking the first entry's HybridId is enough.
+    Returns 'legacy' or 'new'.
     """
-    if 'HybridIndex' not in block:
-        # --- OLD CALIB FORMAT — delete this branch once new format fully in use ---
-        try:
-            return _parse_hybrid_id_legacy(hybrid_id_text)
-        except ValueError as exc:
-            print(f'\t {WARN}WARNING: Skipping unparseable entry — {exc}{RESET}')
-            return None
+    if not calibrations_raw:
+        return 'new'  # nothing to resolve either way; new is the going-forward default
+    first_block = calibrations_raw[0].get('VMMHybridCalibration', {})
+    first_hybrid_id = first_block.get('HybridId', '')
+    return 'legacy' if _is_legacy_hybrid_id(first_hybrid_id) else 'new'
 
-    # --- NEW CALIB FORMAT: HybridId is the physical hybrid board's serial number ---
-    key = serial_lookup.get(hybrid_id_text)
-    if key is None:
-        hybrid_index = block.get('HybridIndex', '?')
-        print(
-            f'\t {WARN}WARNING: calibration for serial {hybrid_id_text!r} not found in config file, '
-            f'ID {hybrid_index} falling back to default/identity calibration{RESET}'
-        )
-        return None
-    return key
 
+def _resolve_legacy_pipeline(calibrations_raw: list, config: dict, parameters) -> dict[tuple[int, int, int], "VMMCalibrationEntry"]:
+    """
+    --- OLD CALIB FORMAT PIPELINE — delete this whole function once every
+    calibration file in use is the new serial-based format ---
+    The whole file is legacy: every entry's HybridId is parsed as
+    'FEN<n>_<m>' and matched purely by (ring, fen, hybrid) position.
+    Config's 'serial' field is never consulted here — this pipeline doesn't
+    know serials exist.
+    """
+    fen_lookup = _build_fen_lookup_from_file(calibrations_raw)
+    final_map: dict[tuple[int, int, int], VMMCalibrationEntry] = {}
+
+    for unit in config['topology']:
+        ring   = int(unit['ring'])
+        fen    = int(unit['fen'])
+        hybrid = int(unit['hybrid'])
+        key    = (ring, fen, hybrid)
+
+        if key in fen_lookup:
+            entry = _entry_from_block(f"FEN{ring}_{hybrid}", fen_lookup[key])
+            final_map[key] = entry
+            _check_resolved_entry_integrity(ring, fen, hybrid, entry, parameters)
+        else:
+            print(
+                f'\t {WARN}Warning: ring {ring} fen {fen} hybrid {hybrid} not found in config file '
+                f'using defaults: slope 1, offset 0{RESET}'
+            )
+            final_map[key] = _default_entry(f"FEN{ring}_{hybrid}")
+
+    return final_map
+
+
+def _resolve_new_pipeline(calibrations_raw: list, config: dict, parameters) -> dict[tuple[int, int, int], "VMMCalibrationEntry"]:
+    """
+    NEW CALIB FORMAT PIPELINE — serial-driven, this is the one true path
+    once the transition is complete. The whole file is new format: every
+    entry's HybridId is the physical hybrid board's serial number, matched
+    purely against config's own recorded 'serial' field. Legacy
+    ring/fen/hybrid position is never consulted here — this pipeline
+    doesn't know the legacy encoding exists.
+    """
+    serial_lookup = _build_serial_lookup_from_file(calibrations_raw)
+    final_map: dict[tuple[int, int, int], VMMCalibrationEntry] = {}
+
+    for unit in config['topology']:
+        ring        = int(unit['ring'])
+        fen         = int(unit['fen'])
+        hybrid      = int(unit['hybrid'])
+        key         = (ring, fen, hybrid)
+        unit_serial = unit.get('serial', '')
+
+        if unit_serial in serial_lookup:
+            entry = _entry_from_block(unit_serial, serial_lookup[unit_serial])
+            final_map[key] = entry
+            _check_resolved_entry_integrity(ring, fen, hybrid, entry, parameters)
+        else:
+            print(
+                f'\t {WARN}Warning: No calibration entry for serial no {unit_serial!r} in calibration file. '
+                f'Ring {ring} Fen {fen} Hybrid {hybrid} using defaults: slope 1, offset 0.{RESET}'
+            )
+            final_map[key] = _default_entry(f"ring{ring}_fen{fen}_hybrid{hybrid}")
+
+    return final_map
+
+
+def _entry_from_block(hybrid_id_text: str, block: dict) -> VMMCalibrationEntry:
+    """Build a VMMCalibrationEntry from one calibration file entry's vmm0/vmm1 blocks."""
+    vmm0 = block.get('vmm0', {})
+    vmm1 = block.get('vmm1', {})
+    return VMMCalibrationEntry(
+        hybrid_id       = hybrid_id_text,
+        vmm0_adc_offset     = np.asarray(vmm0.get('adc_offset', np.zeros(64)), dtype=np.float64),
+        vmm0_adc_slope      = np.asarray(vmm0.get('adc_slope',  np.ones(64)),  dtype=np.float64),
+        vmm1_adc_offset     = np.asarray(vmm1.get('adc_offset', np.zeros(64)), dtype=np.float64),
+        vmm1_adc_slope      = np.asarray(vmm1.get('adc_slope',  np.ones(64)),  dtype=np.float64),
+        vmm0_tdc_offset     = np.asarray(vmm0.get('tdc_offset', np.zeros(64)), dtype=np.float64),
+        vmm0_tdc_slope      = np.asarray(vmm0.get('tdc_slope', np.zeros(64)), dtype=np.float64),
+        vmm1_tdc_offset     = np.asarray(vmm1.get('tdc_offset', np.zeros(64)), dtype=np.float64),
+        vmm1_tdc_slope      = np.asarray(vmm1.get('tdc_slope', np.zeros(64)), dtype=np.float64),
+    )
+
+
+def _check_resolved_entry_integrity(ring: int, fen: int, hybrid: int, entry: VMMCalibrationEntry, parameters) -> None:
+    """
+    Sanity check run AFTER resolution, only on hybrids this config actually
+    uses — never on the rest of the file. A calibration file (especially a
+    shared lab-wide one) can carry many more hybrids than this instrument's
+    topology; there's no reason to warn about ones we never touch. Flags
+    all-zero/identity ADC or TDC per asic, which usually means a dummy or
+    placeholder entry made it into the calibration file for a hybrid this
+    run does depend on.
+
+    Only checks ADC when calibrateVMM_ADC_ONOFF is on, and TDC when
+    calibrateVMM_TDC_ONOFF is on — no point flagging a channel that isn't
+    going to be used anyway. Not called for defaulted (unmatched) units —
+    those already got their own "not found" / "no calibration entry"
+    warning at resolution time.
+    """
+    adc_calib_on = getattr(getattr(parameters, 'dataReduction', None), 'calibrateVMM_ADC_ONOFF', False)
+    tdc_calib_on = getattr(getattr(parameters, 'dataReduction', None), 'calibrateVMM_TDC_ONOFF', False)
+
+    if not adc_calib_on and not tdc_calib_on:
+        return
+
+    if adc_calib_on and np.allclose(entry.vmm0_adc_offset, 0.0) and np.allclose(entry.vmm1_adc_offset, 0.0):
+        print(f'\t {WARN}Warning: Ring {ring} Fen {fen} Hybrid {hybrid} has all zeros for ADC on both asics. Check calibration file {RESET}')
+
+    if tdc_calib_on and np.allclose(entry.vmm0_tdc_offset, 0.0) and np.allclose(entry.vmm1_tdc_offset, 0.0):
+        print(f'\t {WARN}Warning: Ring {ring} Fen {fen} Hybrid {hybrid} has all zeros for TDC on both asics. Check calibration file {RESET}')
 
 # =============================================================================
 # 3. JSON FILE INGESTION LAYER
@@ -137,9 +279,25 @@ def _resolve_hybrid_key(hybrid_id_text: str, block: dict, serial_lookup: dict) -
 def load_calibration_map(calib_file_path: str, config: dict, parameters) -> dict[tuple[int, int, int], VMMCalibrationEntry]:
     """
     Load VMM3A ADC/TDC calibrations from a JSON file into a (ring, fen, hybrid)
-    lookup map. Handles both legacy FEN-labeled entries and new serial-labeled
-    entries transparently (see _resolve_hybrid_key). Missing entries fall back
-    to identity defaults (slope 1, offset 0).
+    lookup map.
+
+    The calibration file's FORMAT is decided once, for the whole file (see
+    _detect_calib_file_format) — never per unit or per entry, since a real
+    file is one format or the other, never a mix. Whichever format it is,
+    all of config['topology'] is resolved through that single pipeline:
+      - legacy file  -> _resolve_legacy_pipeline: ring/fen/hybrid position
+        match only; config's 'serial' field is never consulted.
+      - new file     -> _resolve_new_pipeline: serial match only; legacy
+        ring/fen/hybrid position is never consulted.
+    These two pipelines are fully independent. The legacy one is dead code
+    the moment every calibration file in use is the new serial-based
+    format, and can be deleted wholesale at that point.
+
+    Each pipeline also runs an all-zero/identity ADC-TDC integrity check
+    (_check_resolved_entry_integrity) right after each successful match —
+    so it only ever fires for hybrids this config actually depends on, not
+    for every entry sitting in the file (which may cover more hybrids than
+    this instrument's topology, e.g. a shared lab-wide calibration file).
     """
     # -------------------------------------------------------------------------
     # Guard Pass: Only MB / MG detectors feature VMM ADC calibration arrays
@@ -167,66 +325,30 @@ def load_calibration_map(calib_file_path: str, config: dict, parameters) -> dict
         print(f'{INFO}\nLoading VMM calibration file: {calib_filename}{RESET}')
 
     calibrations_raw = raw.get('Calibrations', [])
-    serial_lookup     = _build_serial_lookup(config)
-    json_lookup: dict[tuple[int, int, int], VMMCalibrationEntry] = {}
 
     # -------------------------------------------------------------------------
-    # Mapping Loop: Parse existing file constants into the temporary lookup
+    # The calibration file's FORMAT is decided ONCE, for the whole file (see
+    # _detect_calib_file_format) — never per unit, never per entry, since a
+    # real file is one format or the other, never a mix. Whichever format it
+    # is, ALL of config['topology'] is resolved through that single pipeline.
+    # OLD and NEW are fully independent pipelines: the OLD one is dead code
+    # the moment every calibration file in use is the new serial-based
+    # format, and can be deleted wholesale.
+    #
+    # Each pipeline runs the all-zero/identity ADC-TDC integrity check
+    # (_check_resolved_entry_integrity) itself, right after a successful
+    # match — so it only ever fires for hybrids this config actually uses,
+    # never for unrelated entries elsewhere in the file, and never for units
+    # that already fell back to identity defaults (those get their own
+    # "not found" warning instead).
     # -------------------------------------------------------------------------
-    for item in calibrations_raw:
-        block = item.get('VMMHybridCalibration', {})
-        hybrid_id_text = block.get('HybridId', '')
+    calib_format = _detect_calib_file_format(calibrations_raw)
 
-        key = _resolve_hybrid_key(hybrid_id_text, block, serial_lookup)
-        if key is None:
-            continue
-
-        vmm0 = block.get('vmm0', {})
-        vmm1 = block.get('vmm1', {})
-
-        json_lookup[key] = VMMCalibrationEntry(
-            hybrid_id       = hybrid_id_text,
-            vmm0_adc_offset     = np.asarray(vmm0.get('adc_offset', np.zeros(64)), dtype=np.float64),
-            vmm0_adc_slope      = np.asarray(vmm0.get('adc_slope',  np.ones(64)),  dtype=np.float64),
-            vmm1_adc_offset     = np.asarray(vmm1.get('adc_offset', np.zeros(64)), dtype=np.float64),
-            vmm1_adc_slope      = np.asarray(vmm1.get('adc_slope',  np.ones(64)),  dtype=np.float64),
-            vmm0_tdc_offset     = np.asarray(vmm0.get('tdc_offset', np.zeros(64)), dtype=np.float64),
-            vmm0_tdc_slope      = np.asarray(vmm0.get('tdc_slope', np.zeros(64)), dtype=np.float64),
-            vmm1_tdc_offset     = np.asarray(vmm1.get('tdc_offset', np.zeros(64)), dtype=np.float64),
-            vmm1_tdc_slope      = np.asarray(vmm1.get('tdc_slope', np.zeros(64)), dtype=np.float64),
-        )
-
-    # -------------------------------------------------------------------------
-    # Final Orchestration Map: Align strictly with configured cassettes
-    # -------------------------------------------------------------------------
-    final_map: dict[tuple[int, int, int], VMMCalibrationEntry] = {}
-    units = config['topology']
-
-    for unit in units:
-        ring   = int(unit['ring'])
-        fen    = int(unit['fen'])
-        hybrid = int(unit['hybrid'])
-        key    = (ring, fen, hybrid)
-
-        if key in json_lookup:
-            final_map[key] = json_lookup[key]
-        else:
-            # Replicates legacy constructor fallback array mapping precisely
-            print(f'\t {WARN}No calib found in calib file for Ring {ring}, Fen {fen}, Hybrid {hybrid} → using defaults: slope 1, offset 0{RESET}')
-            final_map[key] = _default_entry(f"FEN{ring}_{hybrid}")
-
-    # Post-check for all-zero calibrations
-    for (ring, fen, hybrid), entry in final_map.items():
-
-        if parameters.dataReduction.calibrateVMM_ADC_ONOFF:
-            if np.allclose(entry.vmm0_adc_offset, 0.0) and np.allclose(entry.vmm1_adc_offset, 0.0):
-                print(f'\t {WARN}WARNING: ADC calibration all zeros for Ring {ring}, Fen {fen}, Hybrid {hybrid}{RESET}')
-
-        if parameters.dataReduction.calibrateVMM_TDC_ONOFF:
-            if np.allclose(entry.vmm0_tdc_offset, 0.0) and np.allclose(entry.vmm1_tdc_offset, 0.0):
-                print(f'\t {WARN}WARNING: TDC calibration all zeros for Ring {ring}, Fen {fen}, Hybrid {hybrid}{RESET}')
-
-    return final_map
+    if calib_format == 'legacy':
+        # --- OLD CALIB FORMAT — delete this branch once new format fully in use ---
+        return _resolve_legacy_pipeline(calibrations_raw, config, parameters)
+    else:
+        return _resolve_new_pipeline(calibrations_raw, config, parameters)
 
 
 # =============================================================================
@@ -342,4 +464,4 @@ class VMMCalibrationEngine:
                     mask=asic_mask,
                     tdc_offset_array=offset_arr,
                     tdc_slope_array=slope_arr,
-                ) 
+                )
