@@ -40,7 +40,11 @@ class FilePathSearch(QWidget):
         self.info_label = InfoLabel(text=label_text, info=info_text)
         layout.addWidget(self.info_label)
 
-        self.entry = QLineEdit(default)
+        initial_text = default
+        if initial_text and not os.path.isdir(os.path.normpath(initial_text)):
+            initial_text = ""
+
+        self.entry = QLineEdit(initial_text)
         self.entry.setMinimumWidth(theme.INPUT_WIDTH - 30)
         layout.addWidget(self.entry, stretch=1)
 
@@ -60,7 +64,7 @@ class FilePathSearch(QWidget):
 
         # Validate visual state on text change, but don't emit changed signal until editing is finished
         self.entry.textChanged.connect(lambda _: self.validate_path(show_pop_ups=False, emit_signal=False))
-        self.entry.editingFinished.connect(lambda: self.validate_path(show_pop_ups=False, emit_signal=True))
+        self.entry.editingFinished.connect(lambda: self.validate_path(show_pop_ups=True, emit_signal=True))
         self.pathChanged.connect(self.changed.emit)
 
         self.validate_path(show_pop_ups=False, emit_signal=False)
