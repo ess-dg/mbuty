@@ -20,17 +20,17 @@ import signal
 ############################################################################### 
 
 def findPathApp(appName):
-    
-        comm = 'which '+appName
+        IS_WINDOWS = sys.platform.startswith("win")
+        comm = f'where {appName}' if IS_WINDOWS else f'which {appName}'
         
-        app = subprocess.run(comm,shell=True,capture_output=True,encoding='utf-8')
+        app = subprocess.run(comm, shell=True, capture_output=True, encoding='utf-8')
 
         if app.returncode == 0:
             # found
             flag = True
-            temp = os.path.split(app.stdout)
-            path = temp[0]+'/'
-            
+            first_match = app.stdout.strip().splitlines()[0]
+            temp = os.path.split(first_match)
+            path = temp[0] + ('\\' if IS_WINDOWS else '/')
         else: 
             # not found
             flag = False
@@ -232,59 +232,41 @@ def pcapConverter(pcapFile_PathAndFileName_IN,pathToTshark='/usr/sbin/'):
 ############################################################################### 
 
 def verifyTsharkInstallation(initial_pathToTshark):
+        IS_WINDOWS = sys.platform.startswith("win")
+        binary_name = 'tshark.exe' if IS_WINDOWS else 'tshark'
         
-        if os.path.isfile(os.path.join(initial_pathToTshark,'tshark')) is True:
-            
+        if os.path.isfile(os.path.join(initial_pathToTshark, binary_name)) is True:
             flag = True
             verified_pathToTshark = initial_pathToTshark
-            
         else:
-            
             flag = False
             
-            # print('1 not found in'+initial_pathToTshark)
-  
-            # try first to find the path 
-            verified_pathToTshark, flag = findPathApp('wireshark')
+            # Try system lookup using appropriate shell command for OS
+            cmd_app = 'tshark.exe' if IS_WINDOWS else 'tshark'
+            verified_pathToTshark, flag = findPathApp(cmd_app)
             
             if flag is False:
-                
-                # print('2 not found in'+pathToTshark)
-                
-                verified_pathToTshark, flag = findPathApp('tshark')
-                
-                if flag is False:
-                
-                    # print('2 not found in'+pathToTshark)
-                    
-                    # print('go for the loop ... ')
-                
-                    presetPaths = [ '/usr/sbin/', '/usr/bin/','/Applications/Wireshark.app/Contents/MacOS/']
-                    
-                    # presetPaths = [ '/usr/sbin/', '/Applications/Wireshark.app/Contents/MacOS/', '/usr/bin/','ff']
+                presetPaths = [
+                    r'C:\Program Files\Wireshark\\',
+                    r'C:\Program Files (x86)\Wireshark\\',
+                    '/usr/sbin/',
+                    '/usr/bin/',
+                    '/Applications/Wireshark.app/Contents/MacOS/'
+                ]
 
+                for pat in presetPaths:
+                    if os.path.isfile(os.path.join(pat, binary_name)) is True:
+                        verified_pathToTshark = pat
+                        flag = True
+                        break
+                    else:
+                        flag = False
 
-                    # cont = 3
-                    
-                    for pat in presetPaths:
-                    
-        
-                        if os.path.isfile(os.path.join(pat,'tshark')) is True:
-                            verified_pathToTshark = pat
-                            flag = True
-                            # print(str(cont)+' ---> found in'+pathToTshark)
-                            break
-                        else:
-                            flag = False
-                            # print(str(cont)+' not found in'+pat)
-                            
-                        # cont = cont + 1 
-  
             if flag is False:  
-                print('\n \033[1;31mFile Tshark not found in your system, either set right path to Thark in parameters or install it.\033[1;37m\n')
+                print('\n \033[1;31mFile Tshark not found in your system, either set right path to Tshark in parameters or install it.\033[1;37m\n')
                 print('... exiting.')
                 raise RuntimeError("Tshark binary not found in system paths.")
- 
+
         return verified_pathToTshark
     
 ############################################################################### 
