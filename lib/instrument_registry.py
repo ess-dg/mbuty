@@ -45,7 +45,7 @@ INSTRUMENTS = {
     # ---- Beam Monitor -------------------------------------------------------
     16:  {'name': 'BM',       'hex': '0x10', 'type': 'BM',    'hw': 'BM',       'bytes': 20, 'supported': True,  'reader_supported': True},
     # ---- SKADI --------------------------------------------------------------
-    32:  {'name': 'SKADI',    'hex': '0x20', 'type': 'SKADI', 'hw': 'SKADI',    'bytes': 20, 'supported': False, 'reader_supported': True},
+    32:  {'name': 'SKADI',    'hex': '0x20', 'type': 'SKADI', 'hw': 'SKADI',    'bytes': 20, 'supported': True, 'reader_supported': True},
     # ---- JAL / CPIX — not supported -----------------------------------------
     100: {'name': 'MAGIC',    'hex': '0x64', 'type': 'JAL',   'hw': 'CPIX',     'bytes': 20, 'supported': False, 'reader_supported': False},
     96:  {'name': 'DREAM',    'hex': '0x60', 'type': 'JAL',   'hw': 'CPIX',     'bytes': 20, 'supported': False, 'reader_supported': False},
@@ -269,9 +269,11 @@ def match_data_stream_with_config(instr_name_from_conf: str, det_type: str, inst
         print(f"\n\t{WARN}File containing data streams {unique_streams} for detector types {unique_types}{RESET}")
         print(f"\t{WARN}analyzed for instrument {instr_name_from_conf} and type {det_type}{RESET}")
     else:
-        print(f"\n\t{ERR}WARNING: CONFIGURATION MISMATCH!{RESET}", end='')
+        print(f"\n\t{ERR}ERROR: CONFIGURATION MISMATCH!{RESET}", end='')
         print(f"\n\t{ERR}You are trying to read a file containing data streams {unique_streams} for detector types {unique_types}{RESET}")
         print(f"\t{ERR}But in your config file you have specified instrument {instr_name_from_conf} and type {det_type}{RESET}")
+        print("Exiting ...")
+        sys.exit(1)
 
 
 def check_bm_type(geo: np.ndarray, bm_hw: str) -> None:
