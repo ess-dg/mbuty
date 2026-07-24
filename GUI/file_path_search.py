@@ -32,6 +32,7 @@ class FilePathSearch(QWidget):
         super().__init__(parent)
         self.must_exist = must_exist
         self._last_emitted_path = None
+        self._is_valid = False
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -85,8 +86,14 @@ class FilePathSearch(QWidget):
 
     def validate_path(self, show_pop_ups=False, emit_signal=True):
         """
-        Validate the current entry text.
+        Validate the current entry text and record the result so get()
+        stays consistent with the visual (red/warning) state.
         """
+        result = self._validate_path_impl(show_pop_ups=show_pop_ups, emit_signal=emit_signal)
+        self._is_valid = result
+        return result
+
+    def _validate_path_impl(self, show_pop_ups=False, emit_signal=True):
         raw_path = self.entry.text().strip()
 
         if not raw_path:
@@ -156,14 +163,10 @@ class FilePathSearch(QWidget):
 
     def get(self):
         """Return the normalized path if valid, else ''."""
+        if not self._is_valid:
+            return ""
         value = self.entry.text().strip()
-        if value:
-            norm_value = os.path.normpath(value)
-            if os.path.isdir(norm_value):
-                return norm_value
-            if not self.must_exist:
-                return norm_value
-        return ""
+        return os.path.normpath(value) if value else ""
 
     def set(self, path):
         normalized = os.path.normpath(path) if path else ""
