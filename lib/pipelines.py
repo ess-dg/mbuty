@@ -430,8 +430,7 @@ class SkadiPipeline(BasePipeline):
         # Absolute units 
         from lib.abs_units_engine import SKADIAbsUnitsCalculator
         SKADIAbsUnitsCalculator(self.events_container, self.config, self.parameters).process_pipeline(remove_invalid_tofs=self.parameters.plotting.removeInvalidToFs)
-        # No thresholds for skadi (yet)
-        print(f'{INFO}Rest of SKADI pipeline not yet implemented...{RESET}')
+        # No thresholds for skadi (yet)        
 
     def build_plotters(self,unit_ids) -> None:
         from lib.histograms import SKADIAxisSet
@@ -443,6 +442,25 @@ class SkadiPipeline(BasePipeline):
         if self.events_container is not None:
             from lib.plotting_events import SKADIEventsPlotter
             self.event_plotter = SKADIEventsPlotter(self.events_container, self.parameters,self.config, self.axis_set,unit_ids)
+            
+class NMXPipeline(BasePipeline):
+    def analyze(self) -> None:
+        self.check_empty()
+        # Calibrating
+        from lib.calibration import VMMCalibrationEngine
+        VMMCalibrationEngine(self.readouts_container, self.config, self.parameters).process_pipeline()
+        
+        print(f'{INFO}NMX pipeline not yet implemented...{RESET}')
+
+    def build_plotters(self,unit_ids) -> None:
+        # readouts are plotted same as mg use this as a patch for now
+        from lib.histograms import NMXAxisSet
+        self.axis_set = NMXAxisSet(self.parameters, self.config)
+
+        from lib.plotting_readouts import NMXReadoutsPlotter
+        self.readout_plotter = NMXReadoutsPlotter(self.readouts_container, self.parameters,self.config, self.axis_set, unit_ids)
+        print(f'{INFO}NMX plotting not yet implemented...{RESET}')
+            
   
 
 
@@ -587,6 +605,9 @@ def build_detector_pipeline(config: dict, readout_source, parameters) -> BasePip
 
     elif detector_type == 'SKADI':
         pipeline_cls, readouts_container = SkadiPipeline, readout_source.readouts_skadi
+    
+    elif detector_type == 'NMX':
+        pipeline_cls, readouts_container = NMXPipeline, readout_source.readouts_vmm_normal
 
     else:
         print(f'\n{ERR}FATAL ERROR: Configuration mismatch. detector_type "{detector_type}" '

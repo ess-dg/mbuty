@@ -449,7 +449,7 @@ class R5560ReadoutsPlotter(BaseReadoutsPlotter):
         
         
 # ============================================================================
-# SKADI pixel detector
+# SKADI
 # ============================================================================
 
 class SKADIReadoutsPlotter(BaseReadoutsPlotter):
@@ -541,3 +541,166 @@ class SKADIReadoutsPlotter(BaseReadoutsPlotter):
 
             if k == 0:
                 plothtch.ax[0][k].set_ylabel('ch no.')
+                
+# ============================================================================
+# NMX
+# ============================================================================
+
+class NMXReadoutsPlotter(BaseReadoutsPlotter):
+    """
+    Raw ASIC-level diagnostics for NMX readouts. Each unit ID ("panel") is a
+    quadrant spanning two edges -- X and Y -- declared directly in its
+    topology entry as ('fenX', 'hybridsX') / ('fenY', 'hybridsY'), each a
+    list of 5 hybrid IDs (mirrors legacy config.cassMap panel/edge mapping).
+    'hybrid' values are only unique *within* a fen, so selecting a plane
+    requires matching fen + hybrid together, not hybrid alone (unlike MG's
+    single hybridW/hybridG IDs).
+
+    Every raw diagnostic here flattens (unit_id, hybrid_slot, asic) into one
+    ordered column axis (built once in _build_columns so every plot method
+    iterates identically): row 0 is the X edge, row 1 is the Y edge, and
+    column k on both rows refers to the same hybrid slot within the same
+    panel -- i.e. the two orthogonal coordinate readouts for one physical
+    ASIC pair. With 12 unit IDs x 5 hybrids x 2 asics this is a wide
+    (2 x 120) grid; that width is intentional per-column ASIC resolution,
+    not an oversight -- tune fig_size at the call site if needed.
+    """
+
+    def __init__(self, container, parameters, config, axis_set, unit_ids):
+        super().__init__(container, parameters, config, axis_set, unit_ids)
+
+        # number of channels in one VMM asic
+        self.n_channels = 64
+        self.xbins = np.linspace(0, self.n_channels - 1, self.n_channels)
+
+        # Flattened (unit_id, hybrid_slot, asic) column list, built once so
+        # every plot method (channels/timestamps/adc-vs-channel) walks the
+        # exact same columns in the exact same order.
+        self._columns = self._build_columns()
+
+    def _build_columns(self):
+        """
+        One entry per physical ASIC column: (unit_id, hybrid_slot, asic).
+        hybrid_slot is the *position* within hybridsX/hybridsY (0..4), not
+        the raw hybrid ID -- row 0 (X) reads hybridsX[slot], row 1 (Y) reads
+        hybridsY[slot] for that same slot, so a column always pairs the same
+        physical hybrid position across both edges.
+        """
+        columns = []
+        for uid in self.unit_ids:
+            entry = self._topology_entry(uid)
+            n_slots = len(entry['hybridsX'])
+            for slot in range(n_slots):
+                for asic in (0, 1):
+                    columns.append((uid, slot, asic))
+        return columns
+
+    def select_asic_from_column(self, unit_id, slot, asic, plane):
+        """Boolean row mask for one (unit_id, hybrid slot, asic) column on one plane ('X' or 'Y')."""
+        entry = self._topology_entry(unit_id)
+        m = self.matrix
+        if plane == 'X':
+            fen, hybrid_id = entry['fenX'], entry['hybridsX'][slot]
+        else:
+            fen, hybrid_id = entry['fenY'], entry['hybridsY'][slot]
+        sel_ring   = m['ring']   == entry['ring']
+        sel_fen    = m['fen']    == fen
+        sel_hybrid = m['hybrid'] == hybrid_id
+        sel_asic   = m['asic']   == asic
+        return sel_ring & sel_fen & sel_hybrid & sel_asic
+
+    def _column_label(self, unit_id, slot, asic, plane):
+        entry = self._topology_entry(unit_id)
+        hybrid_id = entry['hybridsX'][slot] if plane == 'X' else entry['hybridsY'][slot]
+        return f'{unit_id}.{hybrid_id}.{asic}'
+
+    def plot_channels_raw(self, fig_num=1001):
+        """Raw channel occupancy per (unit_id, hybrid, asic) column; row 0 = X edge, row 1 = Y edge."""
+        if self.is_empty:
+            return
+
+        ploth = PlotGrid(fig_num, 2, len(self._columns))
+        ploth.fig.suptitle('Readouts - raw channels')
+        m = self.matrix
+
+        for k, (uid, slot, asic) in enumerate(self._columns):
+            selX = self.select_asic_from_column(uid, slot, asic, 'X')
+            selY = self.select_asic_from_column(uid, slot, asic, 'Y')
+
+            histoX = self.hist.hist1d(self.xbins, m['channel'][selX])
+            histoY = self.hist.hist1d(self.xbins, m['channel'][selY])
+
+            ploth.ax[0][k].bar(self.xbins, histoX, 0.8, color='b')
+            ploth.ax[1][k].bar(self.xbins, histoY, 0.8, color='r')
+
+            ploth.ax[0][k].set_title(self._column_label(uid, slot, asic, 'X'), fontsize=6, rotation=90)
+            ploth.ax[1][k].set_xlabel(self._column_label(uid, slot, asic, 'Y'), fontsize=6, rotation=90)
+
+            if k == 0:
+                ploth.ax[0][k].set_ylabel('X: counts')
+                ploth.ax[1][k].set_ylabel('Y: counts')
+
+    def plot_timestamps(self, fig_num=1002):
+        """Raw trigger timestamps per (unit_id, hybrid, asic) column; row 0 = X edge, row 1 = Y edge."""
+        if self.is_empty:
+            return
+
+        plotht = PlotGrid(fig_num, 2, len(self._columns))
+        plotht.fig.suptitle('Readouts - raw channels time stamps')
+        m = self.matrix
+
+        for k, (uid, slot, asic) in enumerate(self._columns):
+            selX = self.select_asic_from_column(uid, slot, asic, 'X')
+            selY = self.select_asic_from_column(uid, slot, asic, 'Y')
+
+            timeStampX = m['timeStamp'][selX]
+            timeStampY = m['timeStamp'][selY]
+            xxX = np.arange(0, len(timeStampX), 1)
+            xxY = np.arange(0, len(timeStampY), 1)
+
+            plotht.ax[0][k].scatter(xxX, timeStampX, 0.8, color='b', marker='+')
+            plotht.ax[1][k].scatter(xxY, timeStampY, 0.8, color='r', marker='+')
+
+            plotht.ax[0][k].set_title(self._column_label(uid, slot, asic, 'X'), fontsize=6, rotation=90)
+            plotht.ax[1][k].set_xlabel(self._column_label(uid, slot, asic, 'Y'), fontsize=6, rotation=90)
+            plotht.ax[0][k].grid(axis='x', alpha=0.75)
+            plotht.ax[1][k].grid(axis='x', alpha=0.75)
+            plotht.ax[0][k].grid(axis='y', alpha=0.75)
+            plotht.ax[1][k].grid(axis='y', alpha=0.75)
+
+            if k == 0:
+                plotht.ax[0][k].set_ylabel('time (ns)')
+                plotht.ax[1][k].set_ylabel('time (ns)')
+
+    def plot_adc_vs_channel(self, fig_num=1006):
+        """ADC vs channel 2D occupancy per (unit_id, hybrid, asic) column; row 0 = X edge, row 1 = Y edge."""
+        if self.is_empty:
+            return
+
+        norm_colors = log_scale_norm(self.parameters.pulseHeigthSpect.plotPHSlog)
+
+        plothtch = PlotGrid(fig_num, 2, len(self._columns))
+        plothtch.fig.suptitle('ADC vs CH')
+        ax_e = self.axis_set.ax_energy
+        m = self.matrix
+
+        for k, (uid, slot, asic) in enumerate(self._columns):
+            selX = self.select_asic_from_column(uid, slot, asic, 'X')
+            selY = self.select_asic_from_column(uid, slot, asic, 'Y')
+
+            histochX, _, _ = self.hist.hist2d(ax_e.centers, m['adc'][selX], self.xbins, m['channel'][selX])
+            histochY, _, _ = self.hist.hist2d(ax_e.centers, m['adc'][selY], self.xbins, m['channel'][selY])
+
+            plothtch.ax[0][k].imshow(histochX, aspect='auto', norm=norm_colors, interpolation='none',
+                                      extent=[ax_e.start, ax_e.stop, self.xbins[0], self.xbins[-1]], origin='lower', cmap='jet')
+            plothtch.ax[1][k].imshow(histochY, aspect='auto', norm=norm_colors, interpolation='none',
+                                      extent=[ax_e.start, ax_e.stop, self.xbins[0], self.xbins[-1]], origin='lower', cmap='jet')
+
+            plothtch.ax[0][k].set_xlabel('ADC')
+            plothtch.ax[1][k].set_xlabel('ADC')
+            plothtch.ax[0][k].set_title(self._column_label(uid, slot, asic, 'X'), fontsize=6, rotation=90)
+
+            if k == 0:
+                plothtch.ax[0][k].set_ylabel('X ch no.')
+                plothtch.ax[1][k].set_ylabel('Y ch no.')
+ 

@@ -637,6 +637,25 @@ class SKADIAxisSet(BaseAxisSet):
         self.ax_pix_x_mm = Axis(0, stop_x_mm, steps_x_mm)
         self.ax_pix_y_mm = Axis(0, stop_y_mm, steps_y_mm)
         
+class NMXAxisSet(BaseAxisSet):
+    """
+    Axis set for NMX. Raw readout-level diagnostics (raw channels,
+    timestamps, ADC vs channel, chopper resets) only touch the generic
+    axes BaseAxisSet already builds (ax_energy, ax_tof, etc.) -- no
+    detector-specific position axis is needed for that stage, so this is
+    a placeholder inheriting everything from the base.
+
+    build_specific_axes() will grow ax_x / ax_y (channel-space, 0-639,
+    mirroring MBAxisSet.ax_wires/ax_strips) and their _mm variants once the
+    hits/events stage needs position reconstruction -- the _mm axes also
+    need stripPitchX_mm/stripPitchY_mm added to the NMX config first, which
+    isn't there yet.
+    """
+
+    def build_specific_axes(self) -> None:
+        pass
+
+        
 ###############################################################################
 ###############################################################################
 ###############################################################################

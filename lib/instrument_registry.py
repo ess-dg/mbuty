@@ -34,7 +34,7 @@ INSTRUMENTS = {
     73:  {'name': 'TBLMB',    'hex': '0x49', 'type': 'MB',    'hw': 'VMM',      'bytes': 20, 'supported': True,  'reader_supported': True},
     # ---- Multi-Grid (VMM3A) -------------------------------------------------
     64:  {'name': 'TREX',     'hex': '0x40', 'type': 'MG',    'hw': 'VMM',      'bytes': 20, 'supported': True,  'reader_supported': True},
-    68:  {'name': 'NMX',      'hex': '0x44', 'type': 'GDG',   'hw': 'VMM',      'bytes': 20, 'supported': False, 'reader_supported': True},
+    68:  {'name': 'NMX',      'hex': '0x44', 'type': 'NMX',   'hw': 'VMM',      'bytes': 20, 'supported': False, 'reader_supported': True},
     # ---- Helium-3 (CAEN R5560) ----------------------------------------------
     60:  {'name': 'CSPEC',    'hex': '0x3c', 'type': 'He3',   'hw': 'R5560',    'bytes': 24, 'supported': True,  'reader_supported': True},
     52:  {'name': 'BIFROST',  'hex': '0x34', 'type': 'He3',   'hw': 'R5560',    'bytes': 24, 'supported': True,  'reader_supported': True},

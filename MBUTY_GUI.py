@@ -440,8 +440,7 @@ class MBUTYMainWindow(QMainWindow):
 
         def sync_work():
             try:
-                transfer_data = ta.transferDataUtil()
-                status = transfer_data.syncData(source_path, dest_path)
+                status = ta.syncData(source_path, dest_path)
 
                 if status == 0:
                     self.dispatcher.post(
