@@ -61,7 +61,6 @@ class MBUTYMainWindow(QMainWindow):
         self.analysis_running = False
         self.backend_thread = None
         self.widgets = {}
-        self.current_subprocess_handle = None
         self.original_stdout = sys.stdout
         self.dispatcher = _MainThreadDispatcher()
         self.after_widgets_created_tasks = []
@@ -398,18 +397,19 @@ class MBUTYMainWindow(QMainWindow):
             except Exception as e:
                 print(f"Failed to stop backend thread: {e}")
 
-        if self.current_subprocess_handle and self.current_subprocess_handle.poll() is None:
+        proc = ta.current_subprocess_handle
+        if proc and proc.poll() is None:
             print("Terminating active external process...")
             try:
-                self.current_subprocess_handle.terminate()
-                self.current_subprocess_handle.wait(timeout=5)
-                if self.current_subprocess_handle.poll() is None:
+                proc.terminate()
+                proc.wait(timeout=5)
+                if proc.poll() is None:
                     print("Process did not terminate gracefully, sending SIGKILL.")
-                    self.current_subprocess_handle.kill()
+                    proc.kill()
             except Exception as e:
                 print(f"Error while trying to terminate process: {e}")
             finally:
-                self.current_subprocess_handle = None
+                ta.current_subprocess_handle = None
 
         self.analysis_running = False
 
@@ -446,8 +446,6 @@ class MBUTYMainWindow(QMainWindow):
                     self.dispatcher.post(
                         lambda: QMessageBox.information(self, "Sync Complete", "Data synced successfully.")
                     )
-                    if self.stop_button.isVisible():
-                        self.dispatcher.post(lambda: self.stop_button.setVisible(False))
                 else:
                     self.dispatcher.post(
                         lambda: QMessageBox.critical(
@@ -467,6 +465,7 @@ class MBUTYMainWindow(QMainWindow):
                 )
             finally:
                 self.analysis_running = False
+                self.dispatcher.post(lambda: self.stop_button.setVisible(False))
 
         self.backend_thread = threading.Thread(target=sync_work, daemon=True)
         self.backend_thread.start()
