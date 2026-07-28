@@ -43,12 +43,49 @@ class VMMNormalClusterer:
         cluster_ids = np.cumsum(break_mask) - 1
         n_clusters  = int(cluster_ids[-1]) + 1 if len(cluster_ids) > 0 else 0
         return cluster_ids, sort_order, n_clusters
-    
+
+    @staticmethod
+    def _max_electrode_counts(config: dict) -> tuple:
+        """
+        Resolve (max_electrodes_x, max_electrodes_y) from config, keyed off detectorType --
+        electrode_x/electrode_y is plane-0/plane-1 (mirrors hits.plane: 0=X, 1=Y), NOT any
+        particular electrode technology. Which config key backs each side differs per detector:
+
+            MB:  electrode_x <- config['wires']   electrode_y <- config['strips']
+            MG:  electrode_x <- config['wires']   electrode_y <- config['grids']
+            NMX: electrode_x <- config['strips']  electrode_y <- config['strips']  (same value, both edges are strips)
+        """
+        det_type = config.get('detectorType', '')
+
+        if det_type == 'NMX':
+            if 'strips' not in config:
+                print('\t [ERROR] Config is missing "strips" — cannot cluster. Check your config file.')
+                sys.exit(1)
+            max_electrodes_x = int(config['strips'])
+            max_electrodes_y = int(config['strips'])
+            return max_electrodes_x, max_electrodes_y
+
+        # MB / MG share the electrode_x <- wires convention
+        if 'wires' not in config:
+            print('\t [ERROR] Config is missing "wires" — cannot cluster. Check your config file.')
+            sys.exit(1)
+        max_electrodes_x = int(config['wires'])
+
+        if 'strips' in config:
+            max_electrodes_y = int(config['strips'])
+        elif 'grids' in config:
+            max_electrodes_y = int(config['grids'])
+        else:
+            print('\t [ERROR] Config is missing both "strips" and "grids" — cannot cluster. Check your config file.')
+            sys.exit(1)
+
+        return max_electrodes_x, max_electrodes_y
+
     @staticmethod
     def cluster(hits, config: dict, time_window_s: float) -> eventsVMMnormal:
-        
-        print(f'{INFO}\nClustering VMM normal events ... {RESET}',end='')
-        
+
+        print(f'{INFO}\nClustering VMM normal events ... {RESET}', end='')
+
         m = hits.matrix[:hits.fill_count]
         n = len(m)
 
@@ -56,81 +93,67 @@ class VMMNormalClusterer:
             return eventsVMMnormal(size=0)
 
         tw_recursive, tw_max = VMMNormalClusterer._derive_time_windows(time_window_s)
-        # Get the wire and strip/grid configuration from config for clustering (error and exit if not found)
-        # Make this more generic based on config
-        if 'wires' not in config:
-            print('\t [ERROR] Config is missing "wires" — cannot cluster. Check your config file.')
-            sys.exit(1)
 
-        if 'strips' in config:
-            max_strips = int(config['strips'])
-        elif 'grids' in config:
-            max_strips = int(config['grids'])
-        else:
-            print('\t [ERROR] Config is missing both "strips" and "grids" — cannot cluster. Check your config file.')
-            sys.exit(1)
-
-        max_wires = int(config['wires']) 
+        max_electrodes_x, max_electrodes_y = VMMNormalClusterer._max_electrode_counts(config)
 
         cluster_ids, sort_order, n_clusters = VMMNormalClusterer._partition_hits(m['ID'], m['timeStamp'], tw_recursive)
-        
+
         out = eventsVMMnormal(size=n_clusters)
         out.durations     = hits.durations.copy()
         out.instrumentIDs = hits.instrumentIDs.copy()
 
-        ms       = m[sort_order]
-        ts       = ms['timeStamp']
-        is_wire  = ms['plane'] == 0
-        is_strip = ms['plane'] == 1
-        ch_idx   = ms['index']
-        adc      = ms['adc']
+        ms            = m[sort_order]
+        ts            = ms['timeStamp']
+        is_electrode_x = ms['plane'] == 0
+        is_electrode_y = ms['plane'] == 1
+        ch_idx        = ms['index']
+        adc           = ms['adc']
 
         first_hit = np.searchsorted(cluster_ids, np.arange(n_clusters), side='left')
         last_hit  = np.searchsorted(cluster_ids, np.arange(n_clusters), side='right') - 1
         span      = ts[last_hit] - ts[first_hit]
 
-        wire_count  = np.bincount(cluster_ids, weights=is_wire.astype('int64'),  minlength=n_clusters).astype('int64')
-        strip_count = np.bincount(cluster_ids, weights=is_strip.astype('int64'), minlength=n_clusters).astype('int64')
+        x_count = np.bincount(cluster_ids, weights=is_electrode_x.astype('int64'), minlength=n_clusters).astype('int64')
+        y_count = np.bincount(cluster_ids, weights=is_electrode_y.astype('int64'), minlength=n_clusters).astype('int64')
 
-        wire_adc  = np.bincount(cluster_ids, weights=(adc * is_wire).astype('float64'),  minlength=n_clusters)
-        strip_adc = np.bincount(cluster_ids, weights=(adc * is_strip).astype('float64'), minlength=n_clusters)
+        x_adc = np.bincount(cluster_ids, weights=(adc * is_electrode_x).astype('float64'), minlength=n_clusters)
+        y_adc = np.bincount(cluster_ids, weights=(adc * is_electrode_y).astype('float64'), minlength=n_clusters)
 
-        wire_pos_num  = np.bincount(cluster_ids, weights=(ch_idx * adc * is_wire).astype('float64'),  minlength=n_clusters)
-        strip_pos_num = np.bincount(cluster_ids, weights=(ch_idx * adc * is_strip).astype('float64'), minlength=n_clusters)
+        x_pos_num = np.bincount(cluster_ids, weights=(ch_idx * adc * is_electrode_x).astype('float64'), minlength=n_clusters)
+        y_pos_num = np.bincount(cluster_ids, weights=(ch_idx * adc * is_electrode_y).astype('float64'), minlength=n_clusters)
 
-        wire_min = np.full(n_clusters, 999999, dtype='int64')
-        wire_max = np.full(n_clusters, -1,     dtype='int64')
-        np.minimum.at(wire_min, cluster_ids[is_wire], ch_idx[is_wire])
-        np.maximum.at(wire_max, cluster_ids[is_wire], ch_idx[is_wire])
+        x_min = np.full(n_clusters, 999999, dtype='int64')
+        x_max = np.full(n_clusters, -1,     dtype='int64')
+        np.minimum.at(x_min, cluster_ids[is_electrode_x], ch_idx[is_electrode_x])
+        np.maximum.at(x_max, cluster_ids[is_electrode_x], ch_idx[is_electrode_x])
 
-        strip_min = np.full(n_clusters, 999999, dtype='int64')
-        strip_max = np.full(n_clusters, -1,     dtype='int64')
-        np.minimum.at(strip_min, cluster_ids[is_strip], ch_idx[is_strip])
-        np.maximum.at(strip_max, cluster_ids[is_strip], ch_idx[is_strip])
+        y_min = np.full(n_clusters, 999999, dtype='int64')
+        y_max = np.full(n_clusters, -1,     dtype='int64')
+        np.minimum.at(y_min, cluster_ids[is_electrode_y], ch_idx[is_electrode_y])
+        np.maximum.at(y_max, cluster_ids[is_electrode_y], ch_idx[is_electrode_y])
 
-        accept_window    = span <= tw_max
-        wire_contiguous  = np.where(wire_count > 0,  (wire_max - wire_min) == (wire_count - 1),  False)
-        strip_contiguous = np.where(strip_count > 0, (strip_max - strip_min) == (strip_count - 1), False)
-        wire_in_limits   = wire_count  < max_wires
-        strip_in_limits  = strip_count < max_strips
-        has_wire_hit     = wire_count  >= 1
-        has_strip_hit    = strip_count >= 1
+        accept_window   = span <= tw_max
+        x_contiguous     = np.where(x_count > 0, (x_max - x_min) == (x_count - 1), False)
+        y_contiguous     = np.where(y_count > 0, (y_max - y_min) == (y_count - 1), False)
+        x_in_limits      = x_count < max_electrodes_x
+        y_in_limits      = y_count < max_electrodes_y
+        has_x_hit        = x_count >= 1
+        has_y_hit        = y_count >= 1
 
-        accept_2d = (accept_window & has_wire_hit & has_strip_hit & wire_contiguous & strip_contiguous & wire_in_limits & strip_in_limits)
-        accept_1dw = (accept_window & has_wire_hit  & ~has_strip_hit & wire_contiguous & wire_in_limits)
-        accept_1ds = (accept_window & has_strip_hit & ~has_wire_hit & strip_contiguous & strip_in_limits)
+        accept_2d  = (accept_window & has_x_hit & has_y_hit & x_contiguous & y_contiguous & x_in_limits & y_in_limits)
+        accept_1dx = (accept_window & has_x_hit  & ~has_y_hit & x_contiguous & x_in_limits)
+        accept_1dy = (accept_window & has_y_hit  & ~has_x_hit & y_contiguous & y_in_limits)
 
         with np.errstate(divide='ignore', invalid='ignore'):
-            coord0 = np.where(wire_adc  > 0, np.round(wire_pos_num  / wire_adc,  2), np.nan)
-            coord1 = np.where(strip_adc > 0, np.round(strip_pos_num / strip_adc, 2), np.nan)
+            coord0 = np.where(x_adc > 0, np.round(x_pos_num / x_adc, 2), np.nan)
+            coord1 = np.where(y_adc > 0, np.round(y_pos_num / y_adc, 2), np.nan)
 
         accept_2d  &= ~(np.isnan(coord0) | np.isnan(coord1))
-        accept_1dw &= ~np.isnan(coord0)  & np.isnan(coord1)
-        accept_1ds &= np.isnan(coord0)   & ~np.isnan(coord1)
-   
+        accept_1dx &= ~np.isnan(coord0)  & np.isnan(coord1)
+        accept_1dy &= np.isnan(coord0)   & ~np.isnan(coord1)
 
-        assigned_ids = np.where(accept_2d | accept_1dw | accept_1ds , ms['ID'][first_hit], np.int64(-1))
-        n_accepted   = int(np.sum(accept_2d | accept_1dw | accept_1ds))
+        assigned_ids = np.where(accept_2d | accept_1dx | accept_1dy, ms['ID'][first_hit], np.int64(-1))
+        n_accepted   = int(np.sum(accept_2d | accept_1dx | accept_1dy))
 
         timing_src = {
             'timeStamp': ts[first_hit],
@@ -142,11 +165,11 @@ class VMMNormalClusterer:
             'ID':           assigned_ids,
             'coordinate0':  coord0,
             'coordinate1':  coord1,
-            'pulseHeight0': wire_adc.astype('int64'),
-            'pulseHeight1': strip_adc.astype('int64'),
-            'mult0':        wire_count,
-            'mult1':        strip_count,
-            'clusterTimeSpan':  span.astype('int64'),
+            'pulseHeight0': x_adc.astype('int64'),
+            'pulseHeight1': y_adc.astype('int64'),
+            'mult0':        x_count,
+            'mult1':        y_count,
+            'clusterTimeSpan': span.astype('int64'),
         }
 
         # Populate stats BEFORE absorb() so print_stats() sees the correct values
@@ -155,10 +178,10 @@ class VMMNormalClusterer:
             'n_accepted':           n_accepted,
             'n_rejected':           n_clusters - n_accepted,
             'n_accepted_2d':        int(np.sum(accept_2d)),
-            'n_accepted_1dw':        int(np.sum(accept_1dw)),
-            'n_accepted_1ds':        int(np.sum(accept_1ds)),
+            'n_accepted_1dx':       int(np.sum(accept_1dx)),
+            'n_accepted_1dy':       int(np.sum(accept_1dy)),
             'n_rejected_overflow':  int(np.sum(~accept_window)),
-            'n_rejected_neighbour': int(np.sum(accept_window & ~(accept_2d | accept_1dw | accept_1ds))),
+            'n_rejected_neighbour': int(np.sum(accept_window & ~(accept_2d | accept_1dx | accept_1dy))),
         })
 
         out.absorb(computed, timing_src)
