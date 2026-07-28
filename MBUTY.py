@@ -297,6 +297,8 @@ if __name__ == '__main__':
     # configFileName  = "ESTIA_sect2and3.json"
     # configFileName  = "ESTIA_sect4and5.json"
     
+    configFileName  = "NMXtest.json"
+    
     parameters.fileManagement.configFilePath = os.path.join(current_dir, 'config') + os.sep
 
     parameters.fileManagement.configFileName = configFileName
@@ -311,10 +313,10 @@ if __name__ == '__main__':
     ### can only be only one of these 5 options: off, pcap-sync, pcap-local, pcap-local-overwrite or kafka
 
     # parameters.acqMode = 'pcap-sync'
-    parameters.acqMode = 'pcap-local'
+    # parameters.acqMode = 'pcap-local'
     # parameters.acqMode = 'pcap-local-overwrite'
     # parameters.acqMode = 'kafka'
-    # parameters.acqMode = 'off'
+    parameters.acqMode = 'off'
 
     ###  then check parameters.fileManagement.openMode = 'window' for the open mode ...
     ###############################################################################
@@ -386,6 +388,9 @@ if __name__ == '__main__':
     # parameters.fileManagement.fileName = ['triggertime-1000V-30a11_July8th.pcapng']
     
     # parameters.fileManagement.fileName = ['skadi_48tiles.pcapng']
+    
+    parameters.fileManagement.fileName = ['tim_4p5mVfC_130mV_4700V_00031_20250829130938.pcapng']
+
     
     parameters.fileManagement.fileSerials = [6,2,4,9]
     # OR

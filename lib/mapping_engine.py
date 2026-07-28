@@ -711,6 +711,221 @@ class MGMapper(DetectorMapper):
         return h
 
 # =============================================================================
+# NMXMapper — NMX quadrant-panel VMM normal mode
+# =============================================================================
+
+class NMXMapper(DetectorMapper):
+    """
+    Maps readoutsVMMnormal -> hitsVMMnormal for NMX detectors.
+
+    Topology key: each entry covers one full quadrant-panel bank ('ID' =
+    bank*10 + quadrant, e.g. ID 13 = bank 1, quadrant 3) and carries BOTH
+    edges of that quadrant: ('fenX', 'hybridsX') for the X edge and
+    ('fenY', 'hybridsY') for the Y edge, each hybridsX/hybridsY a 5-long
+    list of hybrid IDs. 
+    
+    Plane assignment falls out of which edge matched (fenX+hybrid in
+    hybridsX -> X=0, fenY+hybrid in hybridsY -> Y=1) -- same idea as MG's
+    wire/grid OR-match, just against a *list* of hybrids per edge instead
+    of a single hybrid ID.
+
+    Coordinate formula  bottom-left origin per quadrant, 
+    all 4 quadrants tiled into one 1280x1280 grid
+    per bank):
+
+        local        = channel + 64 * asic                    [0, 127]
+        hybrid_slot  = position of matched hybrid within that
+                       column's hybridsX/hybridsY list          [0, 4]
+        in_quadrant  = 128 * hybrid_slot + (127 - local if this
+                       quadrant's edge is flipped else local)   [0, 639]
+        global       = QUADRANT_*_OFFSET[quadrant] + in_quadrant [0, 1279]
+
+    QUADRANT_*_OFFSET / QUADRANT_*_FLIP are indexed 0-3 by the quadrant
+    digit of ID (ID % 10) and encode the bottom-left-origin tiling agreed
+    on the whiteboard:
+
+        quadrant  X offset  Y offset  X flipped  Y flipped
+           0          0        640       yes        yes
+           1        640        640       yes        no
+           2          0          0       no         yes
+           3        640          0       no         no
+
+    'ID' written to hits is the full topology ID (bank*10 + quadrant) --
+    bank and quadrant can be recovered downstream at any stage (clustering,
+    plotting) via ID // 10 and ID % 10, the same idea SKADIMapper uses for
+    its bank encoding. Banks are physically independent detector panels
+    (different locations/angles) and are never combined into one shared
+    coordinate space -- each bank's 1280x1280 grid stands alone.
+    """
+
+    # index 0-3 = quadrant digit of ID (ID % 10)
+    QUADRANT_X_OFFSET = np.array([0, 640, 0, 640], dtype='int64')
+    QUADRANT_Y_OFFSET = np.array([640, 640, 0, 0], dtype='int64')
+    QUADRANT_X_FLIP   = np.array([True, True, False, False])
+    QUADRANT_Y_FLIP   = np.array([True, False, True, False])
+
+    EDGE_WIDTH    = 640   # 5 hybrids * 2 asics * 64 channels
+    IN_HYBRID_MAX = 127   # 2 asics * 64 channels - 1
+
+    @staticmethod
+    def _build_hybrid_grid(topology: list, key: str) -> np.ndarray:
+        """Stack a per-column hybrid-ID list field (hybridsX/hybridsY) into a (N, 5) int64 array."""
+        return np.array([e[key] for e in topology], dtype='int64')
+
+    @staticmethod
+    def _assign_ids_vectorized(src: np.ndarray, topo_arrays: dict) -> tuple:
+        """
+        NMX-specific topology lookup. Overrides DetectorMapper._assign_ids_vectorized.
+
+        A readout row belongs to column k if:
+            ring == rings[k]  AND
+            ( (fen == fenXs[k]  AND  hybrid in hybridsX[k])  OR
+              (fen == fenYs[k]  AND  hybrid in hybridsY[k]) )
+
+        Returns
+        -------
+        assigned_ids : int64 (n,)   -- full topology ID, -1 where unmatched
+        topo_idx     : int64 (n,)   -- column index in topology arrays
+        valid_mask   : bool  (n,)
+        plane        : int64 (n,)   -- 0 = X edge, 1 = Y edge, -1 = unmatched
+        """
+        ids      = topo_arrays['ID']
+        rings    = topo_arrays['ring']
+        fenXs    = topo_arrays['fenX']
+        fenYs    = topo_arrays['fenY']
+        hybridsX = topo_arrays['hybridsX']   # (N, 5)
+        hybridsY = topo_arrays['hybridsY']   # (N, 5)
+
+        r = src['ring']    # (n,)
+        f = src['fen']     # (n,)
+        h = src['hybrid']  # (n,)
+
+        # Broadcast: (n_readouts, n_topology)
+        ring_match = r[:, None] == rings[None, :]
+        fX_match   = f[:, None] == fenXs[None, :]
+        fY_match   = f[:, None] == fenYs[None, :]
+        hX_match   = np.any(h[:, None, None] == hybridsX[None, :, :], axis=2)
+        hY_match   = np.any(h[:, None, None] == hybridsY[None, :, :], axis=2)
+
+        colX_match = ring_match & fX_match & hX_match   # (n, N)
+        colY_match = ring_match & fY_match & hY_match   # (n, N)
+        col_match  = colX_match | colY_match             # (n, N)
+
+        valid_mask   = col_match.any(axis=1)
+        topo_idx     = np.where(valid_mask, col_match.argmax(axis=1), np.int64(-1))
+        assigned_ids = np.where(valid_mask, ids[topo_idx], np.int64(-1))
+
+        # Derive plane from which edge matched at the resolved column index.
+        safe_idx = np.where(valid_mask, topo_idx, np.int64(0))
+        rows     = np.arange(len(src))
+        is_X = valid_mask & colX_match[rows, safe_idx]
+        is_Y = valid_mask & colY_match[rows, safe_idx]
+
+        plane = np.full(len(src), -1, dtype='int64')
+        plane[is_X] = np.int64(0)
+        plane[is_Y] = np.int64(1)
+
+        return (
+            assigned_ids.astype('int64'),
+            topo_idx.astype('int64'),
+            valid_mask,
+            plane,
+        )
+
+    @staticmethod
+    def _hybrid_slot(
+        h: np.ndarray,
+        hybrid_grid: np.ndarray,
+        topo_idx: np.ndarray,
+        mask: np.ndarray,
+    ) -> np.ndarray:
+        """
+        Position (0-4) of each masked row's hybrid ID within its resolved
+        column's hybrid list -- the *slot*, not the raw ID (topology can
+        assign hybrid IDs as any values; only list position matters).
+        """
+        n = len(h)
+        slot = np.full(n, -1, dtype='int64')
+        safe_idx = np.where(mask, topo_idx, np.int64(0))
+        matches = hybrid_grid[safe_idx] == h[:, None]   # (n, 5)
+        slot[mask] = matches[mask].argmax(axis=1)
+        return slot
+
+    @staticmethod
+    def _compute_global_coordinates(
+        src: np.ndarray,
+        valid_mask: np.ndarray,
+        plane: np.ndarray,
+        assigned_ids: np.ndarray,
+        topo_idx: np.ndarray,
+        hybridsX: np.ndarray,
+        hybridsY: np.ndarray,
+    ) -> np.ndarray:
+        """local-in-hybrid -> in-quadrant -> global coordinate, per the whiteboard formula."""
+        n = len(src)
+        local = src['channel'] + np.int64(64) * src['asic']   # [0, 127]
+
+        quadrant = np.where(valid_mask, assigned_ids % 10, np.int64(-1))
+
+        is_X = valid_mask & (plane == 0)
+        is_Y = valid_mask & (plane == 1)
+
+        slot_X = NMXMapper._hybrid_slot(src['hybrid'], hybridsX, topo_idx, is_X)
+        slot_Y = NMXMapper._hybrid_slot(src['hybrid'], hybridsY, topo_idx, is_Y)
+
+        global_index = np.full(n, -1, dtype='int64')
+
+        if np.any(is_X):
+            q      = quadrant[is_X]
+            flip   = NMXMapper.QUADRANT_X_FLIP[q]
+            offset = NMXMapper.QUADRANT_X_OFFSET[q]
+            raw    = np.where(flip, NMXMapper.IN_HYBRID_MAX - local[is_X], local[is_X])
+            global_index[is_X] = offset + (128 * slot_X[is_X] + raw)
+
+        if np.any(is_Y):
+            q      = quadrant[is_Y]
+            flip   = NMXMapper.QUADRANT_Y_FLIP[q]
+            offset = NMXMapper.QUADRANT_Y_OFFSET[q]
+            raw    = np.where(flip, NMXMapper.IN_HYBRID_MAX - local[is_Y], local[is_Y])
+            global_index[is_Y] = offset + (128 * slot_Y[is_Y] + raw)
+
+        return global_index
+
+    @staticmethod
+    def map(readouts, config: dict) -> hitsVMMnormal:
+        topology = config['topology']
+
+        topo = DetectorMapper._build_topology_arrays(topology, ['ID', 'ring', 'fenX', 'fenY'])
+        topo['hybridsX'] = NMXMapper._build_hybrid_grid(topology, 'hybridsX')
+        topo['hybridsY'] = NMXMapper._build_hybrid_grid(topology, 'hybridsY')
+
+        n   = readouts.fill_count
+        src = readouts.matrix[:n]
+
+        # Stage 1: Topology lookup (ring + fen + hybrid-in-list, OR across X/Y edges)
+        assigned_ids, topo_idx, valid_mask, plane = NMXMapper._assign_ids_vectorized(src, topo)
+
+        # Stage 2+3: local-in-hybrid -> in-quadrant -> global coordinate
+        global_index = NMXMapper._compute_global_coordinates(
+            src, valid_mask, plane, assigned_ids, topo_idx, topo['hybridsX'], topo['hybridsY']
+        )
+
+        # Stage 4: Absorption -- same hitsVMMnormal schema as MB/MG
+        h = hitsVMMnormal(size=n)
+        h.durations = readouts.durations.copy()
+        h.instrumentIDs = readouts.instrumentIDs.copy()
+        h.absorb(
+            computed_fields={
+                'ID': assigned_ids, 'plane': plane, 'index': global_index,
+                'adc': src['adc'].astype('int64'),
+            },
+            timing_src=src,
+        )
+
+        _report_unmapped_units(assigned_ids, topo['ID'], 'panel')
+        return h
+
+# =============================================================================
 # He3Mapper — Helium-3 CAEN R5560
 # =============================================================================
 
@@ -1098,6 +1313,11 @@ def map_detector(readouts, config: dict):
         if op_mode == 'normal':
             return MGMapper.map(readouts, config)
         raise ValueError(f'map_detector: unsupported operationMode "{op_mode}" for MG.')
+
+    if det_type == 'NMX':
+        if op_mode == 'normal':
+            return NMXMapper.map(readouts, config)
+        raise ValueError(f'map_detector: unsupported operationMode "{op_mode}" for NMX.')
 
     if det_type == 'He3':
         if op_mode != 'normal':

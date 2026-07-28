@@ -449,16 +449,23 @@ class NMXPipeline(BasePipeline):
         # Calibrating
         from lib.calibration import VMMCalibrationEngine
         VMMCalibrationEngine(self.readouts_container, self.config, self.parameters).process_pipeline()
+        # Mapping
+        from lib.mapping_engine import NMXMapper
+        self.hits_container = NMXMapper.map(self.readouts_container, self.config)
         
         print(f'{INFO}NMX pipeline not yet implemented...{RESET}')
 
     def build_plotters(self,unit_ids) -> None:
-        # readouts are plotted same as mg use this as a patch for now
         from lib.histograms import NMXAxisSet
         self.axis_set = NMXAxisSet(self.parameters, self.config)
 
         from lib.plotting_readouts import NMXReadoutsPlotter
         self.readout_plotter = NMXReadoutsPlotter(self.readouts_container, self.parameters,self.config, self.axis_set, unit_ids)
+       
+        if self.hits_container is not None:
+                from lib.plotting_hits import NMXHitsPlotter
+                self.hit_plotter = NMXHitsPlotter(self.hits_container, self.parameters,self.config, self.axis_set,unit_ids)
+        
         print(f'{INFO}NMX plotting not yet implemented...{RESET}')
             
   

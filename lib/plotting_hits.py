@@ -367,3 +367,64 @@ class R5560HitsPlotter(BaseHitsPlotter):
         if self.is_empty:
             return
         print(f'\n\t{WARN}WARNING: Hits time stamp VS Ch not supported for R5560 -> SKIPPING PLOT (use raw readouts timestamp plots).{RESET}')
+
+# ============================================================================
+# NMX
+# ============================================================================
+
+class NMXHitsPlotter(BaseHitsPlotter):
+    """
+    Mapped-channel occupancy for hitsVMMnormal (NMX quadrant panels).
+
+    NMXMapper tiles all four quadrants of a bank into one shared 1280x1280
+    global coordinate space on 'index' (see mapping_engine.NMXMapper
+    docstring for the full per-quadrant offset/flip table), so that
+    clustering can run across quadrant boundaries untouched. For a
+    per-panel occupancy plot we need the inverse of that one step, just
+    the offset, not the flip.
+    """
+
+    # index 0-3 = quadrant digit of ID (ID % 10) -- copied from NMXMapper
+    QUADRANT_X_OFFSET = np.array([0, 640, 0, 640], dtype='int64')
+    QUADRANT_Y_OFFSET = np.array([640, 640, 0, 0], dtype='int64')
+
+    EDGE_WIDTH = 640   # 5 hybrids * 2 asics * 64 channels
+
+    def __init__(self, container, parameters, config, axis_set, unit_ids):
+        super().__init__(container, parameters, config, axis_set, unit_ids)
+        self.xbins = np.linspace(0, self.EDGE_WIDTH - 1, self.EDGE_WIDTH)
+
+    def _local_index(self, global_index: np.ndarray, plane: int, unit_id) -> np.ndarray:
+        """Un-shift a global 'index' back to this panel's local 0..639 range on the given plane (0=X, 1=Y)."""
+        quadrant = unit_id % 10
+        offset = (self.QUADRANT_X_OFFSET[quadrant] if plane == 0
+                  else self.QUADRANT_Y_OFFSET[quadrant])
+        return global_index - offset
+
+    def plot_channels_raw(self, fig_num=1003):
+        """Mapped X/Y channel occupancy per panel, un-shifted to local 0-639. Row 0 = X edge, row 1 = Y edge."""
+        if self.is_empty:
+            return
+        ploth = PlotGrid(fig_num, 2, len(self.unit_ids))
+        ploth.fig.suptitle('Hits - mapped channels')
+        m = self.matrix
+
+        for k, uid in enumerate(self.unit_ids):
+            sel = self.select_unit(uid)
+            is_X = m['plane'] == 0
+            is_Y = m['plane'] == 1
+
+            x_idx = self._local_index(m['index'][sel & is_X], 0, uid)
+            y_idx = self._local_index(m['index'][sel & is_Y], 1, uid)
+
+            histoX = self.hist.hist1d(self.xbins, x_idx)
+            histoY = self.hist.hist1d(self.xbins, y_idx)
+
+            ploth.ax[0][k].bar(self.xbins, histoX, 0.8, color='b')
+            ploth.ax[1][k].bar(self.xbins, histoY, 0.8, color='r')
+            ploth.ax[0][k].set_xlabel('hit X ch no. (local)')
+            ploth.ax[1][k].set_xlabel('hit Y ch no. (local)')
+            ploth.ax[0][k].set_title(f'ID {uid}')
+            if k == 0:
+                ploth.ax[0][k].set_ylabel('counts')
+                ploth.ax[1][k].set_ylabel('counts')
