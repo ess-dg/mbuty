@@ -523,9 +523,9 @@ class MBAxisSet(BaseAxisSet):
         
         start = min_id * num_wires
         stop  = (max_id+1) * num_wires
-        self.ax_wires  = Axis(start, stop-1, int((max_id + 1 - min_id)*pos_w_bins - int(pos_w_bins/num_wires - 1)))
+        self.ax_x  = Axis(start, stop-1, int((max_id + 1 - min_id)*pos_w_bins - int(pos_w_bins/num_wires - 1)))  # wire axis
 
-        self.ax_strips = Axis(0, num_strips-1, pos_s_bins - int(pos_s_bins/num_strips - 1))
+        self.ax_y = Axis(0, num_strips-1, pos_s_bins - int(pos_s_bins/num_strips - 1))  # strip axis
 
         # start = min_id * (num_wires * wire_pitch * sine + offset_mm)
         # stop  = (max_id+1) * (num_wires * wire_pitch * sine)  +  (max_id * offset_mm)
@@ -533,9 +533,9 @@ class MBAxisSet(BaseAxisSet):
         start = min_id * offset_mm
         stop  = (num_wires * wire_pitch * sine)  +  (max_id * offset_mm)
         
-        self.ax_wires_mm  = Axis(start, stop-1, self.ax_wires.steps)
-            
-        self.ax_strips_mm = Axis(0, (num_strips - 1) * strip_pitch, self.ax_strips.steps)
+        self.ax_x_mm  = Axis(start, stop-1, self.ax_x.steps)  # wire axis, mm
+
+        self.ax_y_mm = Axis(0, (num_strips - 1) * strip_pitch, self.ax_y.steps)  # strip axis, mm
         
  
 class MGAxisSet(BaseAxisSet):
@@ -563,16 +563,16 @@ class MGAxisSet(BaseAxisSet):
         start = min_id * num_wires
         stop  = (max_id+1) * num_wires
         
-        self.ax_wires  = Axis(start, stop-1, int((max_id + 1 - min_id)*pos_w_bins - int(pos_w_bins/num_wires - 1)))
+        self.ax_x  = Axis(start, stop-1, int((max_id + 1 - min_id)*pos_w_bins - int(pos_w_bins/num_wires - 1)))  # wire axis
 
-        self.ax_grids = Axis(0, num_grids-1, pos_g_bins - int(pos_g_bins/num_grids - 1))
+        self.ax_y = Axis(0, num_grids-1, pos_g_bins - int(pos_g_bins/num_grids - 1))  # grid axis
 
         # Physical coordinates TO BE FINISHED
         start = min_id * offset_mm
         stop  = num_wires * wirePitchX_mm + max_id * offset_mm
         
-        self.ax_wires_mm = Axis(start, stop, self.ax_wires.steps)
-        self.ax_grids_mm = Axis(0, (num_grids - 1) * gridPitchY_mm, self.ax_grids.steps)
+        self.ax_x_mm = Axis(start, stop, self.ax_x.steps)  # wire axis, mm
+        self.ax_y_mm = Axis(0, (num_grids - 1) * gridPitchY_mm, self.ax_y.steps)  # grid axis, mm
 
         
         
@@ -639,21 +639,20 @@ class SKADIAxisSet(BaseAxisSet):
         
 class NMXAxisSet(BaseAxisSet):
     """
-    Axis set for NMX. Raw readout-level diagnostics (raw channels,
-    timestamps, ADC vs channel, chopper resets) only touch the generic
-    axes BaseAxisSet already builds (ax_energy, ax_tof, etc.) -- no
-    detector-specific position axis is needed for that stage, so this is
-    a placeholder inheriting everything from the base.
-
-    build_specific_axes() will grow ax_x / ax_y (channel-space, 0-639,
-    mirroring MBAxisSet.ax_wires/ax_strips) and their _mm variants once the
-    hits/events stage needs position reconstruction -- the _mm axes also
-    need stripPitchX_mm/stripPitchY_mm added to the NMX config first, which
-    isn't there yet.
+    Axis set for NMX. 
+    ax_x_mm/ax_y_mm (absolute-units variants) are deliberately omitted:
+    no stripPitch_mm in the NMX config yet, and abs-units plotting isn't
+    implemented for NMX regardless (see NMXEventsPlotter overrides).
     """
 
     def build_specific_axes(self) -> None:
-        pass
+        num_strips = int(self.config.get('strips', 640))  # per-edge channel count (5 hybrids * 2 asics * 64 ch)
+
+        self.ax_mult = Axis(0, num_strips - 1, num_strips)
+
+        full_width = 2 * num_strips  # tiled per-bank width, mirrors NMXEventsPlotter.FULL_WIDTH
+        self.ax_x = Axis(0, full_width - 1, full_width)
+        self.ax_y = Axis(0, full_width - 1, full_width)
 
         
 ###############################################################################
@@ -739,6 +738,3 @@ if __name__ == '__main__':
     ax_time_between_ev = LogAxis(start, stop, steps, lin_thresh=1e-10)
     
     cee = ax_time_between_ev.centers
-    
-    
-    

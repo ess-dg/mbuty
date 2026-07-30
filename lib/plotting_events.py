@@ -56,7 +56,7 @@ class BaseEventsPlotter(BasePlotter):
     def plot_xy(self, *args, **kwargs): self._skip('plot_xy')
     def plot_tof_xy(self, *args, **kwargs): self._skip('plot_tof_xy')
     def plot_tof(self, *args, **kwargs): self._skip('plot_tof')
-    def plot_lambda(self, *args, **kwargs): self._skip('plot_lambda')
+    def plot_lambda(self, *args, **kwargs): self._skip('plot_lambda') 
     def plot_x_lambda(self, *args, **kwargs): self._skip('plot_x_lambda')
     def plot_multiplicity(self, *args, **kwargs): self._skip('plot_multiplicity')
     def plot_phs(self, *args, **kwargs): self._skip('plot_phs')
@@ -71,35 +71,99 @@ class BaseEventsPlotter(BasePlotter):
 class VMMEventsPlotter(BaseEventsPlotter):
     """
     Shared structural logic and shared plots for VMM-based events
-    (Multi-Blade, Multi-Grid): the global coincidence selection mask and
-    every plot method except plot_xy_tof (MB and MG each define their own;
-    see module docstring).
-    """
+    (Multi-Blade, Multi-Grid, NMX): the global coincidence selection mask
+    and every plot method (MB/MG/NMX each only override plot_xy/plot_tof_xy,
+    which are genuinely different figures per detector; see module
+    docstring).
 
-    def __init__(self, container, parameters, config, axis_set,unit_ids):
+    Class-level detector metadata:
+      X_LABEL, Y_LABEL, COINC_LABEL, X_COUNT_KEYS, Y_COUNT_KEYS -- pure
+        per-detector identity (axis names, print label, config keys for
+        the channel counts). No sensible generic value, so no default
+        here -- every subclass must declare its own. Accessing one that
+        a subclass forgot to set raises AttributeError immediately,
+        which is the point: silently inheriting MB's "Wire"/"Strip"
+        labels on some future detector that isn't wire-based would be
+        a much worse failure than a crash. Note this is metadata about
+        *labels*, not about the underlying axes: every AxisSet class
+        (MBAxisSet, MGAxisSet, NMXAxisSet) now names its position axes
+        ax_x/ax_y/ax_x_mm/ax_y_mm consistently, so shared code like
+        plot_x_lambda just reads self.axis_set.ax_x directly -- no
+        per-class attribute-name lookup needed.
+      X_TAG, Y_TAG -- short legend abbreviations (e.g. MB: 'w'/'s'), a
+        second, separate identity constant from X_LABEL/Y_LABEL. These
+        used to be derived as X_LABEL[0].lower() -- fine for one-word
+        labels ("Wire"->'w'), silently wrong for NMX's two-word labels
+        ("Strip X"[0] and "Strip Y"[0] both give 's', making the two
+        legend entries identical and unreadable). No base default, same
+        reasoning as X_LABEL/Y_LABEL: every subclass declares its own.
+      SUPPORTS_ABS_UNITS -- whether this detector has absolute-mm axes.
+        Defaults False (fail-closed); MB opts in.
+      ACCEPT_1D_X/Y      -- whether an event with only this axis fired is
+        treated as valid signal by this detector's plots (vs. discarded
+        as noise). Clustering produces the same accept_2d | accept_1dx |
+        accept_1dy categories for every VMM detector type -- these flags
+        are this file's decision about which of those categories to
+        actually plot, not a statement about what clustering accepted.
+        Both flags are read directly by self.selc (__init__) and by
+        plot_multiplicity's bar layout: ACCEPT_1D_X gates whether "no Y"
+        is a meaningful category (only if X-alone is itself plotted as
+        valid signal) and ACCEPT_1D_Y gates "no X" the same way, plus
+        each flag gates whether that axis's own shape/coincidence bars
+        appear at all. For MB/MG (ACCEPT_1D_X=True, ACCEPT_1D_Y=False)
+        this reduces to the original 4-bar wire/strip layout. For NMX
+        (both True) it's the symmetric 6-bar X/Y layout.
+    """
+    SUPPORTS_ABS_UNITS = False
+    ACCEPT_1D_X = True
+    ACCEPT_1D_Y = False
+
+    def __init__(self, container, parameters, config, axis_set, unit_ids):
         super().__init__(container, parameters, config, axis_set, unit_ids)
         self.coincidence_ws_onoff = self.parameters.plotting.coincidenceWS_ONOFF
-        
+
+        requested_abs_units = self.parameters.plotting.plotABSunits
+        if requested_abs_units and not self.SUPPORTS_ABS_UNITS:
+            print(f'\n --> {WARN}WARNING: absUnits not supported for {type(self).__name__}, turning abs units off{RESET}')
+        self.abs_units = requested_abs_units and self.SUPPORTS_ABS_UNITS
 
         if not self.is_empty:
+            coord0_valid = (self.matrix['coordinate0'].astype(float) >= 0)
+            coord1_valid = (self.matrix['coordinate1'].astype(float) >= 0)
+            self.sel_full_coinc = coord0_valid & coord1_valid
+
             if self.coincidence_ws_onoff:
-                print('\t building histograms ... coincidence W/S ON for ToF and Lambda ...')
-                coord1_valid = (self.matrix['coordinate1'].astype(float) >= 0)
-                coord0_valid = (self.matrix['coordinate0'].astype(float) >= 0)
-                self.selc = coord1_valid & coord0_valid
-
+                print(f'\t building histograms ... coincidence {self.COINC_LABEL} ON for ToF and Lambda ...')
+                self.selc = self.sel_full_coinc
             else:
-                print('\t building histograms ... coincidence W/S OFF for ToF and Lambda ...') 
-                self.selc = (self.matrix['coordinate0'] >= 0)
+                print(f'\t building histograms ... coincidence {self.COINC_LABEL} OFF for ToF and Lambda ...')
+                # Both flags actually gate here now: an axis contributes to "valid"
+                # only if this detector treats that axis alone as real signal.
+                self.selc = (self.ACCEPT_1D_X & coord0_valid) | (self.ACCEPT_1D_Y & coord1_valid)
 
-    def _get_wire_channel(self, global_wire_coord: np.ndarray) -> np.ndarray:
+    def _get_x_channel(self, global_x_coord: np.ndarray) -> np.ndarray:
         """
-        Abstract hook: map a global wire coordinate onto the wire-channel
-        value used for the PHS wire-channel axis. Detector-specific
-        geometry (cassette wrapping, flat/linear passthrough, etc.) is
-        supplied by subclasses.
+        Abstract hook: map a global X-axis (wire/strip-X) coordinate onto
+        the channel value used for the PHS X-channel axis. Detector-
+        specific geometry (cassette wrapping, flat/linear passthrough,
+        per-quadrant tiling, etc.) is supplied by subclasses.
         """
-        raise NotImplementedError("Subclasses must implement _get_wire_channel().")
+        raise NotImplementedError("Subclasses must implement _get_x_channel().")
+
+    def _get_y_channel(self, global_y_coord: np.ndarray) -> np.ndarray:
+        """
+        Same as _get_x_channel but for the Y axis. Default: no remapping
+        -- correct for MB/MG, where only the wire axis is tiled per-
+        cassette. NMX overrides this since both axes are tiled per-quadrant.
+        """
+        return global_y_coord
+
+    def _config_count(self, keys):
+        """Return the first present config value among candidate keys (int)."""
+        for key in keys:
+            if key in self.config:
+                return int(self.config[key])
+        raise KeyError(f"None of {keys} found in detector config for {type(self).__name__}")
 
     def plot_tof(self, fig_num=333):
         """ToF distribution per unit: all events overlaid with 2D-coincidence-only events."""
@@ -111,11 +175,12 @@ class VMMEventsPlotter(BaseEventsPlotter):
         m = self.matrix
 
         for k, uid in enumerate(self.unit_ids):
-            sel = self.select_unit(uid)
-            sel_2d = m['coordinate1'] >= 0
+            unit_sel = self.select_unit(uid)
+            valid = unit_sel & self.selc
+            coinc = unit_sel & self.sel_full_coinc
 
-            hist_tt  = self.hist.hist1d(ax_tof.centers, m['ToF'][sel & sel_2d] / 1e9)
-            hist_tt1 = self.hist.hist1d(ax_tof.centers, m['ToF'][sel] / 1e9)
+            hist_tt  = self.hist.hist1d(ax_tof.centers, m['ToF'][coinc] / 1e9)
+            hist_tt1 = self.hist.hist1d(ax_tof.centers, m['ToF'][valid] / 1e9)
 
             grid.ax[0][k].step(ax_tof.centers * 1e3, hist_tt1, 'r', where='mid', label='all')
             grid.ax[0][k].step(ax_tof.centers * 1e3, hist_tt, 'b', where='mid', label='2D')
@@ -130,16 +195,17 @@ class VMMEventsPlotter(BaseEventsPlotter):
         if self.is_empty:
             return
         grid = PlotGrid(fig_num, 1, len(self.unit_ids))
-        grid.fig.suptitle('Wavelength distr per cassette')
+        grid.fig.suptitle('Wavelength distr per unit')
         ax_lambda = self.axis_set.ax_lambda
         m = self.matrix
 
         for k, uid in enumerate(self.unit_ids):
-            sel = self.select_unit(uid)
-            sel_2d = m['coordinate1'] >= 0
+            unit_sel = self.select_unit(uid)
+            valid = unit_sel & self.selc
+            coinc = unit_sel & self.sel_full_coinc
 
-            hist_wa  = self.hist.hist1d(ax_lambda.centers, m['wavelength'][sel & sel_2d])
-            hist_wa1 = self.hist.hist1d(ax_lambda.centers, m['wavelength'][sel])
+            hist_wa  = self.hist.hist1d(ax_lambda.centers, m['wavelength'][coinc])
+            hist_wa1 = self.hist.hist1d(ax_lambda.centers, m['wavelength'][valid])
 
             grid.ax[0][k].step(ax_lambda.centers, hist_wa1, 'r', where='mid', label='all')
             grid.ax[0][k].step(ax_lambda.centers, hist_wa, 'b', where='mid', label='2D')
@@ -148,7 +214,7 @@ class VMMEventsPlotter(BaseEventsPlotter):
             if k == 0:
                 grid.ax[0][k].set_ylabel('counts')
             grid.ax[0][k].legend(loc='upper right', shadow=False, fontsize='large')
-
+            
     def plot_time_between_events(self, fig_num=209):
         """
         Delta-time between consecutive events and internal cluster time spans, per unit.
@@ -238,68 +304,106 @@ class VMMEventsPlotter(BaseEventsPlotter):
                 grid.ax[0][k].set_ylabel('num of events')
 
     def plot_multiplicity(self, fig_num=401):
-        """Normalized wire/strip multiplicity distributions and their 2D coincidence correlation, per unit."""
+        """
+        Normalized per-axis multiplicity distributions and their 2D
+        coincidence correlation, per unit. "X (2D)"/"Y (2D)" are NOT a
+        third category -- both are the exact same 2D-coincidence
+        population (sel_full_coinc: X and Y both fired), just shown as
+        its X-shape and its Y-shape separately; the panel below is the
+        joint distribution of that same population (its marginals equal
+        these two bars). Layout adapts to ACCEPT_1D_X/ACCEPT_1D_Y:
+          - X shape, Y shape: always shown (meaningful regardless of
+            which 1D categories this detector treats as valid).
+          - "no Y" bar + X-coincidence shape: shown iff ACCEPT_1D_X
+            (only meaningful if X-alone is itself a category this
+            detector's other plots treat as real signal).
+          - "no X" bar + Y-coincidence shape: shown iff ACCEPT_1D_Y.
+        For MB/MG (ACCEPT_1D_X=True, ACCEPT_1D_Y=False) this reduces to
+        the original 4-bar wire/strip layout. For NMX (both True) it's
+        the symmetric 6-bar X/Y layout.
+        """
         if self.is_empty:
             return
-        
-        width, extent = 0.2, 7
+
+        show_x = self.ACCEPT_1D_X   # "no Y" bar + X-coincidence-shape bar
+        show_y = self.ACCEPT_1D_Y   # "no X" bar + Y-coincidence-shape bar
+        symmetric = show_x and show_y
+        width, extent = (0.15, 7) if symmetric else (0.2, 7)
 
         grid = PlotGrid(fig_num, 2, len(self.unit_ids))
         grid.fig.suptitle('Events - multiplicity')
         xx = self.axis_set.ax_mult.centers
         m = self.matrix
+        n = len(xx)
 
         for k, uid in enumerate(self.unit_ids):
-            sel = self.select_unit(uid)
-            sel_2d = m['coordinate1'] >= 0
+            unit_sel = self.select_unit(uid)
+            valid = unit_sel & self.selc     # this detector's "real" events (noise excluded)
+            coinc = unit_sel & self.sel_full_coinc
 
-            myw  = self.hist.hist1d(xx, m['mult0'][sel])            # wires all
-            mys  = self.hist.hist1d(xx, m['mult1'][sel])            # strips all
-            mywc = self.hist.hist1d(xx, m['mult0'][sel & sel_2d])   # wires coinc
-            my2Dwc, _, _ = self.hist.hist2d(xx, m['mult0'][sel & sel_2d], xx, m['mult1'][sel & sel_2d])  # wires coinc with strips 2D
+            myx = self.hist.hist1d(xx, m['mult0'][valid])
+            myy = self.hist.hist1d(xx, m['mult1'][valid])
+            myxc = self.hist.hist1d(xx, m['mult0'][coinc]) if show_x else None
+            myyc = self.hist.hist1d(xx, m['mult1'][coinc]) if show_y else None
+            my2Dc, _, _ = self.hist.hist2d(xx, m['mult0'][coinc], xx, m['mult1'][coinc])
 
-            if np.any(sel):
-                # Calculate sums first to guard against 0
-                sum_myw_slice   = np.sum(myw[1:])
-                sum_mys_slice   = np.sum(mys[1:])
-                sum_mys_all     = np.sum(mys)
-                sum_mywc_slice  = np.sum(mywc[1:])
-                sum_my2Dwc_all  = np.sum(my2Dwc)
-                
-                # Divide if sum > 0, otherwise fill with zeros
-                mywnorm    = myw / sum_myw_slice if sum_myw_slice > 0 else np.zeros(len(xx))
-                mysnorm    = mys / sum_mys_slice if sum_mys_slice > 0 else np.zeros(len(xx))
-                mysnormall = mys / sum_mys_all if sum_mys_all > 0 else np.zeros(len(xx))
-                mywcnorm   = mywc / sum_mywc_slice if sum_mywc_slice > 0 else np.zeros(len(xx))
-                my2Dwcnorm = my2Dwc / sum_my2Dwc_all if sum_my2Dwc_all > 0 else np.zeros((len(xx), len(xx)))
+            if np.any(valid):
+                sum_myx_slice = np.sum(myx[1:])
+                sum_myy_slice = np.sum(myy[1:])
+                sum_myx_all   = np.sum(myx)
+                sum_myy_all   = np.sum(myy)
+                sum_my2Dc_all = np.sum(my2Dc)
+
+                myxnorm    = myx / sum_myx_slice if sum_myx_slice > 0 else np.zeros(n)
+                myynorm    = myy / sum_myy_slice if sum_myy_slice > 0 else np.zeros(n)
+                myxnormall = myx / sum_myx_all if sum_myx_all > 0 else np.zeros(n)
+                myynormall = myy / sum_myy_all if sum_myy_all > 0 else np.zeros(n)
+                my2Dcnorm  = my2Dc / sum_my2Dc_all if sum_my2Dc_all > 0 else np.zeros((n, n))
+                if show_x:
+                    sum_myxc_slice = np.sum(myxc[1:])
+                    myxcnorm = myxc / sum_myxc_slice if sum_myxc_slice > 0 else np.zeros(n)
+                if show_y:
+                    sum_myyc_slice = np.sum(myyc[1:])
+                    myycnorm = myyc / sum_myyc_slice if sum_myyc_slice > 0 else np.zeros(n)
             else:
-                mywnorm    = np.zeros(len(xx))
-                mysnorm    = np.zeros(len(xx))
-                mysnormall = np.zeros(len(xx))
-                mywcnorm   = np.zeros(len(xx))
-                my2Dwcnorm = np.zeros((len(xx), len(xx)))
+                myxnorm = myynorm = myxnormall = myynormall = np.zeros(n)
+                my2Dcnorm = np.zeros((n, n))
+                myxcnorm = myycnorm = np.zeros(n)
 
-            grid.ax[0][k].bar(xx[:extent] - width, mywnorm[:extent], width, color='m', label='w')
-            grid.ax[0][k].bar(xx[1:extent] + width, mysnorm[1:extent], width, color='b', label='s')
-            grid.ax[0][k].bar(xx[0] + width, mysnormall[0], width, color='c', label='no s')
-            grid.ax[0][k].bar(xx[:extent], mywcnorm[:extent], width, color='r', label='w/s')
-            grid.ax[0][k].set_xlabel('multiplicity')
-            grid.ax[0][k].set_title(f'ID {uid}')
-            grid.ax[0][k].legend(loc='upper right', shadow=False, fontsize='large')
+            ax = grid.ax[0][k]
+            if symmetric:
+                ax.bar(xx[1:extent] - 1.5*width, myxnorm[1:extent],  width, color='m', label=self.X_LABEL)
+                ax.bar(xx[1:extent] - 0.5*width, myynorm[1:extent],  width, color='b', label=self.Y_LABEL)
+                ax.bar(xx[1:extent] + 0.5*width, myxcnorm[1:extent], width, color='r', label=f'{self.X_LABEL} (2D)')
+                ax.bar(xx[1:extent] + 1.5*width, myycnorm[1:extent], width, color='orange', label=f'{self.Y_LABEL} (2D)')
+                ax.bar(xx[0] - 0.5*width, myxnormall[0], width, color='c', label=f'no {self.X_LABEL}')
+                ax.bar(xx[0] + 0.5*width, myynormall[0], width, color='y', label=f'no {self.Y_LABEL}')
+            else:
+                ax.bar(xx[:extent] - width, myxnorm[:extent], width, color='m', label=self.X_TAG)
+                ax.bar(xx[1:extent] + width, myynorm[1:extent], width, color='b', label=self.Y_TAG)
+                if show_x:
+                    ax.bar(xx[0] + width, myynormall[0], width, color='c', label=f'no {self.Y_TAG}')
+                    ax.bar(xx[:extent], myxcnorm[:extent], width, color='r', label=f'{self.X_TAG}/{self.Y_TAG}')
+                elif show_y:
+                    ax.bar(xx[0] - width, myxnormall[0], width, color='c', label=f'no {self.X_TAG}')
+                    ax.bar(xx[:extent], myycnorm[:extent], width, color='r', label=f'{self.X_TAG}/{self.Y_TAG}')
+            ax.set_xlabel('multiplicity')
+            ax.set_title(f'ID {uid}')
+            ax.legend(loc='upper right', shadow=False, fontsize='medium' if symmetric else 'large')
             if k == 0:
-                grid.ax[0][k].set_ylabel('probability')
+                ax.set_ylabel('probability')
 
             pos1 = grid.ax[1][k].imshow(
-                my2Dwcnorm[:extent, :extent], aspect='auto', norm=None, interpolation='none',
+                my2Dcnorm[:extent, :extent], aspect='auto', norm=None, interpolation='none',
                 extent=[xx[0] - 0.5, xx[extent] - 0.5, xx[0] - 0.5, xx[extent] - 0.5], origin='lower', cmap='jet',
             )
-            grid.ax[1][k].set_xlabel('multiplicity wires')
+            grid.ax[1][k].set_xlabel(f'multiplicity {self.X_LABEL.lower()}')
             if k == 0:
-                grid.ax[1][k].set_ylabel('multiplicity strips/grids')
+                grid.ax[1][k].set_ylabel(f'multiplicity {self.Y_LABEL.lower()}')
             grid.fig.colorbar(pos1, ax=grid.ax[1][k])
 
     def plot_phs(self, fig_num=601):
-        """Wire/strip pulse-height spectra per unit: raw wire, raw strip, wire-with-strip-coincidence, and the summed 1D comparison."""
+        """X/Y pulse-height spectra per unit: raw X, raw Y (coincidence-gated), X-with-Y-coincidence, and the summed 1D comparison."""
         if self.is_empty:
             return
         norm_colors = log_scale_norm(self.parameters.pulseHeigthSpect.plotPHSlog)
@@ -308,87 +412,88 @@ class VMMEventsPlotter(BaseEventsPlotter):
         grid.fig.suptitle('Pulse Heigth Spectra')
 
         ax_energy = self.axis_set.ax_energy
-        num_wires     = self.config['wires']
-        num_strips    = self.config.get('strips', self.config.get('grids', None))
-            
-        wire_axis  = np.linspace(0, num_wires - 1, num_wires)
-        strip_axis = np.linspace(0, num_strips - 1, num_strips)
+        num_x = self._config_count(self.X_COUNT_KEYS)
+        num_y = self._config_count(self.Y_COUNT_KEYS)
+
+        x_axis = np.linspace(0, num_x - 1, num_x)
+        y_axis = np.linspace(0, num_y - 1, num_y)
         m = self.matrix
 
-        wire_ch  = np.round(self._get_wire_channel(m['coordinate0']))
-        strip_ch = np.round(m['coordinate1'])
+        x_ch = np.round(self._get_x_channel(m['coordinate0']))
+        y_ch = np.round(self._get_y_channel(m['coordinate1']))
 
         for k, uid in enumerate(self.unit_ids):
-            sel = self.select_unit(uid)
-            sel_2d = m['coordinate1'] >= 0
+            unit_sel = self.select_unit(uid)
+            coinc = unit_sel & self.sel_full_coinc
 
-            phs_w,  _, _ = self.hist.hist2d(ax_energy.centers, m['pulseHeight0'][sel], wire_axis, wire_ch[sel])
-            phs_s,  _, _ = self.hist.hist2d(ax_energy.centers, m['pulseHeight1'][sel & sel_2d], strip_axis, strip_ch[sel & sel_2d])
-            phs_wc, _ , _= self.hist.hist2d(ax_energy.centers, m['pulseHeight0'][sel & sel_2d], wire_axis, wire_ch[sel & sel_2d])
+            phs_x,  _, _ = self.hist.hist2d(ax_energy.centers, m['pulseHeight0'][unit_sel], x_axis, x_ch[unit_sel])
+            phs_y,  _, _ = self.hist.hist2d(ax_energy.centers, m['pulseHeight1'][coinc], y_axis, y_ch[coinc])
+            phs_xc, _, _ = self.hist.hist2d(ax_energy.centers, m['pulseHeight0'][coinc], x_axis, x_ch[coinc])
 
-            grid.ax[0][k].imshow(phs_w, aspect='auto', norm=norm_colors, interpolation='none',
-                                  extent=[ax_energy.start, ax_energy.stop, wire_axis[0], wire_axis[-1]], origin='lower', cmap='jet')
-            grid.ax[1][k].imshow(phs_s, aspect='auto', norm=norm_colors, interpolation='none',
-                                  extent=[ax_energy.start, ax_energy.stop, strip_axis[0], strip_axis[-1]], origin='lower', cmap='jet')
-            grid.ax[2][k].imshow(phs_wc, aspect='auto', norm=norm_colors, interpolation='none',
-                                  extent=[ax_energy.start, ax_energy.stop, wire_axis[0], wire_axis[-1]], origin='lower', cmap='jet')
+            grid.ax[0][k].imshow(phs_x, aspect='auto', norm=norm_colors, interpolation='none',
+                                  extent=[ax_energy.start, ax_energy.stop, x_axis[0], x_axis[-1]], origin='lower', cmap='jet')
+            grid.ax[1][k].imshow(phs_y, aspect='auto', norm=norm_colors, interpolation='none',
+                                  extent=[ax_energy.start, ax_energy.stop, y_axis[0], y_axis[-1]], origin='lower', cmap='jet')
+            grid.ax[2][k].imshow(phs_xc, aspect='auto', norm=norm_colors, interpolation='none',
+                                  extent=[ax_energy.start, ax_energy.stop, x_axis[0], x_axis[-1]], origin='lower', cmap='jet')
 
             grid.ax[0][k].set_title(f'ID {uid}')
             if k == 0:
-                grid.ax[0][k].set_ylabel('wires ch. no.')
-                grid.ax[1][k].set_ylabel('strips/grids ch. no.')
-                grid.ax[2][k].set_ylabel('wires coinc. ch. no.')
+                grid.ax[0][k].set_ylabel(f'{self.X_LABEL} ch. no.')
+                grid.ax[1][k].set_ylabel(f'{self.Y_LABEL} ch. no.')
+                grid.ax[2][k].set_ylabel(f'{self.X_LABEL} coinc. ch. no.')
 
-            phs_gw, phs_gs, phs_gwc = np.sum(phs_w, axis=0), np.sum(phs_s, axis=0), np.sum(phs_wc, axis=0)
+            phs_gx, phs_gy, phs_gxc = np.sum(phs_x, axis=0), np.sum(phs_y, axis=0), np.sum(phs_xc, axis=0)
 
-            grid.ax[3][k].step(ax_energy.centers, phs_gw, 'r', where='mid', label='w')
-            grid.ax[3][k].step(ax_energy.centers, phs_gs, 'b', where='mid', label='s')
-            grid.ax[3][k].step(ax_energy.centers, phs_gwc, fg_color(), where='mid', label='w/s or w/g')
+            grid.ax[3][k].step(ax_energy.centers, phs_gx, 'r', where='mid', label=self.X_TAG)
+            grid.ax[3][k].step(ax_energy.centers, phs_gy, 'b', where='mid', label=self.Y_TAG)
+            grid.ax[3][k].step(ax_energy.centers, phs_gxc, fg_color(), where='mid', label=f'{self.X_TAG}/{self.Y_TAG}')
             grid.ax[3][k].set_xlabel('pulse height (a.u.)')
             grid.ax[3][k].legend(loc='upper right', shadow=False, fontsize='large')
             if k == 0:
                 grid.ax[3][k].set_ylabel('counts')
 
     def plot_phs_correlation(self, fig_num=602):
-        """Wire vs strip/grids pulse-height correlation for 2D-coincidence events, per unit."""
+        """X vs Y pulse-height correlation for 2D-coincidence events, per unit."""
         if self.is_empty:
             return
 
         norm_colors = log_scale_norm(self.parameters.pulseHeigthSpect.plotPHSlog)
 
         grid = PlotGrid(fig_num, 1, len(self.unit_ids), fig_size=(12, 6))
-        grid.fig.suptitle('Pulse Heigth Spectrum - Correlation W/S or W/G')
+        grid.fig.suptitle(f'Pulse Heigth Spectrum - Correlation {self.COINC_LABEL}')
         ax_energy = self.axis_set.ax_energy
         m = self.matrix
 
         for k, uid in enumerate(self.unit_ids):
-            sel = self.select_unit(uid)
-            sel_2d = m['coordinate1'] >= 0
+            coinc = self.select_unit(uid) & self.sel_full_coinc
 
-            phs_corr, _, _ = self.hist.hist2d(ax_energy.centers, m['pulseHeight0'][sel & sel_2d],
-                                            ax_energy.centers, m['pulseHeight1'][sel & sel_2d])
+            phs_corr, _, _ = self.hist.hist2d(ax_energy.centers, m['pulseHeight0'][coinc],
+                                            ax_energy.centers, m['pulseHeight1'][coinc])
 
             grid.ax[0][k].imshow(phs_corr, aspect='auto', norm=norm_colors, interpolation='none',
                                   extent=[ax_energy.start, ax_energy.stop, ax_energy.start, ax_energy.stop], origin='lower', cmap='jet')
             grid.ax[0][k].set_title(f'ID {uid}')
-            grid.ax[0][k].set_xlabel('pulse height wires (a.u.)')
+            grid.ax[0][k].set_xlabel(f'pulse height {self.X_LABEL.lower()} (a.u.)')
             if k == 0:
-                grid.ax[0][k].set_ylabel('pulse height strips/grids (a.u.)')
+                grid.ax[0][k].set_ylabel(f'pulse height {self.Y_LABEL.lower()} (a.u.)')
 
     def plot_x_lambda(self, fig_num=103):
-        """2D wavelength vs wire-position image across all units combined, raw channel or absolute-mm coordinates. Respects the global coincidence mask."""
+        """2D wavelength vs X-position image across all units combined, raw channel or absolute-mm coordinates. Respects the global coincidence mask."""
         if self.is_empty:
             return
         norm_colors = log_scale_norm(self.parameters.plotting.plotIMGlog)
         ax_lambda = self.axis_set.ax_lambda
         m = self.matrix
 
-        if not self.parameters.plotting.plotABSunits:
-            ax_wires, wire_values, ylabel = self.axis_set.ax_wires, m['coordinate0'], 'Wire ch.'
+        if not self.abs_units:
+            ax_x = self.axis_set.ax_x
+            x_values, ylabel = m['coordinate0'], f'{self.X_LABEL} ch.'
         else:
-            ax_wires, wire_values, ylabel = self.axis_set.ax_wires_mm, m['absCoordinate0'], 'Wire coord. (mm)'
+            ax_x = self.axis_set.ax_x_mm
+            x_values, ylabel = m['absCoordinate0'], f'{self.X_LABEL} coord. (mm)'
 
-        h, _, _ = self.hist.hist2d(ax_lambda.centers, m['wavelength'][self.selc], ax_wires.centers, wire_values[self.selc])
+        h, _, _ = self.hist.hist2d(ax_lambda.centers, m['wavelength'][self.selc], ax_x.centers, x_values[self.selc])
 
         if isinstance(fig_num, matplotlib.figure.Figure):
             fig = fig_num
@@ -397,7 +502,7 @@ class VMMEventsPlotter(BaseEventsPlotter):
             fig, ax = plt.subplots(num=fig_num, figsize=(6, 6), nrows=1, ncols=1)
 
         pos = ax.imshow(h, aspect='auto', norm=norm_colors, interpolation='nearest',
-                         extent=[ax_lambda.start, ax_lambda.stop, ax_wires.start, ax_wires.stop], origin='lower', cmap='viridis')
+                         extent=[ax_lambda.start, ax_lambda.stop, ax_x.start, ax_x.stop], origin='lower', cmap='viridis')
         _safe_colorbar(fig, pos, ax, 'X vs Lambda')
         ax.set_ylabel(ylabel)
         ax.set_xlabel('wavelength (A)')
@@ -411,28 +516,36 @@ class VMMEventsPlotter(BaseEventsPlotter):
 class MBEventsPlotter(VMMEventsPlotter):
     """Multi-Blade events: single-panel detector image (wire vs strip) and ToF-vs-wire image."""
 
-    def _get_wire_channel(self, global_wire_coord: np.ndarray) -> np.ndarray:
+    X_LABEL = 'Wire'
+    Y_LABEL = 'Strip'
+    X_TAG = 'w'
+    Y_TAG = 's'
+    COINC_LABEL = 'W/S'
+    X_COUNT_KEYS = ('wires',)
+    Y_COUNT_KEYS = ('strips',)
+    SUPPORTS_ABS_UNITS = True
+
+    def _get_x_channel(self, global_x_coord: np.ndarray) -> np.ndarray:
         """Wrap a global wire coordinate into this cassette's local wire-channel range."""
-        num_wires = self.config['wires'] 
-        return np.mod(global_wire_coord, num_wires)
+        num_wires = self.config['wires']
+        return np.mod(global_x_coord, num_wires)
 
     def plot_xy(self, fig_num=101):
         """Generates the main detector image (wire vs strip) and its 1D projection panel."""
         if self.is_empty:
             return
         log_scale   = self.parameters.plotting.plotIMGlog
-        abs_units   = self.parameters.plotting.plotABSunits
         orientation = self.config.get('orientation')
         
         norm_colors = log_scale_norm(log_scale)
         m = self.matrix
 
-        if not abs_units:
-            ax_wires, ax_strips = self.axis_set.ax_wires, self.axis_set.ax_strips
+        if not self.abs_units:
+            ax_wires, ax_strips = self.axis_set.ax_x, self.axis_set.ax_y
             wire_values, strip_values = m['coordinate0'], m['coordinate1']
             wire_label, strip_label = 'Wire ch.', 'Strip ch.'
         else:
-            ax_wires, ax_strips = self.axis_set.ax_wires_mm, self.axis_set.ax_strips_mm
+            ax_wires, ax_strips = self.axis_set.ax_x_mm, self.axis_set.ax_y_mm
             wire_values, strip_values = m['absCoordinate0'], m['absCoordinate1']
             wire_label, strip_label = 'Wire coord. (mm)', 'Strip (mm)'
 
@@ -441,7 +554,7 @@ class MBEventsPlotter(VMMEventsPlotter):
             ax_strips.centers, strip_values[self.selc],
             self.axis_set.ax_tof.centers, m['ToF'][self.selc] / 1e9,
         )
-        h_proj_all = self.hist.hist1d(ax_wires.centers, wire_values[m['coordinate0']>=0])   
+        h_proj_all = self.hist.hist1d(ax_wires.centers, wire_values[self.selc])
         h_proj_2d  = np.sum(h2d, axis=0)
         
         if orientation == 'vertical':
@@ -482,24 +595,23 @@ class MBEventsPlotter(VMMEventsPlotter):
         if self.is_empty:
             return
         log_scale   = self.parameters.plotting.plotIMGlog
-        abs_units   = self.parameters.plotting.plotABSunits
 
         norm_colors = log_scale_norm(log_scale)
         ax_tof = self.axis_set.ax_tof
         m = self.matrix
 
-        if not abs_units:
-            ax_wires = self.axis_set.ax_wires
+        if not self.abs_units:
+            ax_wires = self.axis_set.ax_x
             wire_values = m['coordinate0']
             wire_label = 'Wire ch.'
         else:
-            ax_wires = self.axis_set.ax_wires_mm
+            ax_wires = self.axis_set.ax_x_mm
             wire_values = m['absCoordinate0']
             wire_label = 'Wire coord. (mm)'
 
         _, _, h_tof = self.hist.hist_xyz(
             ax_wires.centers, wire_values[self.selc],
-            self.axis_set.ax_strips.centers, m['coordinate1'][self.selc],
+            self.axis_set.ax_y.centers, m['coordinate1'][self.selc],
             ax_tof.centers, m['ToF'][self.selc] / 1e9,
         )
     
@@ -529,34 +641,39 @@ class MGEventsPlotter(VMMEventsPlotter):
     top-left detector-image panel -- 'horizontal' prints a warning and
     leaves it blank while the rest of the figure still renders (a legacy
     bug preserved verbatim). absUnits is not supported at all (legacy never
-    implemented it for MG).
+    implemented it for MG) -- SUPPORTS_ABS_UNITS stays at the
+    VMMEventsPlotter default (False), so self.abs_units is always False
+    here regardless of what's requested in config, and plot_xy/plot_tof_xy
+    always render with channel-number axes (a request for abs units just
+    prints a one-time warning at construction instead of skipping the plot).
     """
 
-    def _get_wire_channel(self, global_wire_coord: np.ndarray) -> np.ndarray:
+    X_LABEL = 'Wire'
+    Y_LABEL = 'Grid'
+    X_TAG = 'w'
+    Y_TAG = 'g'
+    COINC_LABEL = 'W/G'
+    X_COUNT_KEYS = ('wires',)
+    Y_COUNT_KEYS = ('grids',)
+
+    def _get_x_channel(self, global_x_coord: np.ndarray) -> np.ndarray:
         """MG wire channels are already flat/linear across the full detector -- no per-cassette wrapping applied."""
-        return global_wire_coord
+        return global_x_coord
 
     def plot_xy(self, fig_num=101):
         """Generates the 2x2 grid featuring multi-grid wire views and row-projected layouts."""
         if self.is_empty:
             return
-        
+
         log_scale   = self.parameters.plotting.plotIMGlog
-        abs_units   = self.parameters.plotting.plotABSunits
         orientation = self.config.get('orientation')
-        
-        norm_colors = log_scale_norm(log_scale)
-        if abs_units :
-            print(f'\n --> {WARN}WARNING: absUnits is not supported for MG for now, change to False to get det image{RESET}', end='')
-            return
-        
 
         norm_colors = log_scale_norm(log_scale)
         num_units = self.config['units']
         num_wires     = self.config['wires']
         num_strips    = self.config['grids']
         wires_per_row = self.config['wiresPerRow']
-        ax_wires, ax_grids, ax_tof = self.axis_set.ax_wires, self.axis_set.ax_grids, self.axis_set.ax_tof
+        ax_wires, ax_grids, ax_tof = self.axis_set.ax_x, self.axis_set.ax_y, self.axis_set.ax_tof
         m = self.matrix
 
         h2d, _, _ = self.hist.hist_xyz(
@@ -564,7 +681,7 @@ class MGEventsPlotter(VMMEventsPlotter):
             ax_grids.centers, m['coordinate1'][self.selc],
             ax_tof.centers, m['ToF'][self.selc] / 1e9,
         )
-        h_proj_all = self.hist.hist1d(ax_wires.centers, m['coordinate0'][m['coordinate0']>=0])  
+        h_proj_all = self.hist.hist1d(ax_wires.centers, m['coordinate0'][self.selc])
         h_proj_2d  = np.sum(h2d, axis=0)
 
         if isinstance(fig_num, matplotlib.figure.Figure):
@@ -648,14 +765,9 @@ class MGEventsPlotter(VMMEventsPlotter):
             return
         
         log_scale   = self.parameters.plotting.plotIMGlog
-        abs_units   = self.parameters.plotting.plotABSunits
-        
-        if abs_units:
-            return
-   
         norm_colors = log_scale_norm(log_scale)
 
-        ax_wires, ax_grids, ax_tof = self.axis_set.ax_wires, self.axis_set.ax_grids, self.axis_set.ax_tof
+        ax_wires, ax_grids, ax_tof = self.axis_set.ax_x, self.axis_set.ax_y, self.axis_set.ax_tof
         m = self.matrix
 
         _, _, h_tof = self.hist.hist_xyz(
@@ -1171,3 +1283,219 @@ class SKADIEventsPlotter(BaseEventsPlotter):
     
         # def plot_x_lambda(self, *args, **kwargs): self._skip('plot_x_lambda')
         #     Not implemented yet - use pythagoras to get radial distance?
+        
+# ============================================================================
+# NMX (X/Y strip detector, no wire/strip asymmetry)
+# ============================================================================
+
+class NMXEventsPlotter(VMMEventsPlotter):
+    """
+    NMX events: X and Y are equally primary (no wire-as-reference
+    asymmetry) -- ACCEPT_1D_Y=True tells VMMEventsPlotter.__init__ to
+    treat X-only and Y-only events as valid signal on equal footing with
+    X, which is what makes self.selc and plot_multiplicity come out
+    symmetric automatically. Bank is derived from ID (ID // 10 = bank,
+    remainder = quadrant) -- there is no separate 'bank' field on the
+    matrix. Abs units are not implemented for NMX (no mm axes in
+    NMXAxisSet); SUPPORTS_ABS_UNITS stays at the VMMEventsPlotter default
+    (False), same treatment as MG.
+
+    plot_tof/plot_lambda/plot_phs/plot_phs_correlation/plot_multiplicity
+    are inherited unchanged from VMMEventsPlotter and come out correct
+    purely from the class constants below (X_LABEL/Y_LABEL/X_TAG/Y_TAG/
+    ACCEPT_1D_Y) plus NMXAxisSet naming its axes ax_x/ax_y the same way
+    MBAxisSet/MGAxisSet do.
+
+    plot_xy, plot_x_lambda, and plot_tof_xy ARE overridden here, and
+    can't be: NMXMapper's tiled coordinate (0..FULL_WIDTH-1) is only
+    unique WITHIN one bank -- every bank reuses the same numbering,
+    unlike MB's ax_x, which is unique across the whole detector because
+    cassettes are concatenated onto one number line. The base class's
+    single combined-histogram versions of plot_x_lambda/plot_tof_xy
+    would silently overlay events from physically different banks into
+    the same bins, so all three are paneled per bank here instead.
+    """
+
+    X_LABEL = 'Strip X'
+    Y_LABEL = 'Strip Y'
+    X_TAG = 'x'
+    Y_TAG = 'y'
+    COINC_LABEL = 'X/Y'
+    ACCEPT_1D_Y = True
+    X_COUNT_KEYS = ('strips',)
+    Y_COUNT_KEYS = ('strips',)
+
+    def __init__(self, container, parameters, config, axis_set, unit_ids):
+        super().__init__(container, parameters, config, axis_set, unit_ids)
+        self.bank_ids = sorted(np.unique(self.matrix['ID'] // 10)) if not self.is_empty else []
+
+    def _get_x_channel(self, global_x_coord):
+        """Un-shift the per-quadrant tiled offset -> local X strip channel."""
+        num_strips = self._config_count(self.X_COUNT_KEYS)
+        return np.mod(global_x_coord, num_strips)
+
+    def _get_y_channel(self, global_y_coord):
+        """Un-shift the per-quadrant tiled offset -> local Y strip channel."""
+        num_strips = self._config_count(self.Y_COUNT_KEYS)
+        return np.mod(global_y_coord, num_strips)
+
+    def plot_x_lambda(self, fig_num=103):
+        """
+        Wavelength vs position, one row per electrode (X, Y), one column
+        per bank. Paneled per bank -- see class docstring for why this
+        can't be combined across banks the way MB/MG's plot_x_lambda is.
+        """
+        if self.is_empty:
+            return
+
+        norm_colors = log_scale_norm(self.parameters.plotting.plotIMGlog)
+        ax_lambda = self.axis_set.ax_lambda
+        ax_x, ax_y = self.axis_set.ax_x, self.axis_set.ax_y
+        m = self.matrix
+
+        grid = PlotGrid(fig_num, 2, len(self.bank_ids))
+        grid.fig.suptitle('DET wavelength')
+
+        for k, bank in enumerate(self.bank_ids):
+            sel = ((m['ID'] // 10) == bank) & self.selc
+
+            h_x, _, _ = self.hist.hist2d(ax_lambda.centers, m['wavelength'][sel], ax_x.centers, m['coordinate0'][sel])
+            h_y, _, _ = self.hist.hist2d(ax_lambda.centers, m['wavelength'][sel], ax_y.centers, m['coordinate1'][sel])
+
+            pos_x = grid.ax[0][k].imshow(h_x, aspect='auto', norm=norm_colors, interpolation='nearest',
+                                          extent=[ax_lambda.start, ax_lambda.stop, ax_x.start, ax_x.stop], origin='lower', cmap='viridis')
+            _safe_colorbar(grid.fig, pos_x, grid.ax[0][k], f'Bank {bank}')
+            grid.ax[0][k].set_title(f'Bank {bank}')
+            if k == 0:
+                grid.ax[0][k].set_ylabel(f'{self.X_LABEL} ch.')
+
+            pos_y = grid.ax[1][k].imshow(h_y, aspect='auto', norm=norm_colors, interpolation='nearest',
+                                          extent=[ax_lambda.start, ax_lambda.stop, ax_y.start, ax_y.stop], origin='lower', cmap='viridis')
+            _safe_colorbar(grid.fig, pos_y, grid.ax[1][k], f'Bank {bank}')
+            grid.ax[1][k].set_xlabel('wavelength (A)')
+            if k == 0:
+                grid.ax[1][k].set_ylabel(f'{self.Y_LABEL} ch.')
+
+    def plot_tof_xy(self, fig_num=102):
+        """ToF vs position, one row per electrode (X, Y), one column per bank. Paneled per bank for the same reason as plot_x_lambda."""
+        if self.is_empty:
+            return
+
+        norm_colors = log_scale_norm(self.parameters.plotting.plotIMGlog)
+        ax_tof = self.axis_set.ax_tof
+        ax_x, ax_y = self.axis_set.ax_x, self.axis_set.ax_y
+        m = self.matrix
+
+        grid = PlotGrid(fig_num, 2, len(self.bank_ids))
+        grid.fig.suptitle('DET ToF')
+
+        for k, bank in enumerate(self.bank_ids):
+            sel = ((m['ID'] // 10) == bank) & self.selc
+
+            h_x, _, _ = self.hist.hist2d(ax_tof.centers, m['ToF'][sel] / 1e9, ax_x.centers, m['coordinate0'][sel])
+            h_y, _, _ = self.hist.hist2d(ax_tof.centers, m['ToF'][sel] / 1e9, ax_y.centers, m['coordinate1'][sel])
+
+            pos_x = grid.ax[0][k].imshow(h_x, aspect='auto', norm=norm_colors, interpolation='nearest',
+                                          extent=[ax_tof.start * 1e3, ax_tof.stop * 1e3, ax_x.start, ax_x.stop], origin='lower', cmap='viridis')
+            _safe_colorbar(grid.fig, pos_x, grid.ax[0][k], f'Bank {bank}')
+            grid.ax[0][k].set_title(f'Bank {bank}')
+            if k == 0:
+                grid.ax[0][k].set_ylabel(f'{self.X_LABEL} ch.')
+
+            pos_y = grid.ax[1][k].imshow(h_y, aspect='auto', norm=norm_colors, interpolation='nearest',
+                                          extent=[ax_tof.start * 1e3, ax_tof.stop * 1e3, ax_y.start, ax_y.stop], origin='lower', cmap='viridis')
+            _safe_colorbar(grid.fig, pos_y, grid.ax[1][k], f'Bank {bank}')
+            grid.ax[1][k].set_xlabel('ToF (ms)')
+            if k == 0:
+                grid.ax[1][k].set_ylabel(f'{self.Y_LABEL} ch.')
+
+    def plot_xy(self, fig_num=101):
+            """3-row image per bank: X vs Y + X projection + Y projection, one column
+            per bank (tiled coordinate repeats per bank, so banks are never overlaid)."""
+            if self.is_empty:
+                return
+            log_scale = self.parameters.plotting.plotIMGlog
+            norm_colors = log_scale_norm(log_scale)
+            m = self.matrix
+    
+            ax_x, ax_y = self.axis_set.ax_x, self.axis_set.ax_y
+            x_values, y_values = m['coordinate0'], m['coordinate1']
+            xlabel, ylabel = 'X ch.', 'Y ch.'
+    
+            n_banks = len(self.bank_ids)
+    
+            if isinstance(fig_num, matplotlib.figure.Figure):
+                fig = fig_num
+            else:
+                fig = plt.figure(num=fig_num)
+            fig.suptitle('DET image')
+    
+            gs = fig.add_gridspec(
+                3, n_banks, height_ratios=[4, 1, 1],
+                hspace=0.30, wspace=0.22,
+                left=0.04, right=0.97, top=0.95, bottom=0.06,
+            )
+    
+            fig.canvas.draw()  
+            W, H = fig.get_size_inches()
+    
+            for k, bank in enumerate(self.bank_ids):
+                sel_bank = ((m['ID'] // 10) == bank) & self.selc
+                sel_bank_x = ((m['ID'] // 10) == bank) & (m['coordinate0'] >= 0)
+                sel_bank_y = ((m['ID'] // 10) == bank) & (m['coordinate1'] >= 0)
+    
+                ax_img = fig.add_subplot(gs[0, k])
+                ax_px  = fig.add_subplot(gs[1, k])
+                ax_py  = fig.add_subplot(gs[2, k])
+    
+                h2d, _, _ = self.hist.hist2d(ax_x.centers, x_values[sel_bank], ax_y.centers, y_values[sel_bank])
+                h_proj_x_all = self.hist.hist1d(ax_x.centers, x_values[sel_bank_x])
+                h_proj_x_2d = np.sum(h2d, axis=0)
+                h_proj_y_all = self.hist.hist1d(ax_y.centers, y_values[sel_bank_y])
+                h_proj_y_2d = np.sum(h2d, axis=1)
+    
+                pos1 = ax_img.imshow(h2d, aspect='auto', norm=norm_colors, interpolation='none',
+                                    extent=[ax_x.start, ax_x.stop, ax_y.start, ax_y.stop], origin='lower', cmap='viridis')
+                _safe_colorbar(fig, pos1, ax_img, f'Bank {bank}', orientation='vertical', fraction=0.046, pad=0.02)
+                ax_img.set_title(f'Bank {bank}')
+                ax_img.set_xlabel(xlabel)
+                if k == 0:
+                    ax_img.set_ylabel(ylabel)
+    
+                ax_px.step(ax_x.centers, h_proj_x_all, 'r', where='mid', label='1D')
+                ax_px.step(ax_x.centers, h_proj_x_2d, 'b', where='mid', label='2D')
+                if log_scale:
+                    ax_px.set_yscale('log')
+                ax_px.set_xlim(ax_x.start, ax_x.stop)
+                ax_px.set_xlabel(xlabel)
+                if k == 0:
+                    ax_px.set_ylabel('counts')
+                ax_px.legend(loc='upper right', shadow=False, fontsize='medium')
+    
+                ax_py.step(ax_y.centers, h_proj_y_all, 'r', where='mid', label='1D')
+                ax_py.step(ax_y.centers, h_proj_y_2d, 'b', where='mid', label='2D')
+                if log_scale:
+                    ax_py.set_yscale('log')
+                ax_py.set_xlim(ax_y.start, ax_y.stop)
+                ax_py.set_xlabel(ylabel)
+                if k == 0:
+                    ax_py.set_ylabel('counts')
+                ax_py.legend(loc='upper right', shadow=False, fontsize='medium')
+    
+                fig.canvas.draw()
+                img_pos = ax_img.get_position()
+    
+                avail_w_in = img_pos.width * W
+                avail_h_in = img_pos.height * H
+                side_in = min(avail_w_in, avail_h_in)
+    
+                new_width = side_in / W
+                new_height = side_in / H
+                new_x0 = img_pos.x0 + (img_pos.width - new_width) / 2
+                new_y0 = img_pos.y0 + (img_pos.height - new_height) / 2
+                ax_img.set_position([new_x0, new_y0, new_width, new_height])
+    
+                px_pos = ax_px.get_position()
+                py_pos = ax_py.get_position()
+                ax_px.set_position([new_x0, px_pos.y0, new_width, px_pos.height])
+                ax_py.set_position([new_x0, py_pos.y0, new_width, py_pos.height])

@@ -5,12 +5,6 @@ calibration.py
 ==============
 Self-contained VMM3A ADC/TDC calibration engine for MB/MG detector readouts.
 
-Mirrors the abs_units_engine / threshold_engine convention used elsewhere
-in the pipeline: instantiate with (readouts, config, parameters) and call
-process_pipeline(). The engine reads its own on/off flags internally, so
-callers in pipelines.py invoke it unconditionally, same as the other
-per-stage engines.
-
 Calibration file formats supported
 ----------------------------------
 LEGACY  : HybridId directly encodes logical position, e.g. "FEN0_3".
@@ -84,11 +78,8 @@ def _default_entry(hybrid_id: str) -> VMMCalibrationEntry:
 
 # =============================================================================
 # 2. HYBRID KEY RESOLUTION — the CONFIG topology is the source of truth.
-#    For each configured hybrid we ask the calibration file "do you have
-#    an entry for this?" — never the other way around. Otherwise a
-#    calibration file covering more hybrids than this instrument's
-#    topology (very likely — one shared lab-wide file, many instruments)
-#    would spam warnings about hybrids that aren't this run's business.
+#    For each configured hybrid we check if the calibration file has a matching
+#    entry for that id  — never the other way around. 
 # =============================================================================
 
 def _parse_hybrid_id_legacy(hybrid_id_text: str) -> tuple[int, int, int]:
@@ -128,7 +119,7 @@ def _build_fen_lookup_from_file(calibrations_raw: list) -> dict[tuple[int, int, 
 
 
 def _build_serial_lookup_from_file(calibrations_raw: list) -> dict[str, dict]:
-    """Index calibration file entries by their own HybridId (the physical serial), verbatim."""
+    """Index calibration file entries by their own HybridId (the physical serial)."""
     lookup: dict[str, dict] = {}
     for item in calibrations_raw:
         block = item.get('VMMHybridCalibration', {})

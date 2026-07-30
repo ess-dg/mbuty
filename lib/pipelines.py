@@ -470,8 +470,10 @@ class NMXPipeline(BasePipeline):
                 from lib.plotting_hits import NMXHitsPlotter
                 self.hit_plotter = NMXHitsPlotter(self.hits_container, self.parameters,self.config, self.axis_set,unit_ids)
         
-        print(f'{INFO}NMX plotting not yet implemented...{RESET}')
-            
+        if self.events_container is not None:
+            from lib.plotting_events import NMXEventsPlotter
+            self.event_plotter = NMXEventsPlotter(self.events_container, self.parameters,self.config, self.axis_set,unit_ids)
+                        
   
 
 
