@@ -10,9 +10,10 @@ titles, and colors exactly.
 """
 
 import time
+import sys
+import os
 import numpy as np
 import matplotlib.pyplot as plt
-import sys, os
 import matplotlib.figure
 import matplotlib.colors as colors
 
@@ -52,7 +53,7 @@ class BaseEventsPlotter(BasePlotter):
         """Boolean row mask for rows belonging to this unit ID (cassette/tube)."""
         return self.matrix['ID'] == unit_id
 
-    # placholder stubs - give warning if this function is not implemented (overwritten) in daughter class
+    # placeholder stubs - give warning if this function is not implemented in daughter class
     def plot_xy(self, *args, **kwargs): self._skip('plot_xy')
     def plot_tof_xy(self, *args, **kwargs): self._skip('plot_tof_xy')
     def plot_tof(self, *args, **kwargs): self._skip('plot_tof')
@@ -73,46 +74,7 @@ class VMMEventsPlotter(BaseEventsPlotter):
     Shared structural logic and shared plots for VMM-based events
     (Multi-Blade, Multi-Grid, NMX): the global coincidence selection mask
     and every plot method (MB/MG/NMX each only override plot_xy/plot_tof_xy,
-    which are genuinely different figures per detector; see module
-    docstring).
-
-    Class-level detector metadata:
-      X_LABEL, Y_LABEL, COINC_LABEL, X_COUNT_KEYS, Y_COUNT_KEYS -- pure
-        per-detector identity (axis names, print label, config keys for
-        the channel counts). No sensible generic value, so no default
-        here -- every subclass must declare its own. Accessing one that
-        a subclass forgot to set raises AttributeError immediately,
-        which is the point: silently inheriting MB's "Wire"/"Strip"
-        labels on some future detector that isn't wire-based would be
-        a much worse failure than a crash. Note this is metadata about
-        *labels*, not about the underlying axes: every AxisSet class
-        (MBAxisSet, MGAxisSet, NMXAxisSet) now names its position axes
-        ax_x/ax_y/ax_x_mm/ax_y_mm consistently, so shared code like
-        plot_x_lambda just reads self.axis_set.ax_x directly -- no
-        per-class attribute-name lookup needed.
-      X_TAG, Y_TAG -- short legend abbreviations (e.g. MB: 'w'/'s'), a
-        second, separate identity constant from X_LABEL/Y_LABEL. These
-        used to be derived as X_LABEL[0].lower() -- fine for one-word
-        labels ("Wire"->'w'), silently wrong for NMX's two-word labels
-        ("Strip X"[0] and "Strip Y"[0] both give 's', making the two
-        legend entries identical and unreadable). No base default, same
-        reasoning as X_LABEL/Y_LABEL: every subclass declares its own.
-      SUPPORTS_ABS_UNITS -- whether this detector has absolute-mm axes.
-        Defaults False (fail-closed); MB opts in.
-      ACCEPT_1D_X/Y      -- whether an event with only this axis fired is
-        treated as valid signal by this detector's plots (vs. discarded
-        as noise). Clustering produces the same accept_2d | accept_1dx |
-        accept_1dy categories for every VMM detector type -- these flags
-        are this file's decision about which of those categories to
-        actually plot, not a statement about what clustering accepted.
-        Both flags are read directly by self.selc (__init__) and by
-        plot_multiplicity's bar layout: ACCEPT_1D_X gates whether "no Y"
-        is a meaningful category (only if X-alone is itself plotted as
-        valid signal) and ACCEPT_1D_Y gates "no X" the same way, plus
-        each flag gates whether that axis's own shape/coincidence bars
-        appear at all. For MB/MG (ACCEPT_1D_X=True, ACCEPT_1D_Y=False)
-        this reduces to the original 4-bar wire/strip layout. For NMX
-        (both True) it's the symmetric 6-bar X/Y layout.
+    which are genuinely different figures per detector).
     """
     SUPPORTS_ABS_UNITS = False
     ACCEPT_1D_X = True
@@ -137,25 +99,12 @@ class VMMEventsPlotter(BaseEventsPlotter):
                 self.selc = self.sel_full_coinc
             else:
                 print(f'\t building histograms ... coincidence {self.COINC_LABEL} OFF for ToF and Lambda ...')
-                # Both flags actually gate here now: an axis contributes to "valid"
-                # only if this detector treats that axis alone as real signal.
                 self.selc = (self.ACCEPT_1D_X & coord0_valid) | (self.ACCEPT_1D_Y & coord1_valid)
 
     def _get_x_channel(self, global_x_coord: np.ndarray) -> np.ndarray:
-        """
-        Abstract hook: map a global X-axis (wire/strip-X) coordinate onto
-        the channel value used for the PHS X-channel axis. Detector-
-        specific geometry (cassette wrapping, flat/linear passthrough,
-        per-quadrant tiling, etc.) is supplied by subclasses.
-        """
         raise NotImplementedError("Subclasses must implement _get_x_channel().")
 
     def _get_y_channel(self, global_y_coord: np.ndarray) -> np.ndarray:
-        """
-        Same as _get_x_channel but for the Y axis. Default: no remapping
-        -- correct for MB/MG, where only the wire axis is tiled per-
-        cassette. NMX overrides this since both axes are tiled per-quadrant.
-        """
         return global_y_coord
 
     def _config_count(self, keys):
@@ -216,57 +165,40 @@ class VMMEventsPlotter(BaseEventsPlotter):
             grid.ax[0][k].legend(loc='upper right', shadow=False, fontsize='large')
             
     def plot_time_between_events(self, fig_num=209):
-        """
-        Delta-time between consecutive events and internal cluster time spans, per unit.
-        Always linear-binned: legacy hardcodes out_of_bounds=False here
-        regardless of the instance's hist_out_of_bounds setting.
-        """
+        """Delta-time between consecutive events and internal cluster time spans, per unit."""
         if self.is_empty:
             return
-        grid = PlotGrid(fig_num, 2, len(self.unit_ids), sharex= False)
+        grid = PlotGrid(fig_num, 2, len(self.unit_ids), sharex=False)
         grid.fig.suptitle('Time between events and cluster time span')
         ax_rate = self.axis_set.ax_time_between_ev
         ax_span = self.axis_set.ax_time_span
         m = self.matrix
         forced_hist = Histogrammer(out_of_bounds=False)
 
-        # Determine if this container instance has VMM normal clustering analytics fields
         has_cluster_span = 'clusterTimeSpan' in m.dtype.names
 
         for k, uid in enumerate(self.unit_ids):
             sel = self.select_unit(uid)
-            
-            # Use the precalculated field (stored in ns) instead of manually computing np.diff
-            # Filtering for rows where delta is valid (> 0)
             valid_delta = sel & (m['timeBetweenEvents'] > 0)
-            inter_cluster_times = m['timeBetweenEvents'][valid_delta] / 1e9 # convert ns to seconds for axis centers matching
+            inter_cluster_times = m['timeBetweenEvents'][valid_delta] / 1e9
 
             hist_rate = forced_hist.hist1d(ax_rate.centers, inter_cluster_times)
             grid.ax[0][k].step(ax_rate.centers * 1e6, hist_rate, 'b', where='mid', label='time delta bet ev')
             
             hist_rate_zoomed = forced_hist.hist1d(ax_span.centers, inter_cluster_times)
+            hist_span = None
 
-            # Overlay cluster time span if dealing with eventsVMMnormal
             if has_cluster_span:
-                cluster_spans = m['clusterTimeSpan'][sel] / 1e9 # convert ns to seconds
+                cluster_spans = m['clusterTimeSpan'][sel] / 1e9
                 hist_span = forced_hist.hist1d(ax_span.centers, cluster_spans)
                 grid.ax[1][k].step(ax_span.centers * 1e6, hist_span, 'r', where='mid', label='cluster time span')
                 grid.ax[1][k].step(ax_span.centers * 1e6, hist_rate_zoomed, 'b', where='mid', label='time delta bet ev')
-                
-            # print(ax_rate.centers)
 
-            #     grid.ax[0][k].set_yscale('log')
-            #     grid.ax[1][k].set_yscale('log')
-        
-            
-            # --- SAFE LOG SCALE CHECK ---
-            # Set y-scale to log only if there is at least one positive count in the histogram
             if hist_rate is not None and (hist_rate > 0).any():
                 grid.ax[0][k].set_yscale('log')
             else:
-                grid.ax[0][k].set_yscale('linear') # fall back safely to linear scale
+                grid.ax[0][k].set_yscale('linear')
 
-            # Check both overlaid datasets on row 1 before applying log scale
             has_positive_span = hist_span is not None and (hist_span > 0).any()
             has_positive_zoomed = hist_rate_zoomed is not None and (hist_rate_zoomed > 0).any()
             
@@ -275,28 +207,16 @@ class VMMEventsPlotter(BaseEventsPlotter):
             else:
                 grid.ax[1][k].set_yscale('linear')    
                 
-            # has_positive_span = hist_span is not None and (hist_span > 0).any()
-            # has_positive_zoomed = hist_rate_zoomed is not None and (hist_rate_zoomed > 0).any()
-            
-            # if has_positive_span or has_positive_zoomed:
-            #     # grid.ax[1][k].set_yscale('log')
-            #     grid.ax[1][k].set_xscale('symlog', linthresh=1)
-            # else:
-            #     grid.ax[1][k].set_yscale('linear')
- 
-            
             grid.ax[1][k].set_xscale('symlog', linthresh=1)
 
             grid.ax[0][k].set_xlabel('delta time (us)')
             grid.ax[1][k].set_xlabel('delta time / span (us)')
             
             grid.ax[0][k].set_title(f'ID {uid}')
-            # Check and apply legend for row 0
             handles0, labels0 = grid.ax[0][k].get_legend_handles_labels()
             if labels0:
                 grid.ax[0][k].legend(loc='upper right', shadow=False, fontsize='medium')
             
-            # Check and apply legend for row 1
             handles1, labels1 = grid.ax[1][k].get_legend_handles_labels()
             if labels1:
                 grid.ax[1][k].legend(loc='upper right', shadow=False, fontsize='medium')
@@ -304,29 +224,12 @@ class VMMEventsPlotter(BaseEventsPlotter):
                 grid.ax[0][k].set_ylabel('num of events')
 
     def plot_multiplicity(self, fig_num=401):
-        """
-        Normalized per-axis multiplicity distributions and their 2D
-        coincidence correlation, per unit. "X (2D)"/"Y (2D)" are NOT a
-        third category -- both are the exact same 2D-coincidence
-        population (sel_full_coinc: X and Y both fired), just shown as
-        its X-shape and its Y-shape separately; the panel below is the
-        joint distribution of that same population (its marginals equal
-        these two bars). Layout adapts to ACCEPT_1D_X/ACCEPT_1D_Y:
-          - X shape, Y shape: always shown (meaningful regardless of
-            which 1D categories this detector treats as valid).
-          - "no Y" bar + X-coincidence shape: shown iff ACCEPT_1D_X
-            (only meaningful if X-alone is itself a category this
-            detector's other plots treat as real signal).
-          - "no X" bar + Y-coincidence shape: shown iff ACCEPT_1D_Y.
-        For MB/MG (ACCEPT_1D_X=True, ACCEPT_1D_Y=False) this reduces to
-        the original 4-bar wire/strip layout. For NMX (both True) it's
-        the symmetric 6-bar X/Y layout.
-        """
+        """Normalized per-axis multiplicity distributions and their 2D coincidence correlation, per unit."""
         if self.is_empty:
             return
 
-        show_x = self.ACCEPT_1D_X   # "no Y" bar + X-coincidence-shape bar
-        show_y = self.ACCEPT_1D_Y   # "no X" bar + Y-coincidence-shape bar
+        show_x = self.ACCEPT_1D_X
+        show_y = self.ACCEPT_1D_Y
         symmetric = show_x and show_y
         width, extent = (0.15, 7) if symmetric else (0.2, 7)
 
@@ -338,7 +241,7 @@ class VMMEventsPlotter(BaseEventsPlotter):
 
         for k, uid in enumerate(self.unit_ids):
             unit_sel = self.select_unit(uid)
-            valid = unit_sel & self.selc     # this detector's "real" events (noise excluded)
+            valid = unit_sel & self.selc
             coinc = unit_sel & self.sel_full_coinc
 
             myx = self.hist.hist1d(xx, m['mult0'][valid])
@@ -403,7 +306,7 @@ class VMMEventsPlotter(BaseEventsPlotter):
             grid.fig.colorbar(pos1, ax=grid.ax[1][k])
 
     def plot_phs(self, fig_num=601):
-        """X/Y pulse-height spectra per unit: raw X, raw Y (coincidence-gated), X-with-Y-coincidence, and the summed 1D comparison."""
+        """X/Y pulse-height spectra per unit."""
         if self.is_empty:
             return
         norm_colors = log_scale_norm(self.parameters.pulseHeigthSpect.plotPHSlog)
@@ -479,7 +382,7 @@ class VMMEventsPlotter(BaseEventsPlotter):
                 grid.ax[0][k].set_ylabel(f'pulse height {self.Y_LABEL.lower()} (a.u.)')
 
     def plot_x_lambda(self, fig_num=103):
-        """2D wavelength vs X-position image across all units combined, raw channel or absolute-mm coordinates. Respects the global coincidence mask."""
+        """2D wavelength vs X-position image across all units combined."""
         if self.is_empty:
             return
         norm_colors = log_scale_norm(self.parameters.plotting.plotIMGlog)
@@ -508,7 +411,6 @@ class VMMEventsPlotter(BaseEventsPlotter):
         ax.set_xlabel('wavelength (A)')
         fig.suptitle('DET wavelength')
 
-
 # ============================================================================
 # Multi-Blade
 # ============================================================================
@@ -526,12 +428,10 @@ class MBEventsPlotter(VMMEventsPlotter):
     SUPPORTS_ABS_UNITS = True
 
     def _get_x_channel(self, global_x_coord: np.ndarray) -> np.ndarray:
-        """Wrap a global wire coordinate into this cassette's local wire-channel range."""
         num_wires = self.config['wires']
         return np.mod(global_x_coord, num_wires)
 
     def plot_xy(self, fig_num=101):
-        """Generates the main detector image (wire vs strip) and its 1D projection panel."""
         if self.is_empty:
             return
         log_scale   = self.parameters.plotting.plotIMGlog
@@ -554,7 +454,9 @@ class MBEventsPlotter(VMMEventsPlotter):
             ax_strips.centers, strip_values[self.selc],
             self.axis_set.ax_tof.centers, m['ToF'][self.selc] / 1e9,
         )
-        h_proj_all = self.hist.hist1d(ax_wires.centers, wire_values[self.selc])
+        
+        # RESTORED: Evaluate raw valid coordinate0 so all 1D wire counts render on the red curve
+        h_proj_all = self.hist.hist1d(ax_wires.centers, wire_values[m['coordinate0'] >= 0])
         h_proj_2d  = np.sum(h2d, axis=0)
         
         if orientation == 'vertical':
@@ -568,7 +470,7 @@ class MBEventsPlotter(VMMEventsPlotter):
             _safe_colorbar(fig2d, pos1, ax1, 'XY', orientation='horizontal', fraction=0.07, anchor=(1.0, 0.0))
             ax1.set_xlabel(wire_label)
             ax1.set_ylabel(strip_label)
-        else:  # 'horizontal'
+        else:
             if isinstance(fig_num, matplotlib.figure.Figure):
                 fig2d = fig_num
                 (ax1, ax2) = fig2d.subplots(nrows=1, ncols=2)
@@ -591,7 +493,6 @@ class MBEventsPlotter(VMMEventsPlotter):
         ax2.legend(loc='upper right', shadow=False, fontsize='large')
 
     def plot_tof_xy(self, fig_num=102):
-        """Generates the dedicated Time of Flight vs Position layout."""
         if self.is_empty:
             return
         log_scale   = self.parameters.plotting.plotIMGlog
@@ -614,7 +515,6 @@ class MBEventsPlotter(VMMEventsPlotter):
             self.axis_set.ax_y.centers, m['coordinate1'][self.selc],
             ax_tof.centers, m['ToF'][self.selc] / 1e9,
         )
-    
 
         if isinstance(fig_num, matplotlib.figure.Figure):
             fig_tof = fig_num
@@ -634,19 +534,7 @@ class MBEventsPlotter(VMMEventsPlotter):
 # ============================================================================
 
 class MGEventsPlotter(VMMEventsPlotter):
-    """
-    Multi-Grid events: detector image (wire vs grid) with cassette/row
-    separator lines and an extra row-projection panel pair, plus a
-    ToF-vs-wire image. Only orientation='vertical' actually renders the
-    top-left detector-image panel -- 'horizontal' prints a warning and
-    leaves it blank while the rest of the figure still renders (a legacy
-    bug preserved verbatim). absUnits is not supported at all (legacy never
-    implemented it for MG) -- SUPPORTS_ABS_UNITS stays at the
-    VMMEventsPlotter default (False), so self.abs_units is always False
-    here regardless of what's requested in config, and plot_xy/plot_tof_xy
-    always render with channel-number axes (a request for abs units just
-    prints a one-time warning at construction instead of skipping the plot).
-    """
+    """Multi-Grid events plotting class."""
 
     X_LABEL = 'Wire'
     Y_LABEL = 'Grid'
@@ -657,11 +545,9 @@ class MGEventsPlotter(VMMEventsPlotter):
     Y_COUNT_KEYS = ('grids',)
 
     def _get_x_channel(self, global_x_coord: np.ndarray) -> np.ndarray:
-        """MG wire channels are already flat/linear across the full detector -- no per-cassette wrapping applied."""
         return global_x_coord
 
     def plot_xy(self, fig_num=101):
-        """Generates the 2x2 grid featuring multi-grid wire views and row-projected layouts."""
         if self.is_empty:
             return
 
@@ -681,7 +567,9 @@ class MGEventsPlotter(VMMEventsPlotter):
             ax_grids.centers, m['coordinate1'][self.selc],
             ax_tof.centers, m['ToF'][self.selc] / 1e9,
         )
-        h_proj_all = self.hist.hist1d(ax_wires.centers, m['coordinate0'][self.selc])
+        
+        # RESTORED: Evaluate raw valid coordinate0 so all 1D wire counts render on the red curve
+        h_proj_all = self.hist.hist1d(ax_wires.centers, m['coordinate0'][m['coordinate0'] >= 0])
         h_proj_2d  = np.sum(h2d, axis=0)
 
         if isinstance(fig_num, matplotlib.figure.Figure):
@@ -704,7 +592,7 @@ class MGEventsPlotter(VMMEventsPlotter):
                 ax22[0][0].plot([k * num_wires - 0.5, k * num_wires - 0.5],
                                  [-0.5, num_strips - 1 + 0.5], color='m', linewidth=1)
             ax22[0][0].set_xlim(ax_wires.centers[0], ax_wires.centers[-1])
-        else:  # 'horizontal'
+        else:
             print(f'\n --> {WARN}WARNING: horizontal is not supported yet for MG for now, change in config file{RESET}', end='')
 
         fig2d.suptitle('DET image')
@@ -760,7 +648,6 @@ class MGEventsPlotter(VMMEventsPlotter):
         ax22[1][1].legend(loc='upper right', shadow=False, fontsize='large')
 
     def plot_tof_xy(self, fig_num=102):
-        """Generates the dedicated multi-grid ToF panel."""
         if self.is_empty:
             return
         
@@ -788,24 +675,19 @@ class MGEventsPlotter(VMMEventsPlotter):
         ax_t.set_ylabel('Wire ch.')
         ax_t.set_xlabel('ToF (ms)')
         fig_tof.suptitle('DET ToF')
+
 # ============================================================================
 # R5560 tubes
 # ============================================================================
 
 class R5560EventsPlotter(BaseEventsPlotter):
-    """
-    Event diagnostics for R5560 tubes. No wire/strip pair, so there's no
-    coincidence concept (no self.selc), no multiplicity, and PHS correlation
-    doesn't apply -- those simply print a "not supported" warning, matching
-    legacy.
-    """
+    """Event diagnostics for R5560 tubes."""
     PLOT_METHODS = {
         **BaseEventsPlotter.PLOT_METHODS,
         "Position per Tube": "plot_position_per_tube",
     }
 
     def plot_tof(self, fig_num=333):
-        """ToF distribution per tube (single curve, no coincidence overlay)."""
         if self.is_empty:
             return
 
@@ -820,12 +702,11 @@ class R5560EventsPlotter(BaseEventsPlotter):
 
             grid.ax[0][k].step(ax_tof.centers * 1e3, hist_tt, 'b', where='mid')
             grid.ax[0][k].set_xlabel('ToF (ms)')
-            grid.ax[0][k].set_title(f'Tube ID {uid}')  # NOTE: "Tube D" typo preserved verbatim from legacy
+            grid.ax[0][k].set_title(f'Tube ID {uid}')
             if k == 0:
                 grid.ax[0][k].set_ylabel('counts')
 
     def plot_lambda(self, fig_num=339):
-        """Wavelength distribution per tube (single curve, no coincidence overlay)."""
         if self.is_empty:
             return
         
@@ -845,7 +726,6 @@ class R5560EventsPlotter(BaseEventsPlotter):
                 grid.ax[0][k].set_ylabel('counts')
 
     def plot_time_between_events(self, fig_num=209):
-        """Delta-time between consecutive events, per tube. Always linear-binned (out_of_bounds forced off, matching legacy)."""
         if self.is_empty:
             return
     
@@ -869,8 +749,7 @@ class R5560EventsPlotter(BaseEventsPlotter):
     def plot_phs(self, fig_num=601):
         if self.is_empty:
             return
-        # log_scale   = self.parameters.plotting.plotIMGlog
-        
+
         grid = PlotGrid(fig_num, 1, len(self.unit_ids))
         grid.fig.suptitle('Pulse Heigth Spectra')
         ax_energy = self.axis_set.ax_energy
@@ -887,7 +766,6 @@ class R5560EventsPlotter(BaseEventsPlotter):
             grid.ax[0][k].set_xlabel('pulse height (a.u.)')
 
     def plot_multiplicity(self):
-        """Not supported for R5560 (single coordinate, no wire/strip pair)."""
         if self.is_empty:
             return
         print(f"\n\t{WARN}WARNING: Multiplicity not supported for {self.config['detectorType']} -> SKIPPING PLOT.{RESET}")
@@ -936,7 +814,6 @@ class R5560EventsPlotter(BaseEventsPlotter):
         else:
             grid_fig, ax1 = plt.subplots(num=fig_num, figsize=(6, 6), nrows=1, ncols=1)
 
-
         if orientation == 'vertical':
             pos1 = ax1.imshow(h2d, aspect='auto', norm=norm_colors, interpolation='none',
                                extent=[ax_tubes.start - half_x_pixel, ax_tubes.stop + half_x_pixel, 
@@ -947,16 +824,12 @@ class R5560EventsPlotter(BaseEventsPlotter):
             _safe_colorbar(grid_fig, pos1, ax1, 'XY', orientation='vertical', fraction=0.07, anchor=(1.0, 0.0))
             ax1.set_xlabel(pos1_label)
             ax1.set_ylabel(pos0_label)
-        else:  # 'horizontal'
+        else:
             pos1 = ax1.imshow(np.rot90(h2d, 1), aspect='auto', norm=norm_colors, interpolation='none',
                                extent=[ax_length.start - half_y_pixel, ax_length.stop + half_y_pixel, 
                                        ax_tubes.stop + half_x_pixel, ax_tubes.start - half_x_pixel], 
                                origin='upper', cmap='viridis')
-            # Set the ticks on their newly oriented axes
             ax1.xaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%d'))
-            
-            # ax1.set_xticks(ax_length.centers)
-            # ax1.set_xticklabels(ax_length.centers.astype(int))
             ax1.set_yticks(ax_tubes.centers)
             ax1.set_yticklabels(ax_tubes.centers.astype(int))
             
@@ -967,22 +840,17 @@ class R5560EventsPlotter(BaseEventsPlotter):
         grid_fig.suptitle('DET image')
 
     def plot_position_per_tube(self, fig_num=104):
-        """Generates the multi-panel grid of 1D tube positions."""
         if self.is_empty:
             return
         
         log_scale   = self.parameters.plotting.plotIMGlog
         abs_units   = self.parameters.plotting.plotABSunits
-        
         m = self.matrix
 
         if not abs_units:
             ax_length, pos0_values, pos0_label = self.axis_set.ax_length, m['coordinate0'], 'Along tube position (a.u.)'
-            # ax_tubes, pos1_values, pos1_label = self.axis_set.ax_tubes, m['coordinate1'], 'Tube ID (a.u.)'
-            
         else:
             ax_length, pos0_values, pos0_label = self.axis_set.ax_length_mm, m['absCoordinate0'], 'Along tube position (mm)'
-            # ax_tubes, pos1_values, pos1_label = self.axis_set.ax_tubes_mm, m['absCoordinate1'], 'Tube Position (mm)'
            
         grid1d = PlotGrid(fig_num, 1, len(self.unit_ids))
 
@@ -999,7 +867,6 @@ class R5560EventsPlotter(BaseEventsPlotter):
                 grid1d.ax[0][k].set_ylabel('counts')
 
     def plot_tof_xy(self, fig_num=102):
-        """Tube-ID-vs-ToF image distribution."""
         if self.is_empty:
             return
         
@@ -1023,34 +890,19 @@ class R5560EventsPlotter(BaseEventsPlotter):
         ax2.set_yticklabels(ax_tubes.centers.astype(int))
         ax2.set_ylabel('Tube ID')
         ax2.set_xlabel('ToF (ms)')
-        
         fig_tof.suptitle('DET ToF')
+
 # ============================================================================
 # Beam monitor
 # ============================================================================
 
 class MonitorEventsPlotter(BasePlotter):
-    """
-    Beam-monitor passthrough plots (eventsBM / eventsIBM / eventsSKADI): a
-    single stream with no per-unit ID grouping at all, so this sits
-    directly on BasePlotter rather than BaseEventsPlotter (no select_unit
-    concept, no per-cassette loop).
-
-    Two behavioural additions vs. legacy, both for consistency with the
-    rest of this module rather than "new features": (1) the is_empty guard
-    from BasePlotter, since legacy's plottingMON never checked for an
-    empty stream at all; (2) the PHS panel reads the generic
-    'pulseHeight0' field (matching legacy eventsMON.PHW) -- flag if your
-    monitor pipeline actually wants the detector-specific 'adc' field
-    instead.
-    """
     PLOT_METHODS = {
         "ToF & PHS":  "plot_tof_phs_mon",
         "Wavelength": "plot_lambda_mon",
     }
 
     def plot_tof_phs_mon(self, fig_num=999):
-        """ToF and pulse-height spectra for the monitor stream, side by side."""
         if self.is_empty:
             return
         m = self.matrix
@@ -1075,7 +927,6 @@ class MonitorEventsPlotter(BasePlotter):
         ax2.set_title('PHS')
 
     def plot_lambda_mon(self, fig_num=9998):
-        """Wavelength spectrum for the monitor stream."""
         if self.is_empty:
             return
         m = self.matrix
@@ -1091,30 +942,14 @@ class MonitorEventsPlotter(BasePlotter):
         ax1.set_xlabel('wavelength (A)')
         ax1.set_ylabel('counts')
         ax1.set_title('WAVELENGTH')
-        
-        
-        
+
 # ============================================================================
 # SKADI pixel detector
 # ============================================================================
 
 class SKADIEventsPlotter(BaseEventsPlotter):
-    """
-    Event-level plots for SKADI. plot_tof/plot_lambda/plot_time_between_events
-    mirror R5560EventsPlotter exactly (single curve per unit, no wire/strip
-    coincidence concept -- SKADI has nothing analogous to split on). plot_phs
-    reuses the readout-level ADC-vs-channel shape but on pulseHeight0/matrix
-    instead of adc/readouts. plot_xy is bank-grouped rather than tile-grouped,
-    since "the detector image" here means the full assembled tile mosaic per
-    bank, not one panel per tile.
-
-    plot_x_lambda and plot_tof_xy are intentionally NOT overridden -- they
-    fall through to BaseEventsPlotter's stub (prints a "not implemented"
-    warning and returns) until there's a concrete spec for them.
-    """
 
     def plot_tof(self, fig_num=333):
-        """ToF distribution per tile (single curve, no coincidence overlay)."""
         if self.is_empty:
             return
         grid = PlotGrid(fig_num, 1, len(self.unit_ids))
@@ -1133,7 +968,6 @@ class SKADIEventsPlotter(BaseEventsPlotter):
                 grid.ax[0][k].set_ylabel('counts')
 
     def plot_lambda(self, fig_num=339):
-        """Wavelength distribution per tile (single curve, no coincidence overlay)."""
         if self.is_empty:
             return
         grid = PlotGrid(fig_num, 1, len(self.unit_ids))
@@ -1152,7 +986,6 @@ class SKADIEventsPlotter(BaseEventsPlotter):
                 grid.ax[0][k].set_ylabel('counts')
 
     def plot_time_between_events(self, fig_num=209):
-        """Delta-time between consecutive events, per tile. Linear-binned (out_of_bounds forced off)."""
         if self.is_empty:
             return
         grid = PlotGrid(fig_num, 1, len(self.unit_ids))
@@ -1173,7 +1006,6 @@ class SKADIEventsPlotter(BaseEventsPlotter):
                 grid.ax[0][k].set_ylabel('num of events')
 
     def plot_phs(self, fig_num=601):
-        """Pulse-height vs channel, 2D histogram per tile, post-threshold."""
         if self.is_empty:
             return
         norm_colors = log_scale_norm(self.parameters.pulseHeigthSpect.plotPHSlog)
@@ -1224,7 +1056,6 @@ class SKADIEventsPlotter(BaseEventsPlotter):
 
         bank_ids = sorted(np.unique(m['bank']))
         
-        # FIX: Added height_ratios and explicit column sharing to optimize spatial balance
         grid = PlotGrid(
             fig_num, 2, len(bank_ids), 
             sharex=True, sharey=False,
@@ -1239,14 +1070,12 @@ class SKADIEventsPlotter(BaseEventsPlotter):
 
             h2d, _, _ = self.hist.hist2d(ax_x.centers, x_values[sel], ax_y.centers, y_values[sel])
 
-            # Define explicit logarithmic/linear normalization per iteration to avoid vmin=0 auto-scaling bugs
             if log_scale:
                 max_val = np.max(h2d) if np.max(h2d) > 0 else 1
                 norm_colors = colors.LogNorm(vmin=1, vmax=max_val)
             else:
                 norm_colors = colors.Normalize()
 
-            # Row 0: Large 2D Detector Image View
             pos = grid.ax[0][k].imshow(
                 h2d, aspect='equal', norm=norm_colors, interpolation='none',
                 extent=extent, origin='lower', cmap='viridis',
@@ -1263,7 +1092,6 @@ class SKADIEventsPlotter(BaseEventsPlotter):
             proj_pos = grid.ax[1][k].get_position()
             grid.ax[1][k].set_position([img_pos.x0, proj_pos.y0, img_pos.width, proj_pos.height])
 
-            # Row 1: Slimmed 1D Projections
             sel_x_valid = sel_bank & (m['coordinate0'] >= 0)
             h_proj_all = self.hist.hist1d(ax_x.centers, x_values[sel_x_valid])
             h_proj_2d  = np.sum(h2d, axis=0)
@@ -1277,43 +1105,15 @@ class SKADIEventsPlotter(BaseEventsPlotter):
             grid.ax[1][k].legend(loc='upper right', shadow=False, fontsize='large')
             if k == 0:
                 grid.ax[1][k].set_ylabel('counts')
-                
-        # def plot_tof_xy(self, *args, **kwargs): 
-        #     Not implemented yet - use pythagoras to get radial distance?
-    
-        # def plot_x_lambda(self, *args, **kwargs): self._skip('plot_x_lambda')
-        #     Not implemented yet - use pythagoras to get radial distance?
-        
+
 # ============================================================================
 # NMX (X/Y strip detector, no wire/strip asymmetry)
 # ============================================================================
 
 class NMXEventsPlotter(VMMEventsPlotter):
     """
-    NMX events: X and Y are equally primary (no wire-as-reference
-    asymmetry) -- ACCEPT_1D_Y=True tells VMMEventsPlotter.__init__ to
-    treat X-only and Y-only events as valid signal on equal footing with
-    X, which is what makes self.selc and plot_multiplicity come out
-    symmetric automatically. Bank is derived from ID (ID // 10 = bank,
-    remainder = quadrant) -- there is no separate 'bank' field on the
-    matrix. Abs units are not implemented for NMX (no mm axes in
-    NMXAxisSet); SUPPORTS_ABS_UNITS stays at the VMMEventsPlotter default
-    (False), same treatment as MG.
-
-    plot_tof/plot_lambda/plot_phs/plot_phs_correlation/plot_multiplicity
-    are inherited unchanged from VMMEventsPlotter and come out correct
-    purely from the class constants below (X_LABEL/Y_LABEL/X_TAG/Y_TAG/
-    ACCEPT_1D_Y) plus NMXAxisSet naming its axes ax_x/ax_y the same way
-    MBAxisSet/MGAxisSet do.
-
-    plot_xy, plot_x_lambda, and plot_tof_xy ARE overridden here, and
-    can't be: NMXMapper's tiled coordinate (0..FULL_WIDTH-1) is only
-    unique WITHIN one bank -- every bank reuses the same numbering,
-    unlike MB's ax_x, which is unique across the whole detector because
-    cassettes are concatenated onto one number line. The base class's
-    single combined-histogram versions of plot_x_lambda/plot_tof_xy
-    would silently overlay events from physically different banks into
-    the same bins, so all three are paneled per bank here instead.
+    NMX events: X and Y are equally primary. Bank is derived from ID
+    (ID // 10 = bank, remainder = quadrant).
     """
 
     X_LABEL = 'Strip X'
@@ -1330,21 +1130,15 @@ class NMXEventsPlotter(VMMEventsPlotter):
         self.bank_ids = sorted(np.unique(self.matrix['ID'] // 10)) if not self.is_empty else []
 
     def _get_x_channel(self, global_x_coord):
-        """Un-shift the per-quadrant tiled offset -> local X strip channel."""
         num_strips = self._config_count(self.X_COUNT_KEYS)
         return np.mod(global_x_coord, num_strips)
 
     def _get_y_channel(self, global_y_coord):
-        """Un-shift the per-quadrant tiled offset -> local Y strip channel."""
         num_strips = self._config_count(self.Y_COUNT_KEYS)
         return np.mod(global_y_coord, num_strips)
 
     def plot_x_lambda(self, fig_num=103):
-        """
-        Wavelength vs position, one row per electrode (X, Y), one column
-        per bank. Paneled per bank -- see class docstring for why this
-        can't be combined across banks the way MB/MG's plot_x_lambda is.
-        """
+        """Wavelength vs position, one row per electrode (X, Y), one column per bank."""
         if self.is_empty:
             return
 
@@ -1377,7 +1171,7 @@ class NMXEventsPlotter(VMMEventsPlotter):
                 grid.ax[1][k].set_ylabel(f'{self.Y_LABEL} ch.')
 
     def plot_tof_xy(self, fig_num=102):
-        """ToF vs position, one row per electrode (X, Y), one column per bank. Paneled per bank for the same reason as plot_x_lambda."""
+        """ToF vs position, one row per electrode (X, Y), one column per bank."""
         if self.is_empty:
             return
 
@@ -1410,92 +1204,91 @@ class NMXEventsPlotter(VMMEventsPlotter):
                 grid.ax[1][k].set_ylabel(f'{self.Y_LABEL} ch.')
 
     def plot_xy(self, fig_num=101):
-            """3-row image per bank: X vs Y + X projection + Y projection, one column
-            per bank (tiled coordinate repeats per bank, so banks are never overlaid)."""
-            if self.is_empty:
-                return
-            log_scale = self.parameters.plotting.plotIMGlog
-            norm_colors = log_scale_norm(log_scale)
-            m = self.matrix
-    
-            ax_x, ax_y = self.axis_set.ax_x, self.axis_set.ax_y
-            x_values, y_values = m['coordinate0'], m['coordinate1']
-            xlabel, ylabel = 'X ch.', 'Y ch.'
-    
-            n_banks = len(self.bank_ids)
-    
-            if isinstance(fig_num, matplotlib.figure.Figure):
-                fig = fig_num
-            else:
-                fig = plt.figure(num=fig_num)
-            fig.suptitle('DET image')
-    
-            gs = fig.add_gridspec(
-                3, n_banks, height_ratios=[4, 1, 1],
-                hspace=0.30, wspace=0.22,
-                left=0.04, right=0.97, top=0.95, bottom=0.06,
-            )
-    
-            fig.canvas.draw()  
-            W, H = fig.get_size_inches()
-    
-            for k, bank in enumerate(self.bank_ids):
-                sel_bank = ((m['ID'] // 10) == bank) & self.selc
-                sel_bank_x = ((m['ID'] // 10) == bank) & (m['coordinate0'] >= 0)
-                sel_bank_y = ((m['ID'] // 10) == bank) & (m['coordinate1'] >= 0)
-    
-                ax_img = fig.add_subplot(gs[0, k])
-                ax_px  = fig.add_subplot(gs[1, k])
-                ax_py  = fig.add_subplot(gs[2, k])
-    
-                h2d, _, _ = self.hist.hist2d(ax_x.centers, x_values[sel_bank], ax_y.centers, y_values[sel_bank])
-                h_proj_x_all = self.hist.hist1d(ax_x.centers, x_values[sel_bank_x])
-                h_proj_x_2d = np.sum(h2d, axis=0)
-                h_proj_y_all = self.hist.hist1d(ax_y.centers, y_values[sel_bank_y])
-                h_proj_y_2d = np.sum(h2d, axis=1)
-    
-                pos1 = ax_img.imshow(h2d, aspect='auto', norm=norm_colors, interpolation='none',
-                                    extent=[ax_x.start, ax_x.stop, ax_y.start, ax_y.stop], origin='lower', cmap='viridis')
-                _safe_colorbar(fig, pos1, ax_img, f'Bank {bank}', orientation='vertical', fraction=0.046, pad=0.02)
-                ax_img.set_title(f'Bank {bank}')
-                ax_img.set_xlabel(xlabel)
-                if k == 0:
-                    ax_img.set_ylabel(ylabel)
-    
-                ax_px.step(ax_x.centers, h_proj_x_all, 'r', where='mid', label='1D')
-                ax_px.step(ax_x.centers, h_proj_x_2d, 'b', where='mid', label='2D')
-                if log_scale:
-                    ax_px.set_yscale('log')
-                ax_px.set_xlim(ax_x.start, ax_x.stop)
-                ax_px.set_xlabel(xlabel)
-                if k == 0:
-                    ax_px.set_ylabel('counts')
-                ax_px.legend(loc='upper right', shadow=False, fontsize='medium')
-    
-                ax_py.step(ax_y.centers, h_proj_y_all, 'r', where='mid', label='1D')
-                ax_py.step(ax_y.centers, h_proj_y_2d, 'b', where='mid', label='2D')
-                if log_scale:
-                    ax_py.set_yscale('log')
-                ax_py.set_xlim(ax_y.start, ax_y.stop)
-                ax_py.set_xlabel(ylabel)
-                if k == 0:
-                    ax_py.set_ylabel('counts')
-                ax_py.legend(loc='upper right', shadow=False, fontsize='medium')
-    
-                fig.canvas.draw()
-                img_pos = ax_img.get_position()
-    
-                avail_w_in = img_pos.width * W
-                avail_h_in = img_pos.height * H
-                side_in = min(avail_w_in, avail_h_in)
-    
-                new_width = side_in / W
-                new_height = side_in / H
-                new_x0 = img_pos.x0 + (img_pos.width - new_width) / 2
-                new_y0 = img_pos.y0 + (img_pos.height - new_height) / 2
-                ax_img.set_position([new_x0, new_y0, new_width, new_height])
-    
-                px_pos = ax_px.get_position()
-                py_pos = ax_py.get_position()
-                ax_px.set_position([new_x0, px_pos.y0, new_width, px_pos.height])
-                ax_py.set_position([new_x0, py_pos.y0, new_width, py_pos.height])
+        """3-row image per bank: X vs Y + X projection + Y projection, one column per bank."""
+        if self.is_empty:
+            return
+        log_scale = self.parameters.plotting.plotIMGlog
+        norm_colors = log_scale_norm(log_scale)
+        m = self.matrix
+
+        ax_x, ax_y = self.axis_set.ax_x, self.axis_set.ax_y
+        x_values, y_values = m['coordinate0'], m['coordinate1']
+        xlabel, ylabel = 'X ch.', 'Y ch.'
+
+        n_banks = len(self.bank_ids)
+
+        if isinstance(fig_num, matplotlib.figure.Figure):
+            fig = fig_num
+        else:
+            fig = plt.figure(num=fig_num)
+        fig.suptitle('DET image')
+
+        gs = fig.add_gridspec(
+            3, n_banks, height_ratios=[4, 1, 1],
+            hspace=0.30, wspace=0.22,
+            left=0.04, right=0.97, top=0.95, bottom=0.06,
+        )
+
+        fig.canvas.draw()  
+        W, H = fig.get_size_inches()
+
+        for k, bank in enumerate(self.bank_ids):
+            sel_bank = ((m['ID'] // 10) == bank) & self.selc
+            sel_bank_x = ((m['ID'] // 10) == bank) & (m['coordinate0'] >= 0)
+            sel_bank_y = ((m['ID'] // 10) == bank) & (m['coordinate1'] >= 0)
+
+            ax_img = fig.add_subplot(gs[0, k])
+            ax_px  = fig.add_subplot(gs[1, k])
+            ax_py  = fig.add_subplot(gs[2, k])
+
+            h2d, _, _ = self.hist.hist2d(ax_x.centers, x_values[sel_bank], ax_y.centers, y_values[sel_bank])
+            h_proj_x_all = self.hist.hist1d(ax_x.centers, x_values[sel_bank_x])
+            h_proj_x_2d = np.sum(h2d, axis=0)
+            h_proj_y_all = self.hist.hist1d(ax_y.centers, y_values[sel_bank_y])
+            h_proj_y_2d = np.sum(h2d, axis=1)
+
+            pos1 = ax_img.imshow(h2d, aspect='auto', norm=norm_colors, interpolation='none',
+                                extent=[ax_x.start, ax_x.stop, ax_y.start, ax_y.stop], origin='lower', cmap='viridis')
+            _safe_colorbar(fig, pos1, ax_img, f'Bank {bank}', orientation='vertical', fraction=0.046, pad=0.02)
+            ax_img.set_title(f'Bank {bank}')
+            ax_img.set_xlabel(xlabel)
+            if k == 0:
+                ax_img.set_ylabel(ylabel)
+
+            ax_px.step(ax_x.centers, h_proj_x_all, 'r', where='mid', label='1D')
+            ax_px.step(ax_x.centers, h_proj_x_2d, 'b', where='mid', label='2D')
+            if log_scale:
+                ax_px.set_yscale('log')
+            ax_px.set_xlim(ax_x.start, ax_x.stop)
+            ax_px.set_xlabel(xlabel)
+            if k == 0:
+                ax_px.set_ylabel('counts')
+            ax_px.legend(loc='upper right', shadow=False, fontsize='medium')
+
+            ax_py.step(ax_y.centers, h_proj_y_all, 'r', where='mid', label='1D')
+            ax_py.step(ax_y.centers, h_proj_y_2d, 'b', where='mid', label='2D')
+            if log_scale:
+                ax_py.set_yscale('log')
+            ax_py.set_xlim(ax_y.start, ax_y.stop)
+            ax_py.set_xlabel(ylabel)
+            if k == 0:
+                ax_py.set_ylabel('counts')
+            ax_py.legend(loc='upper right', shadow=False, fontsize='medium')
+
+            fig.canvas.draw()
+            img_pos = ax_img.get_position()
+
+            avail_w_in = img_pos.width * W
+            avail_h_in = img_pos.height * H
+            side_in = min(avail_w_in, avail_h_in)
+
+            new_width = side_in / W
+            new_height = side_in / H
+            new_x0 = img_pos.x0 + (img_pos.width - new_width) / 2
+            new_y0 = img_pos.y0 + (img_pos.height - new_height) / 2
+            ax_img.set_position([new_x0, new_y0, new_width, new_height])
+
+            px_pos = ax_px.get_position()
+            py_pos = ax_py.get_position()
+            ax_px.set_position([new_x0, px_pos.y0, new_width, px_pos.height])
+            ax_py.set_position([new_x0, py_pos.y0, new_width, py_pos.height])
