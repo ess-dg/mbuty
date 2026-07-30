@@ -1,8 +1,8 @@
 {
-    "detectorName": "NMXtest",
+    "detectorName": "NMX",
     "detectorType": "NMX",
     "instrumentName": "NMX",
-    "units": 12,
+    "units": 4,
     "orientation": "horizontal",
     "topology": [
         {
@@ -18,11 +18,11 @@
                 4
             ],
             "hybridsY": [
-                0,
-                1,
-                2,
+                4,
                 3,
-                4
+                2,
+                1,
+                0
             ]
         },
         {
@@ -38,11 +38,11 @@
                 4
             ],
             "hybridsY": [
-                0,
-                1,
-                2,
+                4,
                 3,
-                4
+                2,
+                1,
+                0
             ]
         },
         {
@@ -58,11 +58,11 @@
                 4
             ],
             "hybridsY": [
-                0,
-                1,
-                2,
+                4,
                 3,
-                4
+                2,
+                1,
+                0
             ]
         },
         {
@@ -78,171 +78,11 @@
                 4
             ],
             "hybridsY": [
-                0,
-                1,
-                2,
+                4,
                 3,
-                4
-            ]
-        },
-        {
-            "ID": 20,
-            "ring": 4,
-            "fenX": 0,
-            "fenY": 1,
-            "hybridsX": [
-                0,
-                1,
                 2,
-                3,
-                4
-            ],
-            "hybridsY": [
-                0,
                 1,
-                2,
-                3,
-                4
-            ]
-        },
-        {
-            "ID": 21,
-            "ring": 5,
-            "fenX": 0,
-            "fenY": 1,
-            "hybridsX": [
-                0,
-                1,
-                2,
-                3,
-                4
-            ],
-            "hybridsY": [
-                0,
-                1,
-                2,
-                3,
-                4
-            ]
-        },
-        {
-            "ID": 22,
-            "ring": 6,
-            "fenX": 0,
-            "fenY": 1,
-            "hybridsX": [
-                0,
-                1,
-                2,
-                3,
-                4
-            ],
-            "hybridsY": [
-                0,
-                1,
-                2,
-                3,
-                4
-            ]
-        },
-        {
-            "ID": 23,
-            "ring": 7,
-            "fenX": 0,
-            "fenY": 1,
-            "hybridsX": [
-                0,
-                1,
-                2,
-                3,
-                4
-            ],
-            "hybridsY": [
-                0,
-                1,
-                2,
-                3,
-                4
-            ]
-        },
-        {
-            "ID": 30,
-            "ring": 8,
-            "fenX": 0,
-            "fenY": 1,
-            "hybridsX": [
-                0,
-                1,
-                2,
-                3,
-                4
-            ],
-            "hybridsY": [
-                0,
-                1,
-                2,
-                3,
-                4
-            ]
-        },
-        {
-            "ID": 31,
-            "ring": 9,
-            "fenX": 0,
-            "fenY": 1,
-            "hybridsX": [
-                0,
-                1,
-                2,
-                3,
-                4
-            ],
-            "hybridsY": [
-                0,
-                1,
-                2,
-                3,
-                4
-            ]
-        },
-        {
-            "ID": 32,
-            "ring": 10,
-            "fenX": 0,
-            "fenY": 1,
-            "hybridsX": [
-                0,
-                1,
-                2,
-                3,
-                4
-            ],
-            "hybridsY": [
-                0,
-                1,
-                2,
-                3,
-                4
-            ]
-        },
-        {
-            "ID": 33,
-            "ring": 12,
-            "fenX": 0,
-            "fenY": 1,
-            "hybridsX": [
-                0,
-                1,
-                2,
-                3,
-                4
-            ],
-            "hybridsY": [
-                0,
-                1,
-                2,
-                3,
-                4
+                0
             ]
         }
     ],
