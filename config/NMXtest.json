@@ -1,92 +1,300 @@
 {
-    "detectorName": "NMX",
+    "detectorName": "NMXtest",
     "detectorType": "NMX",
     "instrumentName": "NMX",
     "units": 4,
     "orientation": "horizontal",
     "topology": [
         {
-            "ID": 10,
+            "ID": 0,
             "ring": 0,
-            "fenX": 0,
-            "fenY": 1,
+            "panel": 0,
+            "quadrant": 0,
             "hybridsX": [
-                0,
-                1,
-                2,
-                3,
-                4
+                {
+                    "hybrid": 4,
+                    "offset": 0,
+                    "reversedChannels": true,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 3,
+                    "offset": 128,
+                    "reversedChannels": true,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 2,
+                    "offset": 256,
+                    "reversedChannels": true,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 1,
+                    "offset": 384,
+                    "reversedChannels": true,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 0,
+                    "offset": 512,
+                    "reversedChannels": true,
+                    "serial": ""
+                }
             ],
             "hybridsY": [
-                4,
-                3,
-                2,
-                1,
-                0
+                {
+                    "hybrid": 0,
+                    "offset": 0,
+                    "reversedChannels": false,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 1,
+                    "offset": 128,
+                    "reversedChannels": false,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 2,
+                    "offset": 256,
+                    "reversedChannels": false,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 3,
+                    "offset": 384,
+                    "reversedChannels": false,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 4,
+                    "offset": 512,
+                    "reversedChannels": false,
+                    "serial": ""
+                }
             ]
         },
         {
-            "ID": 11,
+            "ID": 1,
             "ring": 1,
-            "fenX": 0,
-            "fenY": 1,
+            "panel": 0,
+            "quadrant": 1,
             "hybridsX": [
-                0,
-                1,
-                2,
-                3,
-                4
+                {
+                    "hybrid": 4,
+                    "offset": 640,
+                    "reversedChannels": true,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 3,
+                    "offset": 768,
+                    "reversedChannels": true,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 2,
+                    "offset": 896,
+                    "reversedChannels": true,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 1,
+                    "offset": 1024,
+                    "reversedChannels": true,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 0,
+                    "offset": 1152,
+                    "reversedChannels": true,
+                    "serial": ""
+                }
             ],
             "hybridsY": [
-                4,
-                3,
-                2,
-                1,
-                0
+                {
+                    "hybrid": 4,
+                    "offset": 0,
+                    "reversedChannels": true,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 3,
+                    "offset": 128,
+                    "reversedChannels": true,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 2,
+                    "offset": 256,
+                    "reversedChannels": true,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 1,
+                    "offset": 384,
+                    "reversedChannels": true,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 0,
+                    "offset": 512,
+                    "reversedChannels": true,
+                    "serial": ""
+                }
             ]
         },
         {
-            "ID": 12,
+            "ID": 2,
             "ring": 2,
-            "fenX": 0,
-            "fenY": 1,
+            "panel": 0,
+            "quadrant": 2,
             "hybridsX": [
-                0,
-                1,
-                2,
-                3,
-                4
+                {
+                    "hybrid": 0,
+                    "offset": 0,
+                    "reversedChannels": false,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 1,
+                    "offset": 128,
+                    "reversedChannels": false,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 2,
+                    "offset": 256,
+                    "reversedChannels": false,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 3,
+                    "offset": 384,
+                    "reversedChannels": false,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 4,
+                    "offset": 512,
+                    "reversedChannels": false,
+                    "serial": ""
+                }
             ],
             "hybridsY": [
-                4,
-                3,
-                2,
-                1,
-                0
+                {
+                    "hybrid": 0,
+                    "offset": 640,
+                    "reversedChannels": false,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 1,
+                    "offset": 768,
+                    "reversedChannels": false,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 2,
+                    "offset": 896,
+                    "reversedChannels": false,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 3,
+                    "offset": 1024,
+                    "reversedChannels": false,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 4,
+                    "offset": 1152,
+                    "reversedChannels": false,
+                    "serial": ""
+                }
             ]
         },
         {
-            "ID": 13,
+            "ID": 3,
             "ring": 3,
-            "fenX": 0,
-            "fenY": 1,
+            "panel": 0,
+            "quadrant": 3,
             "hybridsX": [
-                0,
-                1,
-                2,
-                3,
-                4
+                {
+                    "hybrid": 0,
+                    "offset": 640,
+                    "reversedChannels": false,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 1,
+                    "offset": 768,
+                    "reversedChannels": false,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 2,
+                    "offset": 896,
+                    "reversedChannels": false,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 3,
+                    "offset": 1024,
+                    "reversedChannels": false,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 4,
+                    "offset": 1152,
+                    "reversedChannels": false,
+                    "serial": ""
+                }
             ],
             "hybridsY": [
-                4,
-                3,
-                2,
-                1,
-                0
+                {
+                    "hybrid": 4,
+                    "offset": 640,
+                    "reversedChannels": true,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 3,
+                    "offset": 768,
+                    "reversedChannels": true,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 2,
+                    "offset": 896,
+                    "reversedChannels": true,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 1,
+                    "offset": 1024,
+                    "reversedChannels": true,
+                    "serial": ""
+                },
+                {
+                    "hybrid": 0,
+                    "offset": 1152,
+                    "reversedChannels": true,
+                    "serial": ""
+                }
             ]
         }
     ],
     "strips": 640,
+    "maxGapX": 1,
+    "maxGapY": 1,
+    "maxSpanX": 32,
+    "maxSpanY": 32,
+    "stripPitchX_mm": 0.4,
+    "stripPitchY_mm": 0.4,
+    "quadrantGapX_mm": 0,
+    "quadrantGapY_mm": 0,
     "monitor": [
         {
             "ID": 99,

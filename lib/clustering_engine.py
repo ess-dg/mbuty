@@ -47,7 +47,7 @@ class VMMNormalClusterer:
     @staticmethod
     def _max_electrode_counts(config: dict) -> tuple:
         """
-        Resolve (max_electrodes_x, max_electrodes_y) from config, keyed off detectorType --
+        Resolve (max_span_x, max_span_y) from config, keyed off detectorType --
         electrode_x/electrode_y is plane-0/plane-1 (mirrors hits.plane: 0=X, 1=Y), NOT any
         particular electrode technology. Which config key backs each side differs per detector:
 
@@ -58,28 +58,34 @@ class VMMNormalClusterer:
         det_type = config.get('detectorType', '')
 
         if det_type == 'NMX':
-            if 'strips' not in config:
-                print('\t [ERROR] Config is missing "strips" — cannot cluster. Check your config file.')
-                sys.exit(1)
-            max_electrodes_x = int(config['strips'])
-            max_electrodes_y = int(config['strips'])
-            return max_electrodes_x, max_electrodes_y
+            required = ['strips', 'maxSpanX', 'maxSpanY', 'maxGapX', 'maxGapY']
+            missing = [key for key in required if key not in config]
 
-        # MB / MG share the electrode_x <- wires convention
+            if missing:
+                print(f'\t [ERROR] Config is missing the following key(s): {", ".join(missing)}. Check your config file.')
+                sys.exit(1)
+
+            max_span_x = int(config['maxSpanX'])
+            max_span_y = int(config['maxSpanY'])
+            max_gap_x = int(config['maxGapX'])
+            max_gap_y = int(config['maxGapY'])
+            return max_span_x, max_span_y, max_gap_x, max_gap_y
+
+        # MB / MG share the electrode_x <- wires 
         if 'wires' not in config:
             print('\t [ERROR] Config is missing "wires" — cannot cluster. Check your config file.')
             sys.exit(1)
-        max_electrodes_x = int(config['wires'])
+        max_span_x = int(config['wires'])
 
         if 'strips' in config:
-            max_electrodes_y = int(config['strips'])
+            max_span_y = int(config['strips']) # MB 
         elif 'grids' in config:
-            max_electrodes_y = int(config['grids'])
+            max_span_y = int(config['grids']) # MG
         else:
             print('\t [ERROR] Config is missing both "strips" and "grids" — cannot cluster. Check your config file.')
             sys.exit(1)
 
-        return max_electrodes_x, max_electrodes_y
+        return max_span_x, max_span_y, 0, 0
 
     @staticmethod
     def cluster(hits, config: dict, time_window_s: float) -> eventsVMMnormal:
@@ -94,7 +100,7 @@ class VMMNormalClusterer:
 
         tw_recursive, tw_max = VMMNormalClusterer._derive_time_windows(time_window_s)
 
-        max_electrodes_x, max_electrodes_y = VMMNormalClusterer._max_electrode_counts(config)
+        max_span_x, max_span_y, max_gap_x, max_gap_y = VMMNormalClusterer._max_electrode_counts(config)
 
         cluster_ids, sort_order, n_clusters = VMMNormalClusterer._partition_hits(m['ID'], m['timeStamp'], tw_recursive)
 
@@ -133,10 +139,10 @@ class VMMNormalClusterer:
         np.maximum.at(y_max, cluster_ids[is_electrode_y], ch_idx[is_electrode_y])
 
         accept_window   = span <= tw_max
-        x_contiguous     = np.where(x_count > 0, (x_max - x_min) == (x_count - 1), False)
-        y_contiguous     = np.where(y_count > 0, (y_max - y_min) == (y_count - 1), False)
-        x_in_limits      = x_count < max_electrodes_x
-        y_in_limits      = y_count < max_electrodes_y
+        x_contiguous = np.where(x_count > 0, ((x_max - x_min + 1) - x_count) <= max_gap_x, False)
+        y_contiguous = np.where(y_count > 0, ((y_max - y_min + 1) - y_count) <= max_gap_y, False)
+        x_in_limits  = np.where(x_count > 0, (x_max - x_min + 1) <= max_span_x, True)
+        y_in_limits  = np.where(y_count > 0, (y_max - y_min + 1) <= max_span_y, True)
         has_x_hit        = x_count >= 1
         has_y_hit        = y_count >= 1
 

@@ -550,7 +550,7 @@ if __name__ == '__main__':
     
     ###############   
     ### plotting in sections of cassettes to ease the visualization if True and in blocks of ...  
-    parameters.plotting.plottingInSections       = True 
+    parameters.plotting.plottingInSections       = False 
     parameters.plotting.plottingInSectionsBlocks = 5
 
     ###############     

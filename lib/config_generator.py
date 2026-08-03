@@ -126,33 +126,76 @@ def _generateTopologyHe3(num_units):
     return unit_config
 
 # FOR NMX
-# The helper function (renamed from a method)
-def _generateTopologyNMX(num_units):
-    unit_config = []
-    # ring     = 0
-    fenX      = 0
-    fenY      = 1
-    hybridsX = [0,1,2,3,4]
-    hybridsY = [0,1,2,3,4]
-    # start_ID = 10
-    for i in range(num_units):
-        currentID = (10*(i//4 + 1) + i % 4)
-   
-        
-        unit_config.append({
-            "ID": currentID,
-            "ring": i,
-            "fenX":  fenX,
-            "fenY":  fenY,
-            "hybridsX": hybridsX,
-            "hybridsY": hybridsY,
+# -----------------------------------------------------------------------------
+# Per-hybrid topology, one row per physical hybrid (matches ICD ESS-5472998
+# sec. 4.3.1 "Hybrid configuration" shape instead of the old per-quadrant
+# hybrid-list shape).
+#
+#   Each panel  = 4 quadrants (one ring per quadrant).
+#   Each quadrant = 2 edges (fen 0 = X/plane 0, fen 1 = Y/plane 1).
+#   Each edge   = 5 hybrids x 128 contiguous strips = 640 strips.
+#
+#   quadrant (ring % 4)           : 0      1      2      3
+#   X offset  (QUADRANT_X_OFFSET) : 0      640    0      640
+#   X flip    (QUADRANT_X_FLIP)   : True   True   False  False
+#   Y offset  (QUADRANT_Y_OFFSET) : 0      0      640    640
+#   Y flip    (QUADRANT_Y_FLIP)   : False  True   False  True
+#
+# "offset" below is the final absolute per-hybrid offset (quadrant offset
+# + 128 * hybrid slot) — NMXMapper no longer needs any hardcoded
+# quadrant tables at all, it just reads this straight out of config,
+# same as MB reads offset1stWires_mm * uid.
+# -----------------------------------------------------------------------------
+
+_NMX_QUADRANT_X_OFFSET = [0, 640, 0, 640]
+_NMX_QUADRANT_X_FLIP   = [True, True, False, False]
+_NMX_QUADRANT_Y_OFFSET = [0, 0, 640, 640]
+_NMX_QUADRANT_Y_FLIP   = [False, True, False, True]
+
+
+def _generateTopologyNMX(num_quadrants):
+    if num_quadrants % 4 != 0:
+        num_quadrants -= num_quadrants % 4
+
+    topology = []
+    for ring in range(num_quadrants):
+        quadrant = ring % 4
+        panel    = ring // 4
+
+        x_quad_offset = _NMX_QUADRANT_X_OFFSET[quadrant]
+        x_flip        = _NMX_QUADRANT_X_FLIP[quadrant]
+        y_quad_offset = _NMX_QUADRANT_Y_OFFSET[quadrant]
+        y_flip        = _NMX_QUADRANT_Y_FLIP[quadrant]
+
+        hybrids_x = []
+        hybrids_y = []
+        for slot in range(5):
+            h_x = slot if not x_flip else 4 - slot
+            hybrids_x.append({
+                "hybrid": h_x,
+                "offset": x_quad_offset + 128 * slot,
+                "reversedChannels": x_flip,
+                "serial": ''
+            })
+
+            h_y = slot if not y_flip else 4 - slot
+            hybrids_y.append({
+                "hybrid": h_y,
+                "offset": y_quad_offset + 128 * slot,
+                "reversedChannels": y_flip,
+                "serial": ''
+            })
+
+        topology.append({
+            "ID": panel * 10 + quadrant,  # 0, 1, 2, 3 for Panel 0
+            "ring": ring,
+            "panel": panel,
+            "quadrant": quadrant,
+            "hybridsX": hybrids_x,
+            "hybridsY": hybrids_y
         })
-        # ring += 1
-        # if np.mod(i,4) == 0:
-        #     start_ID += 10
-  
-            
-    return unit_config
+
+    return topology
 ###############################################################################
 ###############################################################################
 
@@ -276,7 +319,23 @@ def generateDefaultDetConfig(path, detectorName, detectorType, instrumentName, u
           topology = _generateTopologyNMX(units)
           data.update({
                "topology": topology,
-               "strips":   640,
+
+               # --- clustering (ICD ESS-5472998 sec. 4.3.1 / sec. 7) ---
+               "strips": 640,          # strips per edge per quadrant (both X and Y)
+               "maxGapX": 1,           # allowed missing strips within an x space-cluster
+               "maxGapY": 1,           # allowed missing strips within a y space-cluster
+               "maxSpanX": 32,          # max number of strips in cluster
+               "maxSpanY": 32,          # max number of strips in cluster
+                              
+
+               # --- abs units (not implemented yet — values below are from the ICD
+               #     for whenever NMXAbsUnitsCalculator gets written) ---
+               # ICD sec. 7: channel pitch 400 um, 0.4 mm
+               "stripPitchX_mm": 0.4,
+               "stripPitchY_mm": 0.4,
+               "quadrantGapX_mm": 0,  # Set to actual gap once known
+               "quadrantGapY_mm": 0,
+
                "monitor" : monitor,
            })
        
@@ -359,6 +418,10 @@ if __name__ == '__main__':
     
     path = '/Users/francescopiscitelli/git_repos/mbuty/config/'
     
+    current_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__))) + os.sep
+    
+    path = current_dir + 'config'
+    
     # path = '/Users/francescopiscitelli/git_repos/mbuty/MBUTYcap/config/'
 
     # detectorName = "AMOR"
@@ -424,9 +487,9 @@ if __name__ == '__main__':
     # instrumentName = 'ESTIA'
     
     
-    detectorName = "SKADI48"
-    detectorType = 'SKADI'
-    instrumentName = 'SKADI'
+    # detectorName = "SKADI48"
+    # detectorType = 'SKADI'
+    # instrumentName = 'SKADI'
     
     
     detectorName = "NMXtest"
@@ -435,7 +498,7 @@ if __name__ == '__main__':
  
     
     operationMode = 'normal'
-    units = 12
+    units = 4   # 4 rings/quadrants = 1 panel. Use 8 for 2 panels, 12 for 3, etc.
     orientation = 'horizontal'
 
     # Call the function directly
@@ -448,5 +511,3 @@ if __name__ == '__main__':
             print("Loaded config:", conf1)
     else:
         print("Config file not found or failed to generate.")
-   
-   
