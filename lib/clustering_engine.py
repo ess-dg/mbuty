@@ -15,9 +15,9 @@ from lib.colors import WARN, ERR, INFO, OK, RESET
 # =============================================================================
 # Wires and Strips Normal Clusterer (Multi-Blade & Multi-Grid)
 # =============================================================================
-
 class VMMNormalClusterer:
     """Stateless vectorized clustering logic for VMM Normal multi-plane readouts."""
+
     @staticmethod
     def _derive_time_windows(time_window_s: float) -> tuple:
         """Convert float window seconds into standard recursive and max integer ns gates."""
@@ -47,13 +47,7 @@ class VMMNormalClusterer:
     @staticmethod
     def _max_electrode_counts(config: dict) -> tuple:
         """
-        Resolve (max_span_x, max_span_y) from config, keyed off detectorType --
-        electrode_x/electrode_y is plane-0/plane-1 (mirrors hits.plane: 0=X, 1=Y), NOT any
-        particular electrode technology. Which config key backs each side differs per detector:
-
-            MB:  electrode_x <- config['wires']   electrode_y <- config['strips']
-            MG:  electrode_x <- config['wires']   electrode_y <- config['grids']
-            NMX: electrode_x <- config['strips']  electrode_y <- config['strips']  (same value, both edges are strips)
+        Resolve (max_span_x, max_span_y, max_gap_x, max_gap_y) from config.
         """
         det_type = config.get('detectorType', '')
 
@@ -67,20 +61,20 @@ class VMMNormalClusterer:
 
             max_span_x = int(config['maxSpanX'])
             max_span_y = int(config['maxSpanY'])
-            max_gap_x = int(config['maxGapX'])
-            max_gap_y = int(config['maxGapY'])
+            max_gap_x  = int(config['maxGapX'])
+            max_gap_y  = int(config['maxGapY'])
             return max_span_x, max_span_y, max_gap_x, max_gap_y
 
-        # MB / MG share the electrode_x <- wires 
+        # MB / MG share electrode_x <- wires 
         if 'wires' not in config:
             print('\t [ERROR] Config is missing "wires" — cannot cluster. Check your config file.')
             sys.exit(1)
         max_span_x = int(config['wires'])
 
         if 'strips' in config:
-            max_span_y = int(config['strips']) # MB 
+            max_span_y = int(config['strips'])  # MB 
         elif 'grids' in config:
-            max_span_y = int(config['grids']) # MG
+            max_span_y = int(config['grids'])   # MG
         else:
             print('\t [ERROR] Config is missing both "strips" and "grids" — cannot cluster. Check your config file.')
             sys.exit(1)
@@ -88,8 +82,41 @@ class VMMNormalClusterer:
         return max_span_x, max_span_y, 0, 0
 
     @staticmethod
-    def cluster(hits, config: dict, time_window_s: float) -> eventsVMMnormal:
+    def _check_per_gap_tolerance(cluster_ids: np.ndarray, ch_idx: np.ndarray, plane_mask: np.ndarray, n_clusters: int, max_gap: int) -> np.ndarray:
+        """
+        Verify that no adjacent pair of sorted channels inside a cluster exceeds (max_gap + 1).
+        Allows multiple single-strip gaps (e.g., 1, 3, 5, 6, 8 for max_gap=1).
+        """
+        valid_clusters = np.ones(n_clusters, dtype=bool)
+        if len(cluster_ids) == 0:
+            return valid_clusters
 
+        c_ids = cluster_ids[plane_mask]
+        ch    = ch_idx[plane_mask]
+
+        if len(c_ids) == 0:
+            return valid_clusters
+
+        # Sort channels within each cluster ID to evaluate step gaps
+        sort_order = np.lexsort((ch, c_ids))
+        c_ids_s    = c_ids[sort_order]
+        ch_s       = ch[sort_order]
+
+        # Identify adjacent hits inside the same cluster
+        same_cluster = c_ids_s[1:] == c_ids_s[:-1]
+        gaps         = ch_s[1:] - ch_s[:-1]
+
+        # A gap between adjacent strips > (max_gap + 1) violates the constraint
+        invalid_adjacent = same_cluster & (gaps > (max_gap + 1))
+        
+        if np.any(invalid_adjacent):
+            invalid_cluster_ids = np.unique(c_ids_s[1:][invalid_adjacent])
+            valid_clusters[invalid_cluster_ids] = False
+
+        return valid_clusters
+
+    @staticmethod
+    def cluster(hits, config: dict, time_window_s: float) -> eventsVMMnormal:
         print(f'{INFO}\nClustering VMM normal events ... {RESET}', end='')
 
         m = hits.matrix[:hits.fill_count]
@@ -99,21 +126,19 @@ class VMMNormalClusterer:
             return eventsVMMnormal(size=0)
 
         tw_recursive, tw_max = VMMNormalClusterer._derive_time_windows(time_window_s)
-
         max_span_x, max_span_y, max_gap_x, max_gap_y = VMMNormalClusterer._max_electrode_counts(config)
-
         cluster_ids, sort_order, n_clusters = VMMNormalClusterer._partition_hits(m['ID'], m['timeStamp'], tw_recursive)
 
         out = eventsVMMnormal(size=n_clusters)
         out.durations     = hits.durations.copy()
         out.instrumentIDs = hits.instrumentIDs.copy()
 
-        ms            = m[sort_order]
-        ts            = ms['timeStamp']
+        ms             = m[sort_order]
+        ts             = ms['timeStamp']
         is_electrode_x = ms['plane'] == 0
         is_electrode_y = ms['plane'] == 1
-        ch_idx        = ms['index']
-        adc           = ms['adc']
+        ch_idx         = ms['index']
+        adc            = ms['adc']
 
         first_hit = np.searchsorted(cluster_ids, np.arange(n_clusters), side='left')
         last_hit  = np.searchsorted(cluster_ids, np.arange(n_clusters), side='right') - 1
@@ -138,17 +163,24 @@ class VMMNormalClusterer:
         np.minimum.at(y_min, cluster_ids[is_electrode_y], ch_idx[is_electrode_y])
         np.maximum.at(y_max, cluster_ids[is_electrode_y], ch_idx[is_electrode_y])
 
-        accept_window   = span <= tw_max
-        x_contiguous = np.where(x_count > 0, ((x_max - x_min + 1) - x_count) <= max_gap_x, False)
-        y_contiguous = np.where(y_count > 0, ((y_max - y_min + 1) - y_count) <= max_gap_y, False)
-        x_in_limits  = np.where(x_count > 0, (x_max - x_min + 1) <= max_span_x, True)
-        y_in_limits  = np.where(y_count > 0, (y_max - y_min + 1) <= max_span_y, True)
-        has_x_hit        = x_count >= 1
-        has_y_hit        = y_count >= 1
+        accept_window = span <= tw_max
+
+        # Per-gap checks evaluated independently per plane
+        x_contiguous = VMMNormalClusterer._check_per_gap_tolerance(cluster_ids, ch_idx, is_electrode_x, n_clusters, max_gap_x)
+        y_contiguous = VMMNormalClusterer._check_per_gap_tolerance(cluster_ids, ch_idx, is_electrode_y, n_clusters, max_gap_y)
+
+        # Spatial bounding span checks (inclusive <= max_span)
+        x_span = x_max - x_min + 1
+        y_span = y_max - y_min + 1
+        x_in_limits = np.where(x_count > 0, x_span <= max_span_x, True)
+        y_in_limits = np.where(y_count > 0, y_span <= max_span_y, True)
+
+        has_x_hit = x_count >= 1
+        has_y_hit = y_count >= 1
 
         accept_2d  = (accept_window & has_x_hit & has_y_hit & x_contiguous & y_contiguous & x_in_limits & y_in_limits)
-        accept_1dx = (accept_window & has_x_hit  & ~has_y_hit & x_contiguous & x_in_limits)
-        accept_1dy = (accept_window & has_y_hit  & ~has_x_hit & y_contiguous & y_in_limits)
+        accept_1dx = (accept_window & has_x_hit & ~has_y_hit & x_contiguous & x_in_limits)
+        accept_1dy = (accept_window & has_y_hit & ~has_x_hit & y_contiguous & y_in_limits)
 
         with np.errstate(divide='ignore', invalid='ignore'):
             coord0 = np.where(x_adc > 0, np.round(x_pos_num / x_adc, 2), np.nan)
@@ -192,8 +224,6 @@ class VMMNormalClusterer:
 
         out.absorb(computed, timing_src)
         return out
-
-
 # =============================================================================
 # VMM Clustered Clusterer (Passthrough Engine)
 # =============================================================================

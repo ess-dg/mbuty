@@ -337,20 +337,11 @@ class StructuredArrayTableModel(QAbstractTableModel):
         self.layoutChanged.emit()
 
     def _compute_valid_rows(self) -> np.ndarray:
+        """Return all row indices up to fill_count."""
         if self._fill_count == 0 or self._array.dtype.names is None:
             return np.empty(0, dtype=np.int64)
-        view = self._array[: self._fill_count]
-        mask = np.ones(self._fill_count, dtype=bool)
-        
-        float_fields = [name for name in view.dtype.names if np.issubdtype(view.dtype[name], np.floating)]
-        idx_fields = [name for name in self._index_fields if name in view.dtype.names]
-        
-        for name in float_fields:
-            mask &= ~np.isnan(view[name])
-        for name in idx_fields:
-            mask &= view[name] >= 0
             
-        return np.nonzero(mask)[0]
+        return np.arange(self._fill_count, dtype=np.int64)
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return 0 if parent.isValid() else len(self._valid_rows)
@@ -765,6 +756,9 @@ class MbutyDashboard(QMainWindow):
         def _maybe_tab(key: str, title: str, index_cfg_key: str, active_cfg_key: str) -> TabSpec | None:
             available = data_source.get_available_plots(key)
             if not available:
+                return None
+            _, fill_count = data_source.get_dataframe_array(key)
+            if fill_count == 0:
                 return None
             return TabSpec(
                 key, title,

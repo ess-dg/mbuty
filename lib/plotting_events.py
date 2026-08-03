@@ -1036,11 +1036,12 @@ class SKADIEventsPlotter(BaseEventsPlotter):
                 grid.ax[0][k].set_ylabel('ch no.')
 
     def plot_xy(self, fig_num=101):
+        """3-row image per bank: X vs Y + X projection + Y projection, one column per bank."""
         if self.is_empty:
             return
-        log_scale   = self.parameters.plotting.plotIMGlog
-        abs_units   = self.parameters.plotting.plotABSunits
-
+        log_scale = self.parameters.plotting.plotIMGlog
+        abs_units = self.parameters.plotting.plotABSunits
+        norm_colors = log_scale_norm(log_scale)
         m = self.matrix
 
         if not abs_units:
@@ -1052,23 +1053,41 @@ class SKADIEventsPlotter(BaseEventsPlotter):
             x_values, y_values = m['absCoordinate0'], m['absCoordinate1']
             xlabel, ylabel = 'X (mm)', 'Y (mm)'
 
-        extent = [ax_x.start, ax_x.stop, ax_y.start, ax_y.stop]
-
         bank_ids = sorted(np.unique(m['bank']))
-        
-        grid = PlotGrid(
-            fig_num, 2, len(bank_ids), 
-            sharex=True, sharey=False,
-            gridspec_kw={'height_ratios': [3, 1]}
+        n_banks = len(bank_ids)
+
+        if isinstance(fig_num, matplotlib.figure.Figure):
+            fig = fig_num
+        else:
+            fig = plt.figure(num=fig_num)
+        fig.suptitle('DET image')
+
+        gs = fig.add_gridspec(
+            3, n_banks, height_ratios=[4, 1, 1],
+            hspace=0.30, wspace=0.22,
+            left=0.04, right=0.97, top=0.95, bottom=0.06,
         )
-        grid.fig.suptitle('DET image')
+
+        fig.canvas.draw()
+        W, H = fig.get_size_inches()
 
         for k, bank in enumerate(bank_ids):
             sel_bank = m['bank'] == bank
             sel_valid = (m['coordinate0'] >= 0) & (m['coordinate1'] >= 0)
             sel = sel_bank & sel_valid
 
+            sel_bank_x = sel_bank & (m['coordinate0'] >= 0)
+            sel_bank_y = sel_bank & (m['coordinate1'] >= 0)
+
+            ax_img = fig.add_subplot(gs[0, k])
+            ax_px  = fig.add_subplot(gs[1, k])
+            ax_py  = fig.add_subplot(gs[2, k])
+
             h2d, _, _ = self.hist.hist2d(ax_x.centers, x_values[sel], ax_y.centers, y_values[sel])
+            h_proj_x_all = self.hist.hist1d(ax_x.centers, x_values[sel_bank_x])
+            h_proj_x_2d = np.sum(h2d, axis=0)
+            h_proj_y_all = self.hist.hist1d(ax_y.centers, y_values[sel_bank_y])
+            h_proj_y_2d = np.sum(h2d, axis=1)
 
             if log_scale:
                 max_val = np.max(h2d) if np.max(h2d) > 0 else 1
@@ -1076,35 +1095,47 @@ class SKADIEventsPlotter(BaseEventsPlotter):
             else:
                 norm_colors = colors.Normalize()
 
-            pos = grid.ax[0][k].imshow(
+            pos1 = ax_img.imshow(
                 h2d, aspect='equal', norm=norm_colors, interpolation='none',
-                extent=extent, origin='lower', cmap='viridis',
+                extent=[ax_x.start, ax_x.stop, ax_y.start, ax_y.stop],
+                origin='lower', cmap='viridis',
             )
-            grid.ax[0][k].set_title(f'Bank {bank}')
+            _safe_colorbar(fig, pos1, ax_img, f'Bank {bank}', orientation='vertical', fraction=0.046, pad=0.02)
+            ax_img.set_title(f'Bank {bank}')
+            ax_img.set_xlabel(xlabel)
             if k == 0:
-                grid.ax[0][k].set_ylabel(ylabel)
-            _safe_colorbar(grid.fig, pos, grid.ax[0][k], f'Bank {bank}',
-                            orientation='vertical', fraction=0.07, anchor=(1.0, 0.0),
-                            panchor=(0.5, 0.5))
+                ax_img.set_ylabel(ylabel)
 
-            grid.fig.canvas.draw()
-            img_pos = grid.ax[0][k].get_position()
-            proj_pos = grid.ax[1][k].get_position()
-            grid.ax[1][k].set_position([img_pos.x0, proj_pos.y0, img_pos.width, proj_pos.height])
-
-            sel_x_valid = sel_bank & (m['coordinate0'] >= 0)
-            h_proj_all = self.hist.hist1d(ax_x.centers, x_values[sel_x_valid])
-            h_proj_2d  = np.sum(h2d, axis=0)
-
-            grid.ax[1][k].step(ax_x.centers, h_proj_all, 'r', where='mid', label='1D')
-            grid.ax[1][k].step(ax_x.centers, h_proj_2d, 'b', where='mid', label='2D')
+            ax_px.step(ax_x.centers, h_proj_x_all, 'r', where='mid', label='1D')
+            ax_px.step(ax_x.centers, h_proj_x_2d, 'b', where='mid', label='2D')
             if log_scale:
-                grid.ax[1][k].set_yscale('log')
-            grid.ax[1][k].set_xlabel(xlabel)
-            grid.ax[1][k].set_xlim(ax_x.start, ax_x.stop)
-            grid.ax[1][k].legend(loc='upper right', shadow=False, fontsize='large')
+                ax_px.set_yscale('log')
+            ax_px.set_xlim(ax_x.start, ax_x.stop)
+            ax_px.set_xlabel(xlabel)
             if k == 0:
-                grid.ax[1][k].set_ylabel('counts')
+                ax_px.set_ylabel('counts')
+            ax_px.legend(loc='upper right', shadow=False, fontsize='medium')
+
+            ax_py.step(ax_y.centers, h_proj_y_all, 'r', where='mid', label='1D')
+            ax_py.step(ax_y.centers, h_proj_y_2d, 'b', where='mid', label='2D')
+            if log_scale:
+                ax_py.set_yscale('log')
+            ax_py.set_xlim(ax_y.start, ax_y.stop)
+            ax_py.set_xlabel(ylabel)
+            if k == 0:
+                ax_py.set_ylabel('counts')
+            ax_py.legend(loc='upper right', shadow=False, fontsize='medium')
+
+            # Let matplotlib enforce the true square box for the image (aspect='equal'
+            # above already did this on draw). Just copy its resulting x0/width onto
+            # the projection axes so they line up — don't override ax_img's own position.
+            fig.canvas.draw()
+            img_pos = ax_img.get_position()
+
+            px_pos = ax_px.get_position()
+            py_pos = ax_py.get_position()
+            ax_px.set_position([img_pos.x0, px_pos.y0, img_pos.width, px_pos.height])
+            ax_py.set_position([img_pos.x0, py_pos.y0, img_pos.width, py_pos.height])
 
 # ============================================================================
 # NMX (X/Y strip detector, no wire/strip asymmetry)
