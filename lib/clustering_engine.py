@@ -366,7 +366,6 @@ class NMXClusterer:
 
         counts  = np.bincount(cluster_id, minlength=n_clusters).astype('int64')
         tot_adc = np.bincount(cluster_id, weights=adc2.astype('float64'), minlength=n_clusters)
-        pos_num = np.bincount(cluster_id, weights=(ch2 * adc2).astype('float64'), minlength=n_clusters)
 
         c_min = np.full(n_clusters, 999999, dtype='int64')
         c_max = np.full(n_clusters, -1,     dtype='int64')
@@ -387,9 +386,11 @@ class NMXClusterer:
 
         valid_mask = (span <= tw_span_cap) & (spatial_span <= max_span) & (tot_adc > 0)
 
-        with np.errstate(divide='ignore', invalid='ignore'):
-            coords = np.where(tot_adc > 0, np.round(pos_num / tot_adc, 2), np.nan)
-        valid_mask &= ~np.isnan(coords)
+        # micro-TPC position: channel of the hit with the largest timestamp in the cluster
+        time_order   = np.lexsort((ts2, cluster_id))
+        last_in_time = np.searchsorted(cluster_id[time_order], np.arange(n_clusters), side='right') - 1
+        coords       = np.where(counts > 0, ch2[time_order][last_in_time].astype('float64'), np.nan)
+        valid_mask  &= ~np.isnan(coords)
 
         return {
             'count': n_clusters, 'valid_mask': valid_mask,

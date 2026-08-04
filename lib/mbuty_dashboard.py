@@ -97,8 +97,11 @@ class OrchestratorDataSource(DashboardDataSource):
         }
 
     def beam_monitor_present(self) -> bool:
-        return self._plotters.get("beam_monitor") is not None
-
+        if self._plotters.get("beam_monitor") is None:
+            return False
+        _, fill_count = self.get_dataframe_array("beam_monitor")
+        return fill_count > 0
+    
     def get_available_plots(self, tab_key):
         p = self._plotters.get(tab_key)
         return p.available_plot_names() if p else []
