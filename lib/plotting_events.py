@@ -38,15 +38,11 @@ class BaseEventsPlotter(BasePlotter):
     dictionary (needed for layout math and "not supported" messages).
     """
     PLOT_METHODS = {
-        "XY":                   "plot_xy",
-        "ToF vs XY":            "plot_tof_xy",
-        "ToF":                  "plot_tof",
-        "Wavelength":           "plot_lambda",
-        "X vs Wavelength":      "plot_x_lambda",
-        "Multiplicity":         "plot_multiplicity",
-        "PHS":                  "plot_phs",
-        "PHS Correlation":      "plot_phs_correlation",
-        "Time Between Events":  "plot_time_between_events",
+        "XY":                  "plot_xy",
+        "ToF":                 "plot_tof",
+        "Wavelength":          "plot_lambda",
+        "PHS":                 "plot_phs",
+        "Time Between Events": "plot_time_between_events",
     }
     
     def select_unit(self, unit_id):
@@ -76,6 +72,13 @@ class VMMEventsPlotter(BaseEventsPlotter):
     and every plot method (MB/MG/NMX each only override plot_xy/plot_tof_xy,
     which are genuinely different figures per detector).
     """
+    PLOT_METHODS = {
+        **BaseEventsPlotter.PLOT_METHODS,
+        "ToF vs XY":           "plot_tof_xy",
+        "X vs Wavelength":     "plot_x_lambda",
+        "Multiplicity":        "plot_multiplicity",
+        "PHS Correlation":     "plot_phs_correlation",
+    }
     SUPPORTS_ABS_UNITS = False
     ACCEPT_1D_X = True
     ACCEPT_1D_Y = False
@@ -684,7 +687,8 @@ class R5560EventsPlotter(BaseEventsPlotter):
     """Event diagnostics for R5560 tubes."""
     PLOT_METHODS = {
         **BaseEventsPlotter.PLOT_METHODS,
-        "Position per Tube": "plot_position_per_tube",
+        "ToF vs XY":           "plot_tof_xy",
+        "Position per Tube":   "plot_position_per_tube",
     }
 
     def plot_tof(self, fig_num=333):
@@ -1146,7 +1150,12 @@ class NMXEventsPlotter(VMMEventsPlotter):
     NMX events: X and Y are equally primary. Bank is derived from ID
     (ID // 10 = bank, remainder = quadrant).
     """
-
+    PLOT_METHODS = {
+        **BaseEventsPlotter.PLOT_METHODS,
+        "ToF vs XY":           "plot_tof_xy",
+        "X vs Wavelength":     "plot_x_lambda",
+        "PHS Correlation":     "plot_phs_correlation",
+    }
     X_LABEL = 'Strip X'
     Y_LABEL = 'Strip Y'
     X_TAG = 'x'

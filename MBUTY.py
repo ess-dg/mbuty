@@ -456,7 +456,7 @@ if __name__ == '__main__':
 
     ### timeWindow to search for clusters, timeWindow is max time between events in candidate cluster 
     ### and timeWindow/2 is the recursive time distance between adjacent hits
-    parameters.dataReduction.timeWindow = 1.5e-6
+    parameters.dataReduction.timeWindow = 0.1e-6
 
     ### 'OFF', 'fromFile' = File With Threhsolds Loaded, 'userDefined' = User defines the Thresholds in an array softTh
     parameters.dataReduction.softThresholdType = 'off' 

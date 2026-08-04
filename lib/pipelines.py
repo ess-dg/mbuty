@@ -453,9 +453,9 @@ class NMXPipeline(BasePipeline):
         from lib.mapping_engine import NMXMapper
         self.hits_container = NMXMapper.map(self.readouts_container, self.config)
          # Clustering
-        from lib.clustering_engine import VMMNormalClusterer
+        from lib.clustering_engine import NMXClusterer
         time_window = getattr(self.parameters.dataReduction, 'timeWindow', 0.2e-6)
-        self.events_container = VMMNormalClusterer.cluster(self.hits_container, self.config, time_window)
+        self.events_container = NMXClusterer.cluster(self.hits_container, self.config, time_window)
 
         print(f'{INFO}NMX pipeline not yet implemented...{RESET}')
 

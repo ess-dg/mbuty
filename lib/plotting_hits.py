@@ -26,9 +26,7 @@ from lib.plotting_base import PlotGrid, BasePlotter, log_scale_norm
 class BaseHitsPlotter(BasePlotter):
     """Detector-agnostic hits scaffolding: selection by mapped 'ID' field."""
     PLOT_METHODS = {
-        "Raw Channels":          "plot_channels_raw",
-        "Timestamps":            "plot_timestamps",
-        "Timestamps vs Channel": "plot_timestamps_vs_channel",
+        "Raw Channels": "plot_channels_raw",
     }
     
     def select_unit(self, unit_id):
@@ -55,7 +53,12 @@ class VMMNormalHitsPlotter(BaseHitsPlotter):
     structurally with normal-mode hits (different fields, no wire/strip
     split needed, no MG equivalent).
     """
-
+    PLOT_METHODS = {
+        **BaseHitsPlotter.PLOT_METHODS,
+        "Timestamps":            "plot_timestamps",
+        "Timestamps vs Channel": "plot_timestamps_vs_channel",
+    }
+    
     def __init__(self, container, parameters, config, axis_set, unit_ids):
         super().__init__(container, parameters, config, axis_set, unit_ids)
         self.num_wires = self.config.get('wires')
@@ -229,7 +232,12 @@ class MBClusteredHitsPlotter(BaseHitsPlotter):
     np.mod call -- which is a better trade than reaching for shared
     inheritance/mixins for a single call site.
     """
-        
+    PLOT_METHODS = {
+        **BaseHitsPlotter.PLOT_METHODS,
+        "Timestamps":            "plot_timestamps",
+        "Timestamps vs Channel": "plot_timestamps_vs_channel",
+    }
+    
     def __init__(self, container, parameters, config, axis_set, unit_ids):
         super().__init__(container, parameters, config, axis_set, unit_ids)
         
