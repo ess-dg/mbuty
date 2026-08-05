@@ -315,25 +315,17 @@ def build_stylesheet(mode="light"):
         spacing: 6px;
     }}
     QRadioButton::indicator {{
-        width: 13px;
-        height: 13px;
+        width: 10px;
+        height: 10px;
+        border-radius: 7px;
     }}
     QRadioButton::indicator:unchecked {{
         border: 2px solid {p['border']};
-        border-radius: 7px;
         background-color: {p['surface']};
     }}
     QRadioButton::indicator:checked {{
         border: 2px solid {p['accent']};
-        border-radius: 7px;
-        background-color: {p['surface']};
-    }}
-    QRadioButton::indicator:checked::after {{
-        subcontrol-position: center center;
-        width: 6px;
-        height: 6px;
         background-color: {p['accent']};
-        border-radius: 3px;
     }}
 
     QScrollArea {{
