@@ -191,6 +191,8 @@ def _generateTopologyNMX(num_quadrants):
             "ring": ring,
             "panel": panel,
             "quadrant": quadrant,
+            "fenX": 0,
+            "fenY": 1,
             "hybridsX": hybrids_x,
             "hybridsY": hybrids_y
         })

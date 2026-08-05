@@ -719,20 +719,33 @@ class NMXMapper(DetectorMapper):
     def map(readouts, config: dict) -> hitsVMMnormal:
         topology = config['topology']
 
-        # Flatten hybrid lists into lookup arrays once
+        # Flatten hybrid lists into lookup arrays using configurable fenX/fenY
         ids, rings, fens, hybrids, planes, offsets, flips = [], [], [], [], [], [], []
         for entry in topology:
-            uid, r = entry['ID'], entry['ring']
-            # X hybrids (fen 0, plane 0)
+            uid = entry['ID']
+            r = entry['ring']
+            fen_x = entry.get('fenX', 0)
+            fen_y = entry.get('fenY', 1)
+
+            # X hybrids (fenX, plane 0)
             for h in entry['hybridsX']:
-                ids.append(uid); rings.append(r); fens.append(0)
-                hybrids.append(h['hybrid']); planes.append(0)
-                offsets.append(h['offset']); flips.append(h['reversedChannels'])
-            # Y hybrids (fen 1, plane 1)
+                ids.append(uid)
+                rings.append(r)
+                fens.append(fen_x)
+                hybrids.append(h['hybrid'])
+                planes.append(0)
+                offsets.append(h['offset'])
+                flips.append(h['reversedChannels'])
+
+            # Y hybrids (fenY, plane 1)
             for h in entry['hybridsY']:
-                ids.append(uid); rings.append(r); fens.append(1)
-                hybrids.append(h['hybrid']); planes.append(1)
-                offsets.append(h['offset']); flips.append(h['reversedChannels'])
+                ids.append(uid)
+                rings.append(r)
+                fens.append(fen_y)
+                hybrids.append(h['hybrid'])
+                planes.append(1)
+                offsets.append(h['offset'])
+                flips.append(h['reversedChannels'])
 
         topo = {
             'ID': np.array(ids, dtype='int64'),
@@ -771,7 +784,9 @@ class NMXMapper(DetectorMapper):
         h.instrumentIDs = readouts.instrumentIDs.copy()
         h.absorb(
             computed_fields={
-                'ID': assigned_ids, 'plane': plane, 'index': global_index,
+                'ID': assigned_ids, 
+                'plane': plane, 
+                'index': global_index,
                 'adc': src['adc'].astype('int64')
             },
             timing_src=src

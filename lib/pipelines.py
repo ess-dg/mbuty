@@ -261,7 +261,8 @@ class MBPipeline(BasePipeline):
     """Multi-Blade hardware, normal mode."""
     def analyze(self) -> None:
         
-        self.check_empty()
+        if self.check_empty():
+            return
         # Calibrating
         from lib.calibration import VMMCalibrationEngine
         VMMCalibrationEngine(self.readouts_container, self.config, self.parameters).process_pipeline()
@@ -308,7 +309,8 @@ class MBClusteredPipeline(BasePipeline):
     """
 
     def analyze(self) -> None:
-        self.check_empty()
+        if self.check_empty():
+            return
         # No calibration for clustered pipeline go straight into 
         # Mapping
         from lib.mapping_engine import MBClustMapper
@@ -343,7 +345,8 @@ class MGPipeline(BasePipeline):
     """Multi-Grid hardware, normal mode."""
 
     def analyze(self) -> None:
-        self.check_empty()
+        if self.check_empty():
+            return
         # Calibrating
         from lib.calibration import VMMCalibrationEngine
         VMMCalibrationEngine(self.readouts_container, self.config, self.parameters).process_pipeline()
@@ -381,7 +384,8 @@ class R5560Pipeline(BasePipeline):
     """CAEN R5560 Helium-3 gas tube detectors."""
 
     def analyze(self) -> None:
-        self.check_empty()
+        if self.check_empty():
+            return
         # Mapping
         from lib.mapping_engine import He3Mapper
         print(f"{INFO}Mapping He3 detector (units mapped according to IDs){RESET}")
@@ -421,7 +425,8 @@ class SkadiPipeline(BasePipeline):
     """SKADI detector layout streams -- not yet implemented."""
 
     def analyze(self) -> None:
-        self.check_empty()
+        if self.check_empty():
+            return
         # Mapping
         from lib.mapping_engine import SKADIMapper
         print(f"{INFO}Mapping SKADI detector (units mapped according to IDs){RESET}")
@@ -445,7 +450,8 @@ class SkadiPipeline(BasePipeline):
             
 class NMXPipeline(BasePipeline):
     def analyze(self) -> None:
-        self.check_empty()
+        if self.check_empty():
+            return
         # Calibrating
         from lib.calibration import VMMCalibrationEngine
         VMMCalibrationEngine(self.readouts_container, self.config, self.parameters).process_pipeline()
@@ -456,7 +462,8 @@ class NMXPipeline(BasePipeline):
         from lib.clustering_engine import NMXClusterer
         time_window = getattr(self.parameters.dataReduction, 'timeWindow', 0.2e-6)
         self.events_container = NMXClusterer.cluster(self.hits_container, self.config, time_window)
-
+        # No Absolute units for nmx yet
+        # No thresholds for skadi (yet)
         print(f'{INFO}NMX pipeline not yet implemented...{RESET}')
 
     def build_plotters(self,unit_ids) -> None:
@@ -528,7 +535,7 @@ class BeamMonitorPipeline:
     def check_empty(self):
         if self.readouts_container.fill_count == 0:
             print(f"{WARN}\t WARNING: BM readouts container is empty — skipping pipeline: {type(self).__name__}.{RESET}")
-            return
+            return True
 # not used anymore
     # def execute(self) -> None:
     #     self.check_empty()
@@ -544,7 +551,8 @@ class GenericBMPipeline(BeamMonitorPipeline):
 
     def analyze(self) -> None:
 
-        self.check_empty()
+        if self.check_empty():
+            return
         # Map directly into events
         from lib.mapping_engine import BMMapper
         
@@ -566,8 +574,8 @@ class IBMPipeline(BeamMonitorPipeline):
     monitor-wavelength pass runs before plotting."""
 
     def analyze(self) -> None:
-        
-        self.check_empty()
+        if self.check_empty():
+            return
         # Map directly into events
         from lib.mapping_engine import IBMMonitorMapper
         self.events_container = IBMMonitorMapper.map(self.readouts_container, self.config)

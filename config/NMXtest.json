@@ -10,6 +10,8 @@
             "ring": 0,
             "panel": 0,
             "quadrant": 0,
+            "fenX": 0,
+            "fenY": 1,
             "hybridsX": [
                 {
                     "hybrid": 4,
@@ -80,6 +82,8 @@
             "ring": 1,
             "panel": 0,
             "quadrant": 1,
+            "fenX": 0,
+            "fenY": 1,
             "hybridsX": [
                 {
                     "hybrid": 4,
@@ -150,6 +154,8 @@
             "ring": 2,
             "panel": 0,
             "quadrant": 2,
+            "fenX": 0,
+            "fenY": 1,
             "hybridsX": [
                 {
                     "hybrid": 0,
@@ -220,6 +226,8 @@
             "ring": 3,
             "panel": 0,
             "quadrant": 3,
+            "fenX": 0,
+            "fenY": 1,
             "hybridsX": [
                 {
                     "hybrid": 0,
