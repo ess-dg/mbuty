@@ -81,14 +81,14 @@ ui_config = {
         "detectorType": {
             "label": "Detector Type",
             "type": "bool",
-            "options": ["MB", "MG", "He3", "SKADI"],
+            "options": ["MB", "MG", "He3", "SKADI", "NMX"],
             "default": "MB",
-            "info": "Select detector type: MB, MG, He3, or SKADI."
+            "info": "Select detector type: MB, MG, He3, SKADI or NMX."
         },
         "instrumentName": {
             "label": "Instrument Name",
             "type": "dropdown",
-            "options": ["TBL", "AMOR", "ESTIA", "FREIA", "TREX", "MIRACLES", "CSPEC", "BIFROST", "VESPA", "SKADI"],
+            "options": ["TBL", "AMOR", "ESTIA", "FREIA", "TREX", "MIRACLES", "CSPEC", "BIFROST", "VESPA", "SKADI", "NMX"],
             "default": "ESTIA",
             "info": "Select the instrument according to the detector type."
         },

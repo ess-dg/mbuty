@@ -55,7 +55,7 @@ class VMMNormalClustererOld:
         if n == 0:
             return eventsVMMnormal(size=0)
 
-        tw_recursive, tw_max = VMMNormalClusterer._derive_time_windows(time_window_s)
+        tw_recursive, tw_max = VMMNormalClustererOld._derive_time_windows(time_window_s)
         # Get the wire and strip/grid configuration from config for clustering (error and exit if not found)
         # Make this more generic based on config
         if 'wires' not in config:
@@ -72,7 +72,7 @@ class VMMNormalClustererOld:
 
         max_wires = int(config['wires']) 
 
-        cluster_ids, sort_order, n_clusters = VMMNormalClusterer._partition_hits(m['ID'], m['timeStamp'], tw_recursive)
+        cluster_ids, sort_order, n_clusters = VMMNormalClustererOld._partition_hits(m['ID'], m['timeStamp'], tw_recursive)
         
         out = eventsVMMnormal(size=n_clusters)
         out.durations     = hits.durations.copy()

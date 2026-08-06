@@ -154,8 +154,10 @@ _NMX_QUADRANT_Y_FLIP   = [False, True, False, True]
 
 
 def _generateTopologyNMX(num_quadrants):
-    if num_quadrants % 4 != 0:
-        num_quadrants -= num_quadrants % 4
+    # To force config to be full pannels (all 4 quadrants) uncomment these lines
+    # Otherwise we allow partial pannels in the config
+    # if num_quadrants % 4 != 0:
+    #     num_quadrants -= num_quadrants % 4
 
     topology = []
     for ring in range(num_quadrants):

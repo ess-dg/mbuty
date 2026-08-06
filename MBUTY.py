@@ -297,7 +297,7 @@ if __name__ == '__main__':
     # configFileName  = "ESTIA_sect2and3.json"
     # configFileName  = "ESTIA_sect4and5.json"
     
-    configFileName  = "NMXtest.json"
+    # configFileName  = "NMXtest.json"
     
     parameters.fileManagement.configFilePath = os.path.join(current_dir, 'config') + os.sep
 
@@ -389,7 +389,7 @@ if __name__ == '__main__':
     
     # parameters.fileManagement.fileName = ['skadi_48tiles.pcapng']
     
-    parameters.fileManagement.fileName = ['tim_4p5mVfC_130mV_4700V_00031_20250829130938.pcapng']
+    # parameters.fileManagement.fileName = ['tim_4p5mVfC_130mV_4700V_00031_20250829130938.pcapng']
 
     
     parameters.fileManagement.fileSerials = [6,2,4,9]
@@ -591,7 +591,7 @@ if __name__ == '__main__':
     parameters.plotting.plotABSunits = True
      
     ### plot XY and XToF in log scale 
-    parameters.plotting.plotIMGlog   = True
+    parameters.plotting.plotIMGlog   = False
 
     ### ON/OFF, if  Tof  and Lambdaplot needs to include only events with strip present (2D) is True otherwise all events also without strip set to False
     
