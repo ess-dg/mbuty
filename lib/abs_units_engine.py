@@ -272,13 +272,62 @@ class R5560AbsUnitsCalculator(BaseAbsUnitsCalculator):
         m            = self.events.matrix[:self.events.fill_count]
         tube_length  = float(self.config['tubeLength'])   # mm
         tube_spacing = float(self.config['tubeSpacing'])  # mm
+        instrument   = self.config.get('instrumentName', 'CSPEC').upper()
 
-        pos_mm  = np.round(m['coordinate0'] * tube_length,  3)
-        tube_mm = np.round(m['coordinate1'] * tube_spacing, 3)
+        # Create working copies to avoid modifying original data
+        coordinate0 = m['coordinate0'].copy()
+        coordinate1 = m['coordinate1'].copy()
+
+        # Apply instrument-specific transformations
+        if instrument == 'MIRACLES':
+            # Doublet: each ID represents 2 physical tubes
+            # Tube 1 (0-0.5) -> physical_tube = ID * 2 + 0
+            # Tube 2 (0.5-1) -> physical_tube = ID * 2 + 1 (reversed)
+            mask_first_tube = coordinate0 <= 0.5
+            mask_second_tube = coordinate0 > 0.5
+            
+            coordinate1_expanded = np.zeros_like(coordinate1, dtype=float)
+            coordinate1_expanded[mask_first_tube] = coordinate1[mask_first_tube] * 2
+            coordinate1_expanded[mask_second_tube] = coordinate1[mask_second_tube] * 2 + 1
+            coordinate1 = coordinate1_expanded
+            
+            # Rescale coordinate0 within each tube section and reverse tube 2
+            # Tube 1 (0-0.5): rescale to 0-1 of that tube = coordinate0 * 2
+            # Tube 2 (0.5-1): rescale to 0-1, reverse it = 2 * (1 - coordinate0)
+            coordinate0[mask_first_tube] = coordinate0[mask_first_tube] * 2
+            coordinate0[mask_second_tube] = 2 * (1 - coordinate0[mask_second_tube])
+
+        elif instrument == 'BIFROST':
+            # Triplet: each ID represents 3 physical tubes
+            # Tube 1 (0-0.33) -> physical_tube = ID * 3 + 0
+            # Tube 2 (0.33-0.66) -> physical_tube = ID * 3 + 1 (reversed)
+            # Tube 3 (0.66-1) -> physical_tube = ID * 3 + 2
+            mask_tube1 = coordinate0 < 0.33
+            mask_tube2 = (coordinate0 >= 0.33) & (coordinate0 <= 0.66)
+            mask_tube3 = coordinate0 > 0.66
+            
+            coordinate1_expanded = np.zeros_like(coordinate1, dtype=float)
+            coordinate1_expanded[mask_tube1] = coordinate1[mask_tube1] * 3
+            coordinate1_expanded[mask_tube2] = coordinate1[mask_tube2] * 3 + 1
+            coordinate1_expanded[mask_tube3] = coordinate1[mask_tube3] * 3 + 2
+            coordinate1 = coordinate1_expanded
+            
+            # Rescale coordinate0 within each tube section and reverse tube 2
+            # Each tube section spans 1/3 of the 0-1 range
+            # Tube 1 (0-1/3): rescale to 0-1 of that tube = coordinate0 * 3
+            # Tube 2 (1/3-2/3): rescale to 0-1, reverse it = 3 * (1 - coordinate0)
+            # Tube 3 (2/3-1): rescale to 0-1 of that tube = (coordinate0 - 2/3) * 3
+            coordinate0[mask_tube1] = coordinate0[mask_tube1] * 3
+            coordinate0[mask_tube2] = 3 * (1 - coordinate0[mask_tube2])
+            coordinate0[mask_tube3] = (coordinate0[mask_tube3] - 2.0/3.0) * 3
+
+        # Convert to absolute coordinates (mm)
+        pos_mm  = np.round(coordinate0 * tube_length, 3)
+        tube_mm = np.round(coordinate1 * tube_spacing, 3)
 
         self.events.matrix['absCoordinate0'][:self.events.fill_count] = pos_mm
-        self.events.matrix['absCoordinate1'][:self.events.fill_count] = tube_mm
-        # print('done')
+        self.events.matrix['absCoordinate1'][:self.events.fill_count] = tube_mm 
+        
 # =============================================================================
 # SKADI Abs Units Calculator
 # =============================================================================
