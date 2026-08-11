@@ -440,7 +440,7 @@ class VMMSlowControlParserV2:
 
 def main():
     # -------------------------------------------------------------------
-    # Set the pcap file to process here - no more command-line arguments.
+    # Set the pcap file to process here
     # -------------------------------------------------------------------
     file_name = r"C:\Users\sheil\Downloads\threshold_measurement.pcapng"
 
