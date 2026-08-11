@@ -434,11 +434,19 @@ class ConfigCreatorWidget(QWidget):
 
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    theme_manager = theme.ThemeManager(app, mode="dark")
-    window = ConfigCreatorWidget( theme_manager=theme_manager)
+    import sys as _sys
+    from qtpy.QtWidgets import QApplication
+
+    app = QApplication(_sys.argv)
+    
+    # Read theme mode from command-line arguments if provided
+    mode = "dark"
+    if len(_sys.argv) > 1:
+        mode = _sys.argv[1]
+
+    theme_manager = theme.ThemeManager(app, mode=mode)
+    window = ConfigCreatorWidget(theme_manager=theme_manager)
     window.setWindowTitle("Detector Configuration Management")
-    # Set initial snug size for single-panel mode
     window.resize(640, 640)
     window.show()
-    sys.exit(app.exec_())
+    _sys.exit(app.exec_())

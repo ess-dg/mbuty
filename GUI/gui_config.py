@@ -144,10 +144,10 @@ def dataFileOptions(widgets):
     except Exception:
         return []
     
-def open_config_creator_standalone():
+def open_config_creator_standalone(theme_mode="dark"):
     """
-    Launches configGen_GUI.py as a completely separate, standalone Python process.
-    This will create a new, independent Qt window for the Config Creator.
+    Launches configGen_GUI.py as a completely separate, standalone Python process,
+    passing the current theme mode as a command-line argument.
     """
     from qtpy.QtWidgets import QMessageBox
 
@@ -160,7 +160,7 @@ def open_config_creator_standalone():
         return
 
     try:
-        subprocess.Popen([python_executable, config_gui_path])
+        subprocess.Popen([python_executable, config_gui_path, theme_mode])
     except FileNotFoundError:
         QMessageBox.critical(None, "Error", "Python executable not found. Make sure Python is installed and in system PATH.")
     except Exception as e:
@@ -407,7 +407,8 @@ config = {
         "makeConfigFileButton": {
             "label": "Create or modify config file",
             "type": "button",
-            "command": open_config_creator_standalone
+            "command": None # open_config_creator_standalone will be injected after 
+                            # in the main MBUTY_GUI file with the correct theme
         },
         "parameters.fileManagement.configFilePath": {
             "label": "Enter path to config file",

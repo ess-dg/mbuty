@@ -70,7 +70,7 @@ from lib.container_events import (
 # 1 = old penthouse PCB + new interface PCB  (test vessel only, transitional)
 # 2 = new penthouse PCB + new interface PCB  (test vessel only, transitional)
 # Modes 1 and 2 will be removed once all hardware is on the production config.
-MG_SWAP_IT = 3
+MG_SWAP_IT = 0
 
 
 # =============================================================================

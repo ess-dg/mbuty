@@ -234,7 +234,10 @@ class MBUTYMainWindow(QMainWindow):
 
         # Wire custom sync-data button
         config["static"]["syncDataButton"]["command"] = self.custom_sync_data
-
+        # Wire config creator button to pass the current theme mode
+        from GUI.gui_config import open_config_creator_standalone
+        config["static"]["makeConfigFileButton"]["command"] = lambda: open_config_creator_standalone(self.theme_manager.mode)
+        
         for section_name, section_items in config.items():
             if section_name == "static":
                 continue
