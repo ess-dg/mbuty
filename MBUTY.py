@@ -191,22 +191,34 @@ class MBUTYOrchestrator():
                 import lib.save_reduced_file as saveH5
                 fileNameSave = saveH5.prepareReducedFileBaseName(file_resolver.fileName)
 
+                # Determine what to save based on parameters
+                include_readouts = getattr(self.parameters.fileManagement, 'saveReadoutsONOFF', False)
+                include_hits = getattr(self.parameters.fileManagement, 'saveHitsONOFF', False)
+
                 if (self.parameters.MONitor.MONOnOff is True) and self.bm_pipeline:
                     saveH5.saveReducedDataToHDF(
                         self.parameters,
                         self.events_container,
                         self.bm_pipeline.events_container,
-                        self.parameters.fileManagement.saveReducedPath,
-                        fileNameSave
+                        readouts=self.readouts_container if include_readouts else None,
+                        readoutsMON=self.bm_pipeline.readouts_container if include_readouts else None,
+                        hits=self.hits_container if include_hits else None,
+                        include_readouts=include_readouts,
+                        include_hits=include_hits,
+                        saveReducedPath=self.parameters.fileManagement.saveReducedPath,
+                        fileName=fileNameSave
                     )
                 else:
                     saveH5.saveReducedDataToHDF(
                         self.parameters,
                         self.events_container,
+                        readouts=self.readouts_container if include_readouts else None,
+                        hits=self.hits_container if include_hits else None,
+                        include_readouts=include_readouts,
+                        include_hits=include_hits,
                         saveReducedPath=self.parameters.fileManagement.saveReducedPath,
                         fileName=fileNameSave
                     )
-
             self.timing.stop()
             print('----------------------------------------------------------------------')
 

@@ -72,6 +72,10 @@ class fileManagement():
             self.pcapLoadingMethod = 'allocate'
             
             self.saveReducedFileONOFF = False
+            # Toggle to include readouts/hits in the reduced file
+            self.saveReadoutsONOFF = True
+            self.saveHitsONOFF = True
+            
             self.saveReducedPath = './'
             self.reducedNameMainFolder  = 'entry1'
 

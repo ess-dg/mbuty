@@ -956,6 +956,24 @@ config = {
             "info": "Enable or disable saving a reduced HDF file with clusters.",
             "set": lambda val: setattr(parameters.fileManagement, 'saveReducedFileONOFF', val)
         },
+        "parameters.fileManagement.saveReadoutsONOFF": {
+                    "label": "Save Readouts",
+                    "type": "bool",
+                    "options": ["True", "False"],
+                    "default": "False",
+                    "dependsOn": ("parameters.fileManagement.saveReducedFileONOFF", True),
+                    "info": "Include the Readouts in the reduced file",
+                    "set": lambda val: setattr(parameters.fileManagement, 'saveReadoutsONOFF', val)
+                },
+        "parameters.fileManagement.saveHitsONOFF": {
+                    "label": "Save Hits",
+                    "type": "bool",
+                    "options": ["True", "False"],
+                    "default": "False",
+                    "dependsOn": ("parameters.fileManagement.saveReducedFileONOFF", True),
+                    "info": "Include the Hits in the reduced file",
+                    "set": lambda val: setattr(parameters.fileManagement, 'saveHitsONOFF', val)
+                },
         "parameters.fileManagement.saveReducedPath": {
             "label": "Reduced File Path",
             "type": "filePath",
