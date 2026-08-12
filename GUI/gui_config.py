@@ -974,6 +974,15 @@ config = {
                     "info": "Include the Hits in the reduced file",
                     "set": lambda val: setattr(parameters.fileManagement, 'saveHitsONOFF', val)
                 },
+        "parameters.fileManagement.combineFiles": {
+                            "label": "Combine Files",
+                            "type": "bool",
+                            "options": ["True", "False"],
+                            "default": "True",
+                            "dependsOn": ("parameters.fileManagement.saveReducedFileONOFF", True),
+                            "info": "Select True to combine all files into a single reduced file or False to get one reduced file per original file. ",
+                            "set": lambda val: setattr(parameters.fileManagement, 'combineFiles', val)
+                        },
         "parameters.fileManagement.saveReducedPath": {
             "label": "Reduced File Path",
             "type": "filePath",

@@ -75,7 +75,7 @@ class fileManagement():
             # Toggle to include readouts/hits in the reduced file
             self.saveReadoutsONOFF = True
             self.saveHitsONOFF = True
-            
+            self.combineFiles = True
             self.saveReducedPath = './'
             self.reducedNameMainFolder  = 'entry1'
 

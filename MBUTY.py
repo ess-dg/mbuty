@@ -5,7 +5,7 @@ mbuty_new.py
 ============
 High-Performance Master Ingestion Orchestrator for ESS Neutron Detectors.
 """
-
+ 
 import os
 # os.environ["QT_API"] = "pyside6"
 import sys
@@ -20,16 +20,16 @@ import lib.checks_and_helpers as checks
 from lib.config_validator import validate_config
 # Ingest object-oriented pipeline tracks and their factory dispatchers
 from lib.pipelines import build_detector_pipeline, build_bm_pipeline
-
+ 
 # Ingest legacy file resolver as an isolated asset
 from lib.file_managment import fileDialogue
 import lib.parameters as para
-
-
+ 
+ 
 # =============================================================================
 # Master Ingestion Orchestrator
 # =============================================================================
-
+ 
 class MBUTYOrchestrator():
     """
     Main pipeline orchestrator managing data lifecycle:
@@ -39,12 +39,12 @@ class MBUTYOrchestrator():
         self.main_thread_queue = main_thread_queue
         self.plottingOnOff          = plottingOnOff
         # NOTE: plot split out of exectute for run gui 
-
+ 
         self.parameters = parameters
         # self.parameters.validate()
         
         self.timing  = checks.timing()
-
+ 
         user_name = os.environ.get('USER', os.environ.get('USERNAME', 'User'))
         print('----------------------------------------------------------------------')
         print(f'{INFO}Ciao {user_name}! Welcome to MBUTY 8.0 {RESET}')
@@ -91,9 +91,12 @@ class MBUTYOrchestrator():
             from lib.terminal import syncData
             syncData(self.parameters.fileManagement.sourcePath, self.parameters.fileManagement.destPath)   
         
-
+ 
     def run_pipeline(self) -> None:
-        """Executes data frame ingestion and routes targeted tracks via explicit type matching gates."""
+        """
+        Executes data frame ingestion and routes to combined or per-file processing
+        based on combineFiles parameter.
+        """
         try:
             # 1. Pipeline Data Ingestion Pass (Network Stream vs Disk Storage)
             if self.parameters.acqMode == 'kafka':
@@ -112,155 +115,168 @@ class MBUTYOrchestrator():
                 
                 file_resolver = fileDialogue(self.parameters)
                 file_resolver.openFile()
-
+ 
                 if not file_resolver.fileName:
                     print(f'{ERR}Pipeline Aborted: No valid target files found.{RESET}')
                     return
-
-                container_lists = defaultdict(list)
-
-                for idx, filename in enumerate(file_resolver.fileName):
-                    print(f'{INFO}\nProcessing file [{idx + 1}/{len(file_resolver.fileName)}]: {filename}{RESET}')
-                    full_file_path = os.path.join(file_resolver.filePath, filename)
-
-                    reader = PcapngFileReader(
-                        file_path  = full_file_path,
-                        parameters = self.parameters,
-                        config     = self.config
-                    )
-                    
-                    readout_containers = reader.run()
-                    for name, container in readout_containers.items():
-                        container_lists[name].append(container)
-                
-                merged = {
-                    name: containers[0] if len(containers) == 1 else type(containers[0]).merge(containers)
-                    for name, containers in container_lists.items()
-                }
-
-                reader = SimpleNamespace(**merged)
-       
-            # 2. Detector Pipeline Track Instantiation & Execution Pass via Factory
-            self.parameters.validateDependencies()
-            self.detector_pipeline = build_detector_pipeline(self.config, reader, self.parameters)
-            if self.detector_pipeline:
-                if not self.parameters.plotting.bareReadoutsCalculation:
-                    self.detector_pipeline.analyze()
-                    
-            # 3. Conditionally Dispatch Beam Monitor Tracking Stream
-            self.bm_pipeline = build_bm_pipeline(self.config, reader, self.parameters)
-            if self.bm_pipeline and self.parameters.MONitor.MONOnOff:
-                if not self.parameters.plotting.bareReadoutsCalculation:
-                    self.bm_pipeline.analyze()
-                    
-            if self.plottingOnOff == 'on':
-                dashboard_shown = False
-                if self.parameters.plotting.useDashboard:
-                    try:
-                        from lib.mbuty_dashboard import launch_dashboard
-                        self._dashboard = launch_dashboard(self.detector_pipeline, self.bm_pipeline, self.parameters, theme_mode='light')
-                        dashboard_shown = True
-                    except Exception as e:
-                        print(f"{WARN}Dashboard failed ({e}) -- falling back to standard plotting.{RESET}")
-                        self.detector_pipeline.plot()
-                        if self.bm_pipeline and self.parameters.MONitor.MONOnOff:
-                            self.bm_pipeline.plot()
+ 
+                # Route based on combineFiles parameter
+                if self.parameters.fileManagement.combineFiles:
+                    self._process_combined_files(file_resolver, PcapngFileReader)
                 else:
-                    self.detector_pipeline.plot()
-                    if self.bm_pipeline and self.parameters.MONitor.MONOnOff:
-                        self.bm_pipeline.plot()
-
-                if not dashboard_shown and (self.detector_pipeline or (self.bm_pipeline and self.parameters.MONitor.MONOnOff)): 
-                    plt.draw() 
-                    plt.pause(0.1)
-                    plt.show(block=False)
-                    input(f"{INFO}\nPress Enter to close all figures...{RESET}")
-                    plt.close('all')
+                    self._process_individual_files(file_resolver, PcapngFileReader)
+ 
+        except KeyboardInterrupt:
+            print("\nPipeline interrupted by user or window closure.")
+        except Exception as e:
+            print(f"\n{ERR}Execution aborted: {e}{RESET}")
+            sys.exit(1)
+ 
+    def _process_combined_files(self, file_resolver, reader_class):
+        """
+        COMBINED MODE: Accumulate all files, merge them, process once, plot once.
+        This is the original behavior.
+        """
+        container_lists = defaultdict(list)
+ 
+        for idx, filename in enumerate(file_resolver.fileName):
+            print(f'{INFO}\nProcessing file [{idx + 1}/{len(file_resolver.fileName)}]: {filename}{RESET}')
+            full_file_path = os.path.join(file_resolver.filePath, filename)
+ 
+            reader = reader_class(
+                file_path=full_file_path,
+                parameters=self.parameters,
+                config=self.config
+            )
             
+            readout_containers = reader.run()
+            for name, container in readout_containers.items():
+                container_lists[name].append(container)
+        
+        # Merge all containers
+        merged = {
+            name: containers[0] if len(containers) == 1 else type(containers[0]).merge(containers)
+            for name, containers in container_lists.items()
+        }
+ 
+        reader = SimpleNamespace(**merged)
+        self._process_and_save_containers(reader, file_name=None)
+ 
+    def _process_individual_files(self, file_resolver, reader_class):
+        """
+        PER-FILE MODE: Process each file independently, save separate reduced files.
+        Plotting is automatically suppressed (blocking behavior avoided).
+        """
+        for idx, filename in enumerate(file_resolver.fileName):
+            print(f'{INFO}\nProcessing file [{idx + 1}/{len(file_resolver.fileName)}]: {filename}{RESET}')
+            full_file_path = os.path.join(file_resolver.filePath, filename)
+ 
+            reader_obj = reader_class(
+                file_path=full_file_path,
+                parameters=self.parameters,
+                config=self.config
+            )
+            
+            readout_containers = reader_obj.run()
+            reader = SimpleNamespace(**readout_containers)
+            
+            # Extract base filename without extension for per-file naming
+            base_name = os.path.splitext(filename)[0]
+            
+            # Process and save with per-file naming
+            self._process_and_save_containers(reader, file_name=base_name)
+ 
+    def _process_and_save_containers(self, reader, file_name: str = None):
+        """
+        Unified pipeline processing: instantiate pipelines, analyze, optionally plot/save.
+        
+        Args:
+            reader: merged or single-file reader (SimpleNamespace with containers)
+            file_name: if provided, use for per-file reduced output naming;
+                       if None, use all original filenames (combined mode)
+        """
+        from lib.save_reduced_file import saveReducedDataToHDF, prepareReducedFileBaseName
+        
+        self.parameters.validateDependencies()
+        
+        # 2. Detector Pipeline Track Instantiation & Execution Pass via Factory
+        self.detector_pipeline = build_detector_pipeline(self.config, reader, self.parameters)
+        if self.detector_pipeline:
+            if not self.parameters.plotting.bareReadoutsCalculation:
+                self.detector_pipeline.analyze()
+                
+        # 3. Conditionally Dispatch Beam Monitor Tracking Stream
+        self.bm_pipeline = build_bm_pipeline(self.config, reader, self.parameters)
+        if self.bm_pipeline and self.parameters.MONitor.MONOnOff:
+            if not self.parameters.plotting.bareReadoutsCalculation:
+                self.bm_pipeline.analyze()
+        
+        # Plot ONLY in combined mode (plottingOnOff='on' + combineFiles=True)
+        # Per-file mode automatically skips plotting to avoid blocking
+        if self.plottingOnOff == 'on' and self.parameters.fileManagement.combineFiles:
+            self._handle_plotting()
+        
+        # Save reduced file if enabled
+        if self.parameters.fileManagement.saveReducedFileONOFF:
+            if file_name:
+                # Per-file mode: use individual filename for output naming
+                reduced_name = prepareReducedFileBaseName([file_name + '.pcapng'])
+            else:
+                # Combined mode: use all original filenames
+                reduced_name = prepareReducedFileBaseName(self.parameters.fileManagement.fileName)
+            
+            saveReducedDataToHDF(
+                parameters=self.parameters,
+                events=self.detector_pipeline.events_container if self.detector_pipeline else None,
+                eventsMON=self.bm_pipeline.events_container if self.bm_pipeline else None,
+                readouts=self.detector_pipeline.readouts_container if self.detector_pipeline else None,
+                readoutsMON=self.bm_pipeline.readouts_container if self.bm_pipeline else None,
+                hits=self.detector_pipeline.hits_container if self.detector_pipeline else None,
+                include_readouts=True,
+                include_hits=True,
+                saveReducedPath=self.parameters.fileManagement.filePath,
+                fileName=reduced_name
+            )
+        
+        # Store references for access in main scope (combined mode only)
+        if self.parameters.fileManagement.combineFiles:
             self.readouts_container = self.detector_pipeline.readouts_container
             self.hits_container     = self.detector_pipeline.hits_container
             self.events_container   = self.detector_pipeline.events_container
             
-            self.readouts_BM_container = self.bm_pipeline.readouts_container
-            self.events_BM_container   = self.bm_pipeline.events_container
+            self.readouts_BM_container = self.bm_pipeline.readouts_container if self.bm_pipeline else None
+            self.events_BM_container   = self.bm_pipeline.events_container if self.bm_pipeline else None
             
             self.axis_set = self.detector_pipeline.axis_set
-            
-            ### save reduced data to hdf5
-            if self.parameters.fileManagement.saveReducedFileONOFF is True:
-                import lib.save_reduced_file as saveH5
-                fileNameSave = saveH5.prepareReducedFileBaseName(file_resolver.fileName)
-
-                # Determine what to save based on parameters
-                include_readouts = getattr(self.parameters.fileManagement, 'saveReadoutsONOFF', False)
-                include_hits = getattr(self.parameters.fileManagement, 'saveHitsONOFF', False)
-
-                if (self.parameters.MONitor.MONOnOff is True) and self.bm_pipeline:
-                    saveH5.saveReducedDataToHDF(
-                        self.parameters,
-                        self.events_container,
-                        self.bm_pipeline.events_container,
-                        readouts=self.readouts_container if include_readouts else None,
-                        readoutsMON=self.bm_pipeline.readouts_container if include_readouts else None,
-                        hits=self.hits_container if include_hits else None,
-                        include_readouts=include_readouts,
-                        include_hits=include_hits,
-                        saveReducedPath=self.parameters.fileManagement.saveReducedPath,
-                        fileName=fileNameSave
-                    )
-                else:
-                    saveH5.saveReducedDataToHDF(
-                        self.parameters,
-                        self.events_container,
-                        readouts=self.readouts_container if include_readouts else None,
-                        hits=self.hits_container if include_hits else None,
-                        include_readouts=include_readouts,
-                        include_hits=include_hits,
-                        saveReducedPath=self.parameters.fileManagement.saveReducedPath,
-                        fileName=fileNameSave
-                    )
-            self.timing.stop()
-            print('----------------------------------------------------------------------')
-
-        except Exception as e:
-            print(f"\n{ERR}Analysis aborted due to error: {e}{RESET}")
-            raise e  # Re-raise so MBUTY_GUI worker thread catches it and stops cleanly
-            # self.timing.lap()
-        ###############################################################################
-        ###############################################################################
-    
-def _enable_all_plots(params) -> None:
-    """Test-only helper: flips on every plotting flag BasePipeline.plot()
-    and BeamMonitorPipeline.plot() check, so a single test run exercises
-    every plot_* method across every plotter. Not meant for routine use --
-    routine runs should set only the flags you actually want."""
-    p, w, phs, mon = params.plotting, params.wavelength, params.pulseHeigthSpect, params.MONitor
-
-    p.plotChopperResets            = True
-    p.plotRawReadouts              = True
-    p.plotReadoutsTimeStamps       = True
-    p.plotADCvsCh                  = True
-
-    p.plotRawHits                  = True
-    p.plotHitsTimeStamps           = True
-    p.plotHitsTimeStampsVSChannels = True
-
-    p.plotToFDistr                 = True
-    p.plotMultiplicity             = True
-    p.plotTimeBetwEv               = True
-
-    phs.plotPHS                    = True
-    phs.plotPHScorrelation         = True
-
-    # calculateLambda has to be True for plotXLambda/plotLambdaDistr to have
-    # real wavelength data to plot -- it's what triggers the wavelength calc
-    # in analyze(), not just a display toggle.
-    # w.calculateLambda              = False
-    w.plotXLambda                  = True
-    w.plotLambdaDistr              = True
-
-    mon.plotMONtofPHS = True
-   
+ 
+    def _handle_plotting(self):
+        """
+        Extracted plotting logic: dashboard or standard plots, with user input to close.
+        Called only in combined mode (plottingOnOff='on' + combineFiles=True).
+        """
+        dashboard_shown = False
+        if self.parameters.plotting.useDashboard:
+            try:
+                from lib.mbuty_dashboard import launch_dashboard
+                self._dashboard = launch_dashboard(self.detector_pipeline, self.bm_pipeline, self.parameters, theme_mode='light')
+                dashboard_shown = True
+            except Exception as e:
+                print(f"{WARN}Dashboard failed ({e}) -- falling back to standard plotting.{RESET}")
+                self.detector_pipeline.plot()
+                if self.bm_pipeline and self.parameters.MONitor.MONOnOff:
+                    self.bm_pipeline.plot()
+        else:
+            self.detector_pipeline.plot()
+            if self.bm_pipeline and self.parameters.MONitor.MONOnOff:
+                self.bm_pipeline.plot()
+ 
+        if not dashboard_shown and (self.detector_pipeline or (self.bm_pipeline and self.parameters.MONitor.MONOnOff)): 
+            plt.draw() 
+            plt.pause(0.1)
+            plt.show(block=False)
+            input(f"{INFO}\nPress Enter to close all figures...{RESET}")
+            plt.close('all')
+ 
     
 ###############################################################################
 ###############################################################################
@@ -705,9 +721,7 @@ if __name__ == '__main__':
 #     params.plotting.histogOutBounds = True
     
 #     params.wavelength.calculateLambda = False
-    
-#     params.saveReducedFileONOFF = False
-    
+        
 #     params.MONitor.MONOnOff = True
 #     params.MONitor.plotMONtofPHS = True
 #     params.MONitor.MONThreshold = 200
