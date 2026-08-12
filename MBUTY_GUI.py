@@ -607,6 +607,16 @@ class MBUTYMainWindow(QMainWindow):
                 dashboard = build_dashboard_section(
                     backend.detector_pipeline, backend.bm_pipeline, parameters, block, bm_active
                 )
+                if not dashboard.has_content:
+                    # Every tab (readouts/hits/events/BM) came back empty for this
+                    # block -- nothing to show and nothing to compare. Skip the
+                    # window entirely and move straight on, same as if the user
+                    # had clicked Next Section themselves.
+                    print(f"\tWARNING: section {self._section_idx + 1}/{len(blocks)} "
+                        f"has no data in any tab -- skipping dashboard window.")
+                    self._section_idx += 1
+                    self._show_current_section()
+                    return
                 dashboard.closing.connect(self._on_section_window_closed)
                 self._current_dashboard = dashboard
                 dashboard.show()

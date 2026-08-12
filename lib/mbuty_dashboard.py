@@ -230,16 +230,17 @@ def launch_dashboard(detector_pipeline, bm_pipeline, parameters, theme_mode="dar
         dashboard = build_dashboard_section(
             detector_pipeline, bm_pipeline, parameters, unit_ids, bm_active
         )
+        if not dashboard.has_content:
+            print('\tWARNING: no data in any tab (readouts/hits/events/BM all empty) '
+                '-- skipping dashboard window for this section.')
+            return dashboard
+
         dashboard.show()
 
-        # Block until this window actually closes. `closing` is emitted from
-        # closeEvent (see MbutyDashboard) -- unlike `destroyed`, it fires the
-        # moment the user clicks the X, since close() only hides the window
-        # by default and never destroys the underlying Qt object.
         loop = QEventLoop()
         dashboard.closing.connect(loop.quit)
         loop.exec()
-        return dashboard
+        return dashboard  
 
     topology = detector_pipeline.config.get('topology', [])
     unit_ids = np.sort([entry['ID'] for entry in topology])
@@ -803,14 +804,24 @@ class MbutyDashboard(QMainWindow):
         self.views: dict[str, InstrumentView] = {}
         self._built_main: set[int] = set()
 
+        # Nothing behind any instrument tab and no BM stream -> genuinely empty
+        # run (e.g. a config mismatch discarded everything). Comparison Matrix
+        # has nothing to compare in that case, so don't build it either --
+        # callers (launch_dashboard) use this flag to skip showing the window.
+        self.has_content = bool(tab_specs)
+
         for spec in tab_specs:
             self.main_tabs.addTab(QWidget(), spec.title)
 
-        self.comparison_view = ComparisonMatrixView(data_source, tab_specs)
-        self.main_tabs.addTab(self.comparison_view, "Comparison Matrix")
+        if self.has_content:
+            self.comparison_view = ComparisonMatrixView(data_source, tab_specs)
+            self.main_tabs.addTab(self.comparison_view, "Comparison Matrix")
+        else:
+            self.comparison_view = None
 
         self.main_tabs.currentChanged.connect(self._ensure_main_built)
-        self._ensure_main_built(0)  # whichever tab is shown first needs content now
+        if self.has_content:
+            self._ensure_main_built(0)  # whichever tab is shown first needs content now
 
     def _ensure_main_built(self, index: int) -> None:
         if index < 0 or index in self._built_main:

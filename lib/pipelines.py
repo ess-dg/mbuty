@@ -200,7 +200,8 @@ class BasePipeline:
     def check_empty(self):
         if self.readouts_container.fill_count == 0:
             print(f"{WARN}{type(self).__name__}: readouts container is empty — skipping pipeline pass.{RESET}")
-            return
+            return True
+        return False
 ############################    gui fix #################################################### 
     def get_unit_id_blocks(self) -> list:
         """Returns the list of unit-ID blocks that plot() would iterate over,
@@ -262,6 +263,7 @@ class MBPipeline(BasePipeline):
     def analyze(self) -> None:
         
         if self.check_empty():
+            print("should not do anything else")
             return
         # Calibrating
         from lib.calibration import VMMCalibrationEngine
