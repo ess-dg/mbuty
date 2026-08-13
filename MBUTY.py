@@ -232,12 +232,13 @@ class MBUTYOrchestrator():
                 readouts=self.detector_pipeline.readouts_container if self.detector_pipeline else None,
                 readoutsMON=self.bm_pipeline.readouts_container if self.bm_pipeline else None,
                 hits=self.detector_pipeline.hits_container if self.detector_pipeline else None,
-                include_readouts=True,
-                include_hits=True,
-                saveReducedPath=self.parameters.fileManagement.filePath,
+                include_events=self.parameters.fileManagement.saveEventsONOFF,
+                include_readouts=self.parameters.fileManagement.saveReadoutsONOFF,
+                include_hits=self.parameters.fileManagement.saveHitsONOFF,
+                saveReducedPath=self.parameters.fileManagement.saveReducedPath,
                 fileName=reduced_name
             )
-        
+            
         # Store references for access in main scope (combined mode only)
         if self.parameters.fileManagement.combineFiles:
             self.readouts_container = self.detector_pipeline.readouts_container

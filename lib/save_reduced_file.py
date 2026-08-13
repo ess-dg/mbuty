@@ -245,10 +245,10 @@ def _load_parameters(grp):
 
 def saveReducedDataToHDF(parameters, events, eventsMON=None, readouts=None, 
                          readoutsMON=None, hits=None,
-                         include_readouts=False, include_hits=False,
+                         include_events=True, include_readouts=False, include_hits=False,
                          saveReducedPath='./', fileName='temp'):
-    """Create/overwrite a reduced-data HDF5 file and save detector [+ monitor] 
-    events, and optionally detector readouts and hits.
+    """Create/overwrite a reduced-data HDF5 file and optionally save detector 
+    [+ monitor] events, readouts, and hits, fully customizable via flags.
     
     Monitor has events and readouts only; no monitor hits.
     
@@ -257,7 +257,7 @@ def saveReducedDataToHDF(parameters, events, eventsMON=None, readouts=None,
     parameters : object
         Parameters object with fileManagement settings
     events : container object
-        Detector events (always saved)
+        Detector events (saved only if include_events=True)
     eventsMON : container object, optional
         Monitor events
     readouts : container object, optional
@@ -266,6 +266,8 @@ def saveReducedDataToHDF(parameters, events, eventsMON=None, readouts=None,
         Monitor readouts (saved only if include_readouts=True)
     hits : container object, optional
         Detector hits (saved only if include_hits=True). Monitor does not have hits.
+    include_events : bool, default True
+        If True, save detector and monitor events matrices
     include_readouts : bool, default False
         If True, save detector and monitor readouts matrices
     include_hits : bool, default False
@@ -277,9 +279,15 @@ def saveReducedDataToHDF(parameters, events, eventsMON=None, readouts=None,
     
     Returns
     -------
-    str
-        Path to the created HDF5 file
+    str or None
+        Path to the created HDF5 file, or None if nothing was saved
+        (i.e. include_events, include_readouts, and include_hits are all False).
     """
+
+    if not include_events and not include_readouts and not include_hits:
+        print(f"{ERR} ---> ERROR: include_events, include_readouts, and include_hits are "
+              f"all False -- nothing to save, skipping reduced file save.{RESET}")
+        return None
 
     compressionHDFT = parameters.fileManagement.reducedCompressionHDFT
     compressionHDFL = parameters.fileManagement.reducedCompressionHDFL
@@ -299,16 +307,17 @@ def saveReducedDataToHDF(parameters, events, eventsMON=None, readouts=None,
     fid = h5py.File(outfile, 'w')
     fid.attrs['created'] = time.strftime('%Y-%m-%d %H:%M:%S')
 
-    gdet   = fid.create_group(mainFolder + '/detector/events')
-    gmon   = fid.create_group(mainFolder + '/monitor/events')
     gparam = fid.create_group(mainFolder + '/parameters')
 
     print(f"{OK}-> saving reduced data to h5 file ... {RESET}")
 
-    # Always save events
-    _save_container(gdet, events, compressionHDFT, compressionHDFL, has_stats=True)
-    if eventsMON is not None:
-        _save_container(gmon, eventsMON, compressionHDFT, compressionHDFL, has_stats=True)
+    # Optionally save events
+    if include_events:
+        gdet = fid.create_group(mainFolder + '/detector/events')
+        _save_container(gdet, events, compressionHDFT, compressionHDFL, has_stats=True)
+        if eventsMON is not None:
+            gmon = fid.create_group(mainFolder + '/monitor/events')
+            _save_container(gmon, eventsMON, compressionHDFT, compressionHDFL, has_stats=True)
 
     # Optionally save readouts
     if include_readouts and readouts is not None:
