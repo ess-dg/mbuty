@@ -464,6 +464,7 @@ class ThemeManager(QObject):
         super().__init__()
         self._app = app
         self._mode = mode
+        self._app.setStyle("Fusion")
         self.apply(mode)
 
     @property
