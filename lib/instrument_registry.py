@@ -89,6 +89,15 @@ def print_info_data_stream(instr_id: int) -> None:
 # =============================================================================
 # Post-read stream validation
 # =============================================================================
+class SkipFileError(Exception):
+    """
+    Raised when a single file's instrument-ID/data-stream validation fails
+    (unknown/unsupported stream, or a mismatch against the config's
+    instrumentName/detectorType). Callers processing multiple files should
+    catch this per-file and continue to the next one, rather than aborting
+    the whole run.
+    """
+    pass
 
 def check_valid_data_stream(instr_ids_found: set, unknown_instr_ids: set) -> None:
     """Validate instrument IDs seen during reading and print a summary."""
@@ -115,8 +124,7 @@ def check_valid_data_stream(instr_ids_found: set, unknown_instr_ids: set) -> Non
         info = get_info(target_id)
 
         if info is None:
-            print(f"\n{ERR}ERROR: found unknown data stream with ID {target_id}{RESET}", end='')
-            sys.exit(1)
+            raise SkipFileError(f"unknown data stream with ID {target_id}")
 
         name = info['name']
         if info['supported'] and info['reader_supported']:
@@ -125,12 +133,10 @@ def check_valid_data_stream(instr_ids_found: set, unknown_instr_ids: set) -> Non
             print(f"\n{WARN}WARNING: found '{name}' data stream, analysis not supported, "
                   f"reader only! Analysis continues but questionable results are on the horizon.{RESET}")
         elif not info['supported'] and not info['reader_supported']:
-            print(f"\n{ERR}ERROR: found '{name}' data stream, analysis nor reader supported! Exit.{RESET}")
-            sys.exit(1)
+            raise SkipFileError(f" found '{name}' data stream, analysis nor reader supported!")
         elif info['supported'] and not info['reader_supported']:
-            print(f"\n{ERR}ERROR: found '{name}' data stream, supported but reader_supported "
-                  f"is False — check INSTRUMENTS registry. Exit.{RESET}")
-            sys.exit(1)
+            raise SkipFileError(f" found '{name}' data stream, supported but reader_supported "
+                  f"is False — check INSTRUMENTS registry.")
 
     # --- 2 IDs ---------------------------------------------------------------
     elif len(instr_ids_clean) == 2:
@@ -175,9 +181,8 @@ def check_valid_data_stream(instr_ids_found: set, unknown_instr_ids: set) -> Non
                   f"No analysis-ready streams found. The non-BM stream ({other}) is unsupported. "
                   f"Results might be affected.{RESET}")
         else:
-            print(f"{ERR}---> ERROR: 2 data streams detected: ({', '.join(all_streams)}). "
-                  f"Neither of the 2 streams are valid for analysis or reading. Exit.{RESET}")
-            sys.exit(1)
+            raise SkipFileError(f"2 data streams detected: ({', '.join(all_streams)}). "
+                  f"Neither of the 2 streams are valid for analysis or reading.")
 
     # --- 3+ IDs --------------------------------------------------------------
     else:
@@ -208,10 +213,8 @@ def check_valid_data_stream(instr_ids_found: set, unknown_instr_ids: set) -> Non
                   f"({', '.join(valid_for_reading)}) streams are valid for analysis but just reader. "
                   f"Analysis continues. Data might be corrupted - check RMM output queue config!{RESET}")
         else:
-            print(f"{ERR}---> ERROR: None of the {len(instr_ids_clean)} streams are valid "
-                  f"for analysis nor just reader. Exit.{RESET}")
-            sys.exit(1)
-
+            raise SkipFileError(f"None of the {len(instr_ids_clean)} streams are valid "
+                  f"for analysis nor just reader.")
 
 # =============================================================================
 # Application-layer functions
@@ -269,11 +272,11 @@ def match_data_stream_with_config(instr_name_from_conf: str, det_type: str, inst
         print(f"\n\t{WARN}File containing data streams {unique_streams} for detector types {unique_types}{RESET}")
         print(f"\t{WARN}analyzed for instrument {instr_name_from_conf} and type {det_type}{RESET}")
     else:
-        print(f"\n\t{ERR}ERROR: CONFIGURATION MISMATCH!{RESET}", end='')
-        print(f"\n\t{ERR}You are trying to read a file containing data streams {unique_streams} for detector types {unique_types}{RESET}")
-        print(f"\t{ERR}But in your config file you have specified instrument {instr_name_from_conf} and type {det_type}{RESET}")
-        print("Exiting ...")
-        sys.exit(1)
+        raise SkipFileError(
+                f"CONFIGURATION MISMATCH! You are trying to read a file containing data streams "
+                f"{unique_streams} for detector types {unique_types}, but in your config file you "
+                f"have specified instrument {instr_name_from_conf} and type {det_type}"
+            )
 
 
 def check_bm_type(geo: np.ndarray, bm_hw: str) -> None:

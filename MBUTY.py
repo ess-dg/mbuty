@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 from lib.colors import INFO, OK, WARN, ERR, RESET
 import lib.checks_and_helpers as checks
 from lib.config_validator import validate_config
+from lib.instrument_registry import SkipFileError
 # Ingest object-oriented pipeline tracks and their factory dispatchers
 from lib.pipelines import build_detector_pipeline, build_bm_pipeline
  
@@ -72,6 +73,7 @@ class MBUTYOrchestrator():
         
         self.detector_pipeline = None
         self.bm_pipeline       = None
+        self.skipped_files     = []   # (filename, reason) for files skipped due to validation errors
         
         ###############################################################################
         if self.parameters.acqMode  == 'pcap-local-overwrite'  or self.parameters.acqMode  == 'pcap-local':
@@ -126,6 +128,8 @@ class MBUTYOrchestrator():
                 else:
                     self._process_individual_files(file_resolver, PcapngFileReader)
  
+                self._report_skipped_files()
+                
         except KeyboardInterrupt:
             print("\nPipeline interrupted by user or window closure.")
         except Exception as e:
@@ -133,58 +137,75 @@ class MBUTYOrchestrator():
             sys.exit(1)
  
     def _process_combined_files(self, file_resolver, reader_class):
-        """
-        COMBINED MODE: Accumulate all files, merge them, process once, plot once.
-        This is the original behavior.
-        """
         container_lists = defaultdict(list)
- 
+
         for idx, filename in enumerate(file_resolver.fileName):
             print(f'{INFO}\nProcessing file [{idx + 1}/{len(file_resolver.fileName)}]: {filename}{RESET}')
             full_file_path = os.path.join(file_resolver.filePath, filename)
- 
+
             reader = reader_class(
                 file_path=full_file_path,
                 parameters=self.parameters,
                 config=self.config
             )
-            
-            readout_containers = reader.run()
+
+            try:
+                readout_containers = reader.run()
+            except SkipFileError as e:
+                print(f'{ERR}ERROR: {e} ... Skipping file {filename}{RESET}')
+                self.skipped_files.append((filename, str(e)))
+                continue
+
             for name, container in readout_containers.items():
                 container_lists[name].append(container)
-        
+
+        if not container_lists:
+            print(f'{ERR}\nAll files were skipped — nothing to process.{RESET}')
+            return
+
         # Merge all containers
         merged = {
             name: containers[0] if len(containers) == 1 else type(containers[0]).merge(containers)
             for name, containers in container_lists.items()
         }
- 
+
         reader = SimpleNamespace(**merged)
         self._process_and_save_containers(reader, file_name=None)
  
     def _process_individual_files(self, file_resolver, reader_class):
-        """
-        PER-FILE MODE: Process each file independently, save separate reduced files.
-        Plotting is automatically suppressed (blocking behavior avoided).
-        """
         for idx, filename in enumerate(file_resolver.fileName):
             print(f'{INFO}\nProcessing file [{idx + 1}/{len(file_resolver.fileName)}]: {filename}{RESET}')
             full_file_path = os.path.join(file_resolver.filePath, filename)
- 
+
             reader_obj = reader_class(
                 file_path=full_file_path,
                 parameters=self.parameters,
                 config=self.config
             )
-            
-            readout_containers = reader_obj.run()
+
+            try:
+                readout_containers = reader_obj.run()
+            except SkipFileError as e:
+                print(f'{ERR}ERROR: {e} ... Skipping file {filename}{RESET}')
+                self.skipped_files.append((filename, str(e)))
+                continue
+
             reader = SimpleNamespace(**readout_containers)
-            
-            # Extract base filename without extension for per-file naming
+
             base_name = os.path.splitext(filename)[0]
-            
-            # Process and save with per-file naming
             self._process_and_save_containers(reader, file_name=base_name)
+            
+    def _report_skipped_files(self) -> None:
+        """Print a consolidated summary of any files skipped due to validation
+        errors, so it's visible without scrolling back through per-file logs."""
+        if not self.skipped_files:
+            return
+
+        print(f"\n{ERR}----------------------------------------------------------------------{RESET}")
+        print(f"{ERR}SUMMARY: {len(self.skipped_files)} file(s) were skipped due to validation errors:{RESET}")
+        for filename, reason in self.skipped_files:
+            print(f"{ERR}  - {filename}: {reason}{RESET}")
+        print(f"{ERR}----------------------------------------------------------------------{RESET}")
  
     def _process_and_save_containers(self, reader, file_name: str = None):
         """

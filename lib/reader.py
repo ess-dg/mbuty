@@ -20,6 +20,7 @@ from lib.instrument_registry import (
     check_valid_data_stream,
     print_info_data_stream,
     match_data_stream_with_config,
+    SkipFileError,
 )
 from lib.container_readouts import (
     readoutsVMMnormal,
@@ -381,7 +382,7 @@ class BaseReader:
                 else:
                     print(f'\n\t{ERR}ERROR: BM Data format not supported ---> Exiting ... \n{RESET}', end='')
                     time.sleep(2)
-                    sys.exit()
+                    sys.exit() 
 
             elif hw == 'VMM':
                 if self.operation_mode == 'normal':
@@ -431,9 +432,7 @@ class BaseReader:
 
             else:
                 # hw value present but not handled — unsupported type (e.g. CPIX).
-                print(f'\n\t{ERR}ERROR: Data format not supported ---> Exiting ... \n{RESET}', end='')
-                time.sleep(2)
-                sys.exit()
+                raise SkipFileError(f"data format '{hw}' not supported")
 
             # ------------------------------------------------------------------
             # 11. Slice the destination container write window
@@ -911,11 +910,7 @@ class PcapngFileReader(BaseReader):
     def _validate_file(self) -> None:
         """Checks if file exists and prints error if not"""
         if not os.path.isfile(self.file_path):
-            print(
-                f"\n{ERR}ERROR: File not found: {self.file_path} "
-                f"---> Exiting.{RESET}"
-            )
-            sys.exit()
+            raise SkipFileError(f"file not found: {self.file_path}")
    
     def _resolve_fw_version_and_header(self, packet_data: bytes, index_ess: int) -> None:
         """
@@ -1038,12 +1033,9 @@ class PcapngFileReader(BaseReader):
                     break
 
         except Exception as e:
-            print(
-                f"\n{ERR}ERROR: {e} ---> probably data is being created and "
-                f"file not closed -> exiting.{RESET}"
-            )
-            time.sleep(2)
-            sys.exit()
+            raise SkipFileError(
+                f"{e} (probably file is still being written to / not closed)"
+            ) from e
 
         ff.close()
 
