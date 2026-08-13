@@ -483,6 +483,12 @@ if __name__ == '__main__':
 
     ### ON/OFF
     parameters.fileManagement.saveReducedFileONOFF = False   
+    
+    parameters.fileManagement.saveEventsONOFF = True
+    parameters.fileManagement.saveReadoutsONOFF = False
+    parameters.fileManagement.saveHitsONOFF = False
+    parameters.fileManagement.combineFiles = True
+    
     parameters.fileManagement.saveReducedPath = parameters.fileManagement.currentPath+'reduced/'
 
     parameters.fileManagement.reducedNameMainFolder   = 'entry1'

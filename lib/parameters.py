@@ -78,6 +78,7 @@ class fileManagement():
             self.saveHitsONOFF = False
             
             self.combineFiles = True
+            
             self.saveReducedPath = './'
             self.reducedNameMainFolder  = 'entry1'
 
