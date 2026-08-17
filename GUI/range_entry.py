@@ -2,16 +2,14 @@
 """
 range_entry.py
 
-qtpy replacement for the Tk RangeEntryWidgets (linked min/max numeric entry
-pair with invalid-range highlighting).
+Created on Mon July 20 2026
 
-Notably simpler than the Tk version:
-- No dummy_focus_holder / root.bind_all("<Button-1>", ...) hack to detect
-  "clicked outside the entry" — QLineEdit's own `editingFinished` signal
-  fires exactly when focus leaves the widget (Enter, Tab, or click away),
-  so validation just connects to that.
-- No manual bg color juggling — invalid state goes through
-  theme.set_widget_state(), which flips a QSS selector.
+@author: Sheila Monera Cabarique
+
+A pair of linked min/max numeric entry fields with invalid-range
+highlighting. Validation runs on every keystroke via QLineEdit's
+textChanged signal; invalid state goes through theme.set_widget_state(),
+which flips a QSS selector.
 """
 from qtpy.QtCore import Signal
 from qtpy.QtGui import QIntValidator, QDoubleValidator
@@ -64,8 +62,6 @@ class RangeEntryWidgets(QWidget):
         layout.addWidget(self.entry_max)
         layout.addStretch(1)
 
-        self.entry_min.editingFinished.connect(self.validate)
-        self.entry_max.editingFinished.connect(self.validate)
         self.entry_min.textChanged.connect(self.validate)
         self.entry_max.textChanged.connect(self.validate)
         self.rangeChanged.connect(self.changed.emit)

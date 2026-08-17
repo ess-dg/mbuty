@@ -2,10 +2,10 @@
 """
 expandable_section.py
 
-qtpy replacement for the Tk ExpandableSection (collapsible frame with a
-toggle header).
+Created on Mon July 20 2026
+
+@author: Sheila Monera Cabarique
 """
-from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QWidget, QVBoxLayout, QPushButton, QFrame, QSizePolicy
 
 

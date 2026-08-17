@@ -2,6 +2,10 @@
 """
 theme.py
 
+Created on Mon July 20 2026
+
+@author: Sheila Monera Cabarique
+
 Central styling module for the MBUTY Qt GUI.
 """
 import os

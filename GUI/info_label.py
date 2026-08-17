@@ -2,14 +2,15 @@
 """
 info_label.py
 
-qtpy replacement for the Tk InfoLabel + Tooltip pair.
+Created on Mon July 20 2026
 
-What got simpler moving to Qt:
-- No custom Tooltip class. Qt has native hover tooltips built into every
-  widget via `setToolTip()` — positioning, screen-edge clamping, and
-  show/hide timing are handled by Qt itself.
-- No `update_font()` method to remember to call. Font size comes from the
-  app-wide stylesheet in theme.py; this widget just uses QSS role markers.
+@author: Sheila Monera Cabarique
+
+Tooltip display (positioning, screen-edge clamping, show/hide timing) is
+handled natively by Qt via QWidget.setToolTip() -- no custom tooltip
+widget needed. Font size comes from the app-wide stylesheet in theme.py
+via QSS role markers, so there's nothing to update here when the theme
+changes.
 """
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QWidget, QHBoxLayout, QLabel, QToolButton, QSizePolicy
@@ -48,25 +49,25 @@ class InfoLabel(QWidget):
 
         self.info_btn = None
         if info:
-            self.info_btn = QToolButton()
-            self.info_btn.setText("(i)")
-            self.info_btn.setFixedSize(theme.ICON_BUTTON_SIZE, theme.ICON_BUTTON_SIZE)
-            self.info_btn.setCursor(Qt.PointingHandCursor)
-            self.info_btn.setToolTip(info)
-            self.info_btn.setFocusPolicy(Qt.NoFocus)
+            self.info_btn = self._make_info_button(info)
             layout.addWidget(self.info_btn, alignment=Qt.AlignTop)
+
+    def _make_info_button(self, info):
+        btn = QToolButton()
+        btn.setText("(i)")
+        btn.setFixedSize(theme.ICON_BUTTON_SIZE, theme.ICON_BUTTON_SIZE)
+        btn.setCursor(Qt.PointingHandCursor)
+        btn.setToolTip(info)
+        btn.setFocusPolicy(Qt.NoFocus)
+        return btn
 
     def set_text(self, text):
         self.main_label.setText(text)
 
     def set_info(self, info):
-        """Add, replace, or remove (pass None) the tooltip button after construction."""
+        """Add, replace, or hide (pass None) the tooltip button after construction."""
         if info and self.info_btn is None:
-            self.info_btn = QToolButton()
-            self.info_btn.setText("(i)")
-            self.info_btn.setFixedSize(theme.ICON_BUTTON_SIZE, theme.ICON_BUTTON_SIZE)
-            self.info_btn.setCursor(Qt.PointingHandCursor)
-            self.info_btn.setFocusPolicy(Qt.NoFocus)
+            self.info_btn = self._make_info_button(info)
             self.layout().addWidget(self.info_btn, alignment=Qt.AlignTop)
         if self.info_btn is not None:
             if info:

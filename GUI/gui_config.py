@@ -99,13 +99,19 @@ Each parameter item (within a section) supports the following fields:
     A function that takes the `widgets` dictionary as an argument and returns the correct path to generate the options.
     This allows for more complex dynamic generation of options based on multiple other widget states.
 
-- `watchKeys` (list[str], optional): Used in conjunction with `dynamicOptions`.
+- `watchKeys` (list[str], optional): Used in conjunction with `dynamicOptions` or `dynamicMustExist`.
     A list of other configuration keys. When the value of any of these watched keys changes in the GUI,
-    the `dynamicOptions` function for *this* widget will be re-evaluated to update its options.
+    the `dynamicOptions` or `dynamicMustExist` function for *this* widget will be re-evaluated accordingly.
 
 - `mustExist` (bool, optional): Only relevant for 'type'= 'filePath'. If set to `True`, it will only accept existing paths.
     If set to `False`, it will check if the path exists and if not, it will prompt the user if they want to create it.
-    If not set, the default will be `True`.
+    If not set, the default will be `True`. For a mustExist value that depends on another widget's state, use
+    `dynamicMustExist` instead of a static `True`/`False`.
+    
+- `dynamicMustExist` (callable, optional): For 'type'='filePath' widgets only. A function that takes the
+    `widgets` dictionary as an argument and returns True/False, letting mustExist depend on another widget's
+    current value instead of being fixed at setup. Used together with `watchKeys` (see below) so it re-evaluates
+    whenever a watched widget changes. Overrides any static `mustExist` value on the same entry.
 
 - `fileTypeFilter` (str, optional): Used with `optionsFromPath` or `dynamicOptions` to filter files by extension (e.g., ".json", ".pcapng").
     Must be used together with `optionsFromPath` or `dynamicOptions`.

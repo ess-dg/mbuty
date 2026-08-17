@@ -2,11 +2,15 @@
 """
 radio_entry.py
 
-qtpy replacement for the Tk RadioEntry (vertically stacked radio group).
-Functionally this is BooleanSelect's layout swapped to QVBoxLayout with
-no True/False coercion on get() — kept as a separate class since the
-config schema in gui_config.py treats 'radio' and 'bool' as distinct
-widget types with different `get()` semantics.
+Created on Mon July 20 2026
+
+@author: Sheila Monera Cabarique
+
+A vertically stacked radio button group. Functionally this is
+BooleanSelect's layout swapped to QVBoxLayout with no True/False coercion
+on get() -- kept as a separate class since the config schema in
+gui_config.py treats 'radio' and 'bool' as distinct widget types with
+different get() semantics.
 """
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QRadioButton, QButtonGroup

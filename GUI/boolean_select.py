@@ -2,7 +2,7 @@
 """
 boolean_select.py
 
-Created on Mon July 20 10:45:19 2026
+Created on Mon July 20 2026
 
 @author: Sheila Monera Cabarique
 """

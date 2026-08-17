@@ -2,31 +2,25 @@
 """
 console_widgets.py
 
-qtpy replacement for the Tk ANSIColorTextWidget + ConsoleRedirector pair.
+Created on Mon July 20 2026
 
-One change here is not just cosmetic: in the Tk version, ConsoleRedirector.write()
-could be called from backend_thread (since MBUTY_GUI's pipeline prints directly
-via redirected stdout while running in a worker thread) and wrote straight into
-the Tk Text widget from that thread. Tk mostly tolerates this in practice, but
-it's not actually safe, and Qt is much less forgiving about it — touching a
-QWidget from a non-GUI thread can corrupt state or crash outright, not just
-misbehave. So ConsoleWriter here emits a Signal instead of touching the widget
-directly. Qt signal emission is thread-safe by design, and connecting it with
-Qt.QueuedConnection guarantees the slot that actually inserts text always runs
-on the GUI thread — regardless of which thread called .write(). This is the
-same class of problem as the dashboard-threading discussion earlier, solved
-the same way (never touch GUI objects off the GUI thread), just via Qt's
-native mechanism instead of a manual queue + polling loop.
+@author: Sheila Monera Cabarique
+"""
+"""
+A read-only console panel that mirrors redirected stdout (including ANSI
+color/bold escape codes) into the GUI, with a line-number gutter.
 
-Also folds in what used to be the separate `line_numbered_text.py` widget.
-That module existed specifically to show line numbers next to the
-redirected-stdout console — i.e. it was never a general-purpose text
-editor, it was *this* widget's gutter. So rather than keep two widgets in
-sync, the gutter lives directly on ANSIConsole. It uses the standard Qt
-"code editor" pattern: a small side QWidget whose paintEvent is driven by
-ANSIConsole's own blockCountChanged/updateRequest signals, so it always
-repaints in step with scrolling and new output — no manual redraw calls
-needed anywhere else in the app.
+Threading note: the analysis pipeline can print from a background thread.
+Touching a QWidget from a non-GUI thread can corrupt state or crash
+outright, so ConsoleWriter never writes to the widget directly — it only
+emits a Signal. Connecting that signal with Qt.QueuedConnection guarantees
+the slot that actually inserts text (ANSIConsole.write) always runs on the
+GUI thread, regardless of which thread called ConsoleWriter.write().
+
+The line-number gutter (_LineNumberArea) is the standard Qt "code editor"
+pattern: a small side QWidget whose paintEvent is driven by ANSIConsole's
+own blockCountChanged/updateRequest signals, so it stays in sync with
+scrolling and new output with no manual redraw calls needed elsewhere.
 """
 import re
 
@@ -186,13 +180,15 @@ class ANSIConsole(QPlainTextEdit):
 
 class ConsoleWriter(QObject):
     """
-    A drop-in `sys.stdout` replacement. Unlike the Tk ConsoleRedirector,
-    this is safe to install while the pipeline is running in a background
-    thread — write() only emits a signal, the connected slot does the
-    actual widget update on the GUI thread.
+    A drop-in `sys.stdout` replacement, safe to install while the pipeline
+    is running in a background thread. write() emits a signal so the
+    connected slot can update the console widget on the GUI thread, and
+    also tees the same text to `original_stdout` (if given) so output
+    still reaches the real terminal while the GUI console is active as
+    sys.stdout.
 
         console = ANSIConsole()
-        writer = ConsoleWriter()
+        writer = ConsoleWriter(original_stdout=sys.stdout)
         writer.text_written.connect(console.write, Qt.QueuedConnection)
         sys.stdout = writer
     """
@@ -204,6 +200,15 @@ class ConsoleWriter(QObject):
 
     def write(self, string):
         self.text_written.emit(string)
+        if self._fallback is not None:
+            try:
+                self._fallback.write(string)
+            except Exception:
+                pass  # never let a broken terminal/pipe take down the GUI console
 
     def flush(self):
-        pass  # nothing to flush; Qt's event loop delivers the queued signal
+        if self._fallback is not None:
+            try:
+                self._fallback.flush()
+            except Exception:
+                pass

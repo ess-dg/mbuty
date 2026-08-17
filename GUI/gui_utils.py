@@ -2,7 +2,21 @@
 """
 gui_utils.py
 
-qtpy port of the Tk gui_utils.py.
+Created on Mon July 20 2026
+
+@author: Sheila Monera Cabarique
+
+Builds GUI widgets from gui_config.py's declarative config dict, and wires
+up the dynamic behavior that config can request:
+  - visibility driven by another widget's value (`dependsOn`)
+  - options loaded/refreshed from another widget's value (`dynamicOptions`,
+    `optionsFromPath`)
+  - a filePath widget's `must_exist` flag driven by another widget's value
+    (`dynamicMustExist`)
+
+Each resolver below follows the same shape: run once immediately to set
+initial state, then connect to the `changed` signal of every watched
+widget so state stays in sync as the user edits the form.
 """
 from qtpy.QtWidgets import QLabel, QPushButton, QSizePolicy
 from qtpy.QtCore import Qt

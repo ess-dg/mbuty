@@ -2,7 +2,13 @@
 """
 multi_select_dropdown.py
 
-qtpy replacement for the Tk MultiSelectDropDown.
+Created on Mon July 20 2026
+
+@author: Sheila Monera Cabarique
+
+A labeled multi-select field: a click-to-open popup checklist (with a
+filter box) for picking items, and a vertical stack of removable "chip"
+tags in the field itself showing the current selection, one per line.
 """
 import os
 
@@ -114,7 +120,7 @@ class MultiSelectDropDown(QWidget):
         self._checked = []
         self.pathToOptions = None
         self._popup = None
-        self.reverse = True # make this True to sort filenames Z to A, instead False A -> Z
+        self.reverse = True  # sort options Z->A (newest-dated filenames tend to sort first); False sorts A->Z
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -140,7 +146,7 @@ class MultiSelectDropDown(QWidget):
 
         layout.addWidget(self.field, stretch=1)
 
-        self.set_options(sorted(options, key=str.lower, reverse=self.reverse), default)
+        self.set_options(options, default)  # set_options() sorts internally
 
     def eventFilter(self, obj, event):
         if obj is self.field and event.type() == QEvent.MouseButtonRelease:

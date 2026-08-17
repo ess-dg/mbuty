@@ -2,24 +2,22 @@
 """
 searchable_dropdown.py
 
-qtpy replacement for the Tk SearchableDropDown.
+Created on Mon July 20 2026
 
-The Tk version hand-built the entire dropdown from scratch: a Toplevel
-window positioned under the entry on every scroll/resize, a Listbox filled
-and refiltered on a throttled `after(200, ...)` key-release timer, a
-global `bind_all("<Button-1>", ...)` to detect clicks outside and close it,
-and manual arrow-key navigation wired to the root window. All of that is
-what QComboBox(editable=True) + QCompleter already do natively:
+@author: Sheila Monera Cabarique
+
+A single-select dropdown with type-to-filter search, built on
+QComboBox(editable=True) + QCompleter:
 
 - typing filters the popup list                  -> QCompleter(filterMode=...)
 - click outside / Escape closes the popup         -> built into the popup
 - arrow keys navigate the popup list               -> built in
 - the popup follows the widget on scroll/resize    -> built in
 
-So this file is mostly just wiring options in/out and preserving the
-`get()`/`set()`/`set_options()`/`set_new_path_for_options()` API and
+This file wires options in/out on top of that and adds the
+get()/set()/set_options()/set_new_path_for_options() API and
 "selection must come from the option list" validation behavior the rest
-of the app relies on — the positioning/filtering machinery itself is gone.
+of the app relies on.
 """
 import os
 
@@ -31,18 +29,38 @@ from . import theme
 
 
 class _RefreshingComboBox(QComboBox):
-    """A QComboBox that can refresh its item list from a folder right
-    before the popup opens, mirroring the Tk version's "refresh options
-    from pathToOptions on show_dropdown()" behavior."""
+    """A QComboBox that refreshes its item list from a folder right
+    before the popup opens. Ignores wheel events to prevent scroll hijacking."""
 
     def __init__(self, refresh_callback, parent=None):
         super().__init__(parent)
         self._refresh_callback = refresh_callback
+        self.setFocusPolicy(Qt.ClickFocus)
+        self.setEditable(True)
+        self.lineEdit().setFocusPolicy(Qt.ClickFocus)
+        
+        # Block wheel events on the internal view
+        if self.view():
+            self.view().installEventFilter(self)
 
     def showPopup(self):
         if self._refresh_callback:
             self._refresh_callback()
         super().showPopup()
+        # Re-install event filter on the view after popup shows
+        if self.view():
+            self.view().installEventFilter(self)
+
+    def wheelEvent(self, event):
+        """Ignore wheel events to allow parent page scrolling."""
+        event.ignore()
+
+    def eventFilter(self, obj, event):
+        """Block wheel events on the popup view."""
+        from qtpy.QtCore import QEvent
+        if event.type() == QEvent.Wheel:
+            return True  # Consume the event, don't pass it on
+        return super().eventFilter(obj, event)
 
 
 class SearchableDropDown(QWidget):
@@ -77,7 +95,6 @@ class SearchableDropDown(QWidget):
         layout.addWidget(self.info_label)
 
         self.combo = _RefreshingComboBox(self._refresh_from_path)
-        self.combo.setEditable(True)
         self.combo.setInsertPolicy(QComboBox.NoInsert)
         self.combo.setMinimumWidth(theme.INPUT_WIDTH)
 
@@ -135,7 +152,7 @@ class SearchableDropDown(QWidget):
         self._completer.setModel(self.combo.model())
 
     # ------------------------------------------------------------------
-    # public API — same shape as the Tk version
+    # public API 
     # ------------------------------------------------------------------
     def set_options(self, new_options, default_to_apply=None):
         self._set_option_list(sorted(new_options, key=str.lower))

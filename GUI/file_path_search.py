@@ -2,9 +2,9 @@
 """
 file_path_search.py
 
-qtpy replacement for the Tk FilePathSearch (path entry with directory
-autocomplete, existence validation, and an offer to create missing
-directories).
+Created on Mon July 20 2026
+
+@author: Sheila Monera Cabarique
 """
 import os
 from pathlib import Path
@@ -65,6 +65,7 @@ class FilePathSearch(QWidget):
 
         # Validate visual state on text change, but don't emit changed signal until editing is finished
         self.entry.textChanged.connect(lambda _: self.validate_path(show_pop_ups=False, emit_signal=False))
+        self.entry.textChanged.connect(self._update_overflow_tooltip)
         self.entry.editingFinished.connect(lambda: self.validate_path(show_pop_ups=True, emit_signal=True))
         self.pathChanged.connect(self.changed.emit)
 
@@ -75,6 +76,27 @@ class FilePathSearch(QWidget):
         parent_dir = clean_text if clean_text.endswith(os.sep) else os.path.dirname(clean_text)
         if parent_dir and os.path.exists(parent_dir):
             self._fs_model.index(parent_dir)
+
+    def _update_overflow_tooltip(self):
+        """Show a tooltip (the full path) only when it doesn't fit in the field.
+        Qt's native hover-tooltip timing handles display automatically."""
+        text = self.entry.text()
+        if not text:
+            self.entry.setToolTip("")
+            return
+        
+        content_rect = self.entry.contentsRect()
+        available_width = content_rect.width()
+        
+        # If widget hasn't been laid out yet, skip
+        if available_width <= 0:
+            return
+        
+        text_width = self.entry.fontMetrics().horizontalAdvance(text)
+        if text_width > available_width:
+            self.entry.setToolTip(text)
+        else:
+            self.entry.setToolTip("")
 
     def _browse(self):
         start_dir = self.entry.text().strip() or str(Path.home())

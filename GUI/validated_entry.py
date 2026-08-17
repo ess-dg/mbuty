@@ -2,21 +2,18 @@
 """
 validated_entry.py
 
-qtpy replacement for the Tk ValidatedEntry. All validation_type semantics
-(int, float, scientific, localPath, remotepath, host:port, fileNumbers, any)
-and get() return types are ported 1:1 — same regexes, same "invalid returns
-'' or [] " behavior — so gui_config.py's schema doesn't need to change.
+Created on Mon July 20 2026
 
-What's simpler here than the Tk version:
-- No dummy_focus_holder / root.bind_all("<Button-1>", ...) "click outside"
-  hack. QLineEdit.editingFinished already fires exactly when focus leaves
-  the field, and we additionally validate on every keystroke for live
-  feedback — Qt handles the focus tracking natively either way.
-- No hand-built Toplevel tooltip with manual position math and an `after`
-  timer to detect overflow. Qt's setToolTip() + native hover timing
-  replaces all of `_add_live_tooltip()`; we just decide *when* to attach
-  a tooltip (text overflows the field) using fontMetrics() instead of
-  winfo_width()/font.measure().
+@author: Sheila Monera Cabarique
+
+A Qt-based labeled entry field with type-specific validation and invalid-state
+styling. Supports validation types: int, float, scientific, localPath,
+remotepath, host:port, fileNumbers, and any. Returns parsed values for valid
+input, or empty string/list for invalid input.
+
+Validation occurs on every keystroke (live feedback) and when focus leaves
+the field. Text overflow automatically triggers an inline tooltip showing
+the full text.
 """
 import re
 import os
@@ -83,12 +80,22 @@ class ValidatedEntry(QWidget):
         return valid
 
     def _update_overflow_tooltip(self):
-        """Only show a tooltip (the full text) when it doesn't fit in the field —
-        mirrors the Tk version's "live tooltip on overflow" without the manual
-        Toplevel/positioning code; Qt's own hover-tooltip timing takes it from here."""
+        """Show a tooltip (the full text) only when it doesn't fit in the field.
+        Qt's native hover-tooltip timing handles display automatically."""
         text = self.entry.text()
+        if not text:
+            self.entry.setToolTip("")
+            return
+        
+        content_rect = self.entry.contentsRect()
+        available_width = content_rect.width()
+        
+        # If widget hasn't been laid out yet, skip
+        if available_width <= 0:
+            return
+        
         text_width = self.entry.fontMetrics().horizontalAdvance(text)
-        if text_width > self.entry.width() - 10:
+        if text_width > available_width:
             self.entry.setToolTip(text)
         else:
             self.entry.setToolTip("")
@@ -163,8 +170,9 @@ class ValidatedEntry(QWidget):
     # value access
     # ------------------------------------------------------------------
     def get(self):
-        """Same return semantics as the Tk version: parsed value if valid,
-        '' (or [] for fileNumbers) if not."""
+        """Return parsed value if valid, or empty string/list if invalid.
+        fileNumbers type returns a sorted list of ints; other types return
+        their parsed value (int, float, str) or empty string."""
         value = self.entry.text().strip()
         if not self.validate():
             return [] if self.validation_type == "fileNumbers" else ""
