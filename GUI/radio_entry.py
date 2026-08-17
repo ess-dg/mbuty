@@ -46,7 +46,8 @@ class RadioEntry(QWidget):
         self._group = QButtonGroup(self)
         self.radio_buttons = []
 
-        default = default if default is not None else options[0]
+        if default is None or default not in options:
+            default = options[0]
         for opt in options:
             btn = QRadioButton(opt)
             btn.setChecked(opt == default)

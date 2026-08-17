@@ -2,10 +2,9 @@
 """
 boolean_select.py
 
-qtpy replacement for the Tk BooleanSelect (horizontal True/False or Yes/No
-radio group). Uses QButtonGroup so only one option can ever be selected —
-in Tk this was done by sharing one StringVar; here it's the same idea via
-QButtonGroup instead of a shared variable.
+Created on Mon July 20 10:45:19 2026
+
+@author: Sheila Monera Cabarique
 """
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import QWidget, QHBoxLayout, QRadioButton, QButtonGroup
@@ -41,7 +40,9 @@ class BooleanSelect(QWidget):
         self._group = QButtonGroup(self)
         self.radio_buttons = []
 
-        default = default if default is not None else options[0]
+        if default is None or default not in options:
+            default = options[0]
+            
         for opt in options:
             btn = QRadioButton(opt)
             btn.setChecked(opt == default)
@@ -55,7 +56,7 @@ class BooleanSelect(QWidget):
     def get(self):
         """
         Return the selected value, converting 'True'/'False' text to Python
-        booleans automatically, same as the Tk version.
+        booleans automatically.
         """
         for btn in self.radio_buttons:
             if btn.isChecked():

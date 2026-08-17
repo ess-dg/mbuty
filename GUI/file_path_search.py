@@ -161,6 +161,16 @@ class FilePathSearch(QWidget):
                 QMessageBox.critical(self, "Invalid Path Syntax/Error", f"'{raw_path}':\n{e}")
             return False
 
+    def set_must_exist(self, value):
+        """
+        Update the must_exist requirement dynamically (e.g. driven by another
+        widget's value) and re-validate silently against the current text.
+        """
+        if self.must_exist == value:
+            return
+        self.must_exist = value
+        self.validate_path(show_pop_ups=False, emit_signal=False)
+
     def get(self):
         """Return the normalized path if valid, else ''."""
         if not self._is_valid:

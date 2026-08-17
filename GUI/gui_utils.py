@@ -140,6 +140,30 @@ def setup_dynamic_option_resolver(widget, resolver_func, widgets_dict, watch_key
             dep_widget.changed.connect(update_options)
 
 
+def setup_dynamic_must_exist(widget, resolver_func, widgets_dict, watch_keys):
+    """
+    Dynamically updates `widget.must_exist` based on a resolver function and a
+    list of dependency keys to watch for changes. Mirrors
+    setup_dynamic_option_resolver's wiring pattern, but for the mustExist flag
+    on filePath widgets instead of options.
+    """
+    def update_must_exist():
+        try:
+            result = resolver_func(widgets_dict)
+        except Exception as e:
+            print(f"Error resolving dynamic mustExist for {widget.__class__.__name__}: {e}")
+            return
+        if hasattr(widget, "set_must_exist"):
+            widget.set_must_exist(result)
+
+    update_must_exist()
+
+    for key in watch_keys:
+        dep_widget = widgets_dict.get(key)
+        if dep_widget is not None and hasattr(dep_widget, "changed"):
+            dep_widget.changed.connect(update_must_exist)
+
+
 def should_show(depends_on, widgets_dict):
     if not depends_on:
         return True

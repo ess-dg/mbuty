@@ -85,7 +85,14 @@ class RangeEntryWidgets(QWidget):
         if self._is_valid():
             return [self._convert(self.entry_min.text()), self._convert(self.entry_max.text())]
         return []
-
+    
+    def set(self, value):
+        """Programmatically set the range from a (min, max) pair and re-validate."""
+        min_val, max_val = value
+        self.entry_min.setText(str(min_val))
+        self.entry_max.setText(str(max_val))
+        self.validate()
+        
     def _convert(self, val):
         val = val.strip()
         return int(val) if self.input_validation == "int" else float(val)

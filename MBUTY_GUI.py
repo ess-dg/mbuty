@@ -289,6 +289,13 @@ class MBUTYMainWindow(QMainWindow):
                         gui_utils.setup_dynamic_option_resolver(w, dyn_opt, self.widgets, wk)
                 )
 
+        elif input_type == "filePath":
+            if "dynamicMustExist" in item and "watchKeys" in item:
+                self.after_widgets_created_tasks.append(
+                    lambda w=widget_instance, dyn_me=item["dynamicMustExist"], wk=item["watchKeys"]:
+                        gui_utils.setup_dynamic_must_exist(w, dyn_me, self.widgets, wk)
+                )
+
         return updated_row
 
     def _apply_font_size(self, new_size):
@@ -514,8 +521,21 @@ class MBUTYMainWindow(QMainWindow):
             for section_dict in config.values():
                 if key in section_dict:
                     setter = section_dict[key].get("set")
-                    if setter:
+                    if callable(setter):
+                    # 1. Use explicit custom setter (handles compound paths, lists, etc.)
                         setter(value)
+                    elif key.startswith("parameters."):
+                        # 2. Safe fallback: only auto-resolve true backend parameters
+                        try:
+                            parts = key.split('.')
+                            obj = parameters
+                            for part in parts[1:-1]:
+                                obj = getattr(obj, part)
+                            setattr(obj, parts[-1], value)
+                        except Exception as e:
+                            print(f"Error auto-setting parameter {key}: {e}")
+                    # 3. Otherwise, it's a UI-only state flag (like selectDifferentDataPath), 
+                    # which is accessed dynamically via widgets.get() when needed, so we safely ignore it here.
                     break
 
         self.buttons_row.setVisible(True)

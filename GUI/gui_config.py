@@ -178,7 +178,6 @@ config = {
             "type": "radio",
             "options": ["off", "pcap-sync", "pcap-local", "pcap-local-overwrite", "kafka"],
             "default": "off",
-            "set": lambda val: setattr(parameters, 'acqMode', val)
 
         },
         "parameters.dumpSettings.interface_selection": {
@@ -205,7 +204,6 @@ config = {
             "default": "packets",
             "dependsOn": ("parameters.acqMode", ["pcap-local", "pcap-local-overwrite"]),
             "info": "Choose whether to capture by number of packets, duration (in seconds) or filesize (in kbytes)",
-            "set": lambda val: setattr(parameters.dumpSettings, 'typeOfCapture', val)
         },
         "parameters.dumpSettings.quantity": {
             "label": "Quantity",
@@ -214,7 +212,6 @@ config = {
             "default": 100,
             "dependsOn": ("parameters.acqMode", ["pcap-local", "pcap-local-overwrite"]),
             "info": "Number of packets, seconds (duration) or kbytes (filesize) to capture based on 'typeOfCapture'",
-            "set": lambda val: setattr(parameters.dumpSettings, 'quantity', val)
         },
         "parameters.fileManagement.fileNameSave": {
             "label": "Save File Name",
@@ -222,7 +219,6 @@ config = {
             "default": "test",
             "dependsOn": ("parameters.acqMode", "pcap-local"),
             "info": "Name of the file to save captured data",
-            "set": lambda val: setattr(parameters.fileManagement, 'fileNameSave', val)
         },
         "parameters.kafkaSettings.broker": {
             "label": "Kafka Broker",
@@ -231,14 +227,12 @@ config = {
             "default": "127.0.0.1:9092",
             "dependsOn": ("parameters.acqMode", "kafka"),
             "info": "Broker address in the format host:port. Relevant for acqMode = kafka",
-            "set": lambda val: setattr(parameters.kafkaSettings, 'broker', val)
         },
         "parameters.kafkaSettings.topic": {
             "label": "Kafka Topic",
             "type": "entry",
             "default": "freia_detector_samples",
             "dependsOn": ("parameters.acqMode", "kafka"),
-            "set": lambda val: setattr(parameters.kafkaSettings, 'topic', val)
         },
         "parameters.kafkaSettings.numOfPackets": {
             "label": "Number of Packets",
@@ -247,7 +241,6 @@ config = {
             "default": 100,
             "info": "Total number of packets to dump (used with acqMode = kafka)",
             "dependsOn": ("parameters.acqMode", "kafka"),
-            "set": lambda val: setattr(parameters.kafkaSettings, 'numOfPackets', val)
         },
         "parameters.fileManagement.sourcePath": { 
             "label": "Source Path",
@@ -256,7 +249,6 @@ config = {
             "default": "essdaq@172.30.244.50:~/pcaps/",
             "info": "Remote source path to rsync from. Relevant for acqMode = pcap-sync",
             "dependsOn": ("parameters.acqMode", "pcap-sync"),
-            "set": lambda val: setattr(parameters.fileManagement, 'sourcePath', val)
         },
         "parameters.fileManagement.destPath": {
             "label": "Destination Path",
@@ -281,16 +273,14 @@ config = {
             "info": "By default the data path = the destination path for pcap-sync if you want to get data from a different path select 'True' and enter path",
             "dependsOn": ("parameters.acqMode", "pcap-sync"),
         },
-        "parameters.fileManagement.filePath": { ######### does not create folder
+        "parameters.fileManagement.filePath": {
             "label": "Data Folder Path",
             "type": "filePath",
-            "mustExist": True,
             "default": os.path.join(currentPath, 'data'),
-            # "default": '/opt/mb_tools/pcaps/',
             "info": "Path to the folder containing data files. Relevant for acqMode = off, pcap-sync, and pcap-local",
             "dependsOn": {
                 "or": [
-                    ("parameters.acqMode", "off"),
+                    ("parameters.acqMode", ["off", "pcap-local"]),
                     {
                         "and": [
                             ("parameters.acqMode", "pcap-sync"),
@@ -299,17 +289,10 @@ config = {
                     }
                 ]
             },
-            "set": lambda val: setattr(parameters.fileManagement, 'filePath', val)
-        },
-        "parameters.fileManagement.filePath2": { #creates folder if does not exist
-            "label": "Data Folder Path",
-            "type": "filePath",
-            "mustExist": False,
-            # "default": os.path.join(currentPath, 'data'),
-            "default": '/opt/mb_tools/pcaps/',
-            "info": "Path to the folder containing data files. Relevant for acqMode = off, pcap-sync, and pcap-local",
-            "dependsOn": ("parameters.acqMode","pcap-local"),
-            "set": lambda val: setattr(parameters.fileManagement, 'filePath', val)
+            # mustExist toggles automatically: pcap-local allows the folder to be
+            # created if missing, all other modes require it to already exist.
+            "dynamicMustExist": lambda widgets: widgets.get("parameters.acqMode").get() != "pcap-local",
+            "watchKeys": ["parameters.acqMode"]
         },
         "syncDataButton": {
             "label": "Sync Data",
@@ -324,7 +307,6 @@ config = {
             "default": "fileName",
             "dependsOn": ("parameters.acqMode", ["off", "pcap-sync"]),
             "info": "Choose how files should be selected and loaded: 'window' opens file browser, 'fileName' uses preset file, 'latest' and 'secondLast' load most recent files, 'wholeFolder' analyzes all files, 'sequence' uses fileSerials.",
-            "set": lambda val: setattr(parameters.fileManagement, 'openMode', val)
         },
         "parameters.fileManagement.fileName": {
             "label": "Data File Name(s)",
@@ -343,7 +325,6 @@ config = {
                         ("parameters.fileManagement.openMode", ["fileName", "sequence"])
                         ]
                 },
-            "set": lambda val: setattr(parameters.fileManagement, 'fileName', val)
         },
         "parameters.fileManagement.fileSerials": { 
             "label": "File Serials",
@@ -352,7 +333,6 @@ config = {
             "inputValidation": "fileNumbers",
             "info": "Used when openMode is 'sequence' to indicate file serial numbers of files to be opened. Accepts comma separated lists and ranges e.g 5-10,15,17 ",  
             "dependsOn": ("parameters.fileManagement.openMode", "sequence"),
-            "set": lambda val: setattr(parameters.fileManagement, 'fileSerials', val)
         },
         "parameters.fileManagement.pathToTshark": {
             "label": "Path to Tshark",
@@ -360,7 +340,6 @@ config = {
             "default": "/usr/sbin/",
             "dependsOn": ("parameters.acqMode", ["pcap-local", "pcap-local-overwrite"]),
             "info": "Filesystem path to the Tshark binary. Used to convert PCAP to PCAPNG if needed.",
-            "set": lambda val: setattr(parameters.fileManagement, 'pathToTshark', val)
         },
         "parameters.fileManagement.pcapLoadingMethod": {
             "label": "PCAP Loading Method",
@@ -369,7 +348,6 @@ config = {
             "default": "allocate",
             "dependsOn": ("parameters.acqMode", ["off", "pcap-sync", "pcap-local", "pcap-local-overwrite"]),
             "info": "Controls how memory is allocated when loading PCAP files. 'allocate' is more rigorous, \n'quick' estimates the memory and is faster.",
-            "set": lambda val: setattr(parameters.fileManagement, 'pcapLoadingMethod', val)
         },
         "parameters.timeSettings.sortReadoutsByTimeStampsONOFF": {
             "label": "Sort Readouts by Time Stamps",
@@ -377,7 +355,6 @@ config = {
             "options": ["True", "False"],
             "default": "True",
             "info": "Sorting readouts by time stamp, if OFF they are as in RMM stream",
-            "set": lambda val: setattr(parameters.timeSettings, 'sortReadoutsByTimeStampsONOFF', val)
         },
         "parameters.timeSettings.timeResolutionType": {
             "label": "Time Resolution Type",
@@ -385,7 +362,6 @@ config = {
             "options": ["fine", "coarse"],
             "default": "fine",
             "info": "Time stamp is time HI + time LO or if fine corrected with TDC ",
-            "set": lambda val: setattr(parameters.timeSettings, 'timeResolutionType', val)
         },
         "subtitle.bareReadouts": {
             "type": "subheading",
@@ -397,7 +373,6 @@ config = {
             "options": ["True", "False"],
             "default": "False",
             "info": "Disables clustering and mapping for speed. Stops analysis at raw readouts.",
-            "set": lambda val: setattr(parameters.plotting, 'bareReadoutsCalculation', val)
         },
         "subtitle.config": {
             "type": "subheading",
@@ -414,7 +389,6 @@ config = {
             "label": "Enter path to config file",
             "type": "filePath",
             "default": os.path.join(currentPath, 'config'),
-            "set": lambda val: setattr(parameters.fileManagement,'configFilePath', val)
         },
         "parameters.fileManagement.configFileName": {
             "label": "Select Config File",
@@ -423,7 +397,6 @@ config = {
             "optionsFromPath": "parameters.fileManagement.configFilePath",
             "fileTypeFilter": ".json",
             "info": "Must select config file",
-            "set": lambda val: setattr(parameters.fileManagement,'configFileName', val)
 
         }
     },
@@ -434,7 +407,6 @@ config = {
             "inputValidation": "scientific",
             "default": "0.13e-6",
             "info": "Time window to search for clusters.\nThis is the maximum time allowed between events in a cluster.\nHalf the value is used as the recursive threshold between adjacent hits.",
-            "set": lambda val: setattr(parameters.dataReduction, 'timeWindow', val)
         },
         "parameters.plotting.positionReconstruction": {
             "label": "Position Reconstruction Method",
@@ -442,7 +414,6 @@ config = {
             "options": ["W.max-S.max", "W.cog-S.cog", "W.max-S.cog"],
             "default": "W.max-S.cog",
             "info": "'W.max-S.max' is max max,  'W.cog-S.cog' is CoG CoG, 'W.max-S.cog' is wires max and strips CoG ",
-            "set": lambda val: setattr(parameters.plotting, 'positionReconstruction', val)
         },
     },
     "threshold": { ######################################### TO UPDATE once thresholds consolidated
@@ -452,7 +423,6 @@ config = {
             "options": ["off", "fromFile", "constants"],
             "default": "off",
             "info": "Select how to define soft thresholds: off, from file, or user-defined.",
-            "set": lambda val: setattr(parameters.dataReduction, 'softThresholdType', val)
         },
         "parameters.fileManagement.thresholdFilePath": {
             "label": "Threshold File Path",
@@ -460,7 +430,6 @@ config = {
             "default": os.path.join(parameters.fileManagement.currentPath, 'config'),
             "dependsOn": ("parameters.dataReduction.softThresholdType","fromFile"),
             "info": "Path to the threshold file folder.",
-            "set": lambda val: setattr(parameters.fileManagement, 'thresholdFilePath', val)
         },
         "parameters.fileManagement.thresholdFileName": {
             "label": "Threshold File Name",
@@ -470,7 +439,6 @@ config = {
             "default": "MB300L_thresholds.xlsx", 
             "dependsOn": ("parameters.dataReduction.softThresholdType","fromFile"),
             "info": "Name of the Excel threshold file.",
-            "set": lambda val: setattr(parameters.fileManagement, 'thresholdFileName', val)
         },
         "parameters.dataReduction.softThArrayW": {
             "label": "Soft Threshold Wire/Tube",
@@ -496,7 +464,6 @@ config = {
             "options": ["True", "False"],
             "default": "False",
             "info": "Calibration VMM ADC",
-            "set": lambda val: setattr(parameters.dataReduction, 'calibrateVMM_ADC_ONOFF', val)
         },
         "parameters.dataReduction.calibrateVMM_TDC_ONOFF": {
             "label": "Calibrate VMM TDC",
@@ -504,7 +471,6 @@ config = {
             "options": ["True", "False"],
             "default": "False",
             "info": "Calibration VMM TDC",
-            "set": lambda val: setattr(parameters.dataReduction, 'calibrateVMM_TDC_ONOFF', val)
         },
         "parameters.fileManagement.calibFilePath": {
             "label": "Calibration File Path",
@@ -513,7 +479,6 @@ config = {
             "dependsOn":{"or":  [("parameters.dataReduction.calibrateVMM_ADC_ONOFF", True),
                                  ("parameters.dataReduction.calibrateVMM_TDC_ONOFF", True)]},
             "info": "Path to the calibration file folder.",
-            "set": lambda val: setattr(parameters.fileManagement, 'calibFilePath', val)
         },
         "parameters.fileManagement.calibFileName": {
             "label": "Calibration File Name",
@@ -524,7 +489,6 @@ config = {
             "dependsOn": {"or":  [("parameters.dataReduction.calibrateVMM_ADC_ONOFF", True),
                                  ("parameters.dataReduction.calibrateVMM_TDC_ONOFF", True)]},
             "info": "Name of the calibration file.",
-            "set": lambda val: setattr(parameters.fileManagement, 'calibFileName', val)
         }
     },
     "pulse_height": {
@@ -534,7 +498,6 @@ config = {
             "options": ["True", "False"],
             "default": "True",
             "info": "Enable or disable pulse height spectra per channel and globally.",
-            "set": lambda val: setattr(parameters.pulseHeigthSpect, 'plotPHS', val)
         },
   
         "parameters.pulseHeigthSpect.plotPHScorrelation": {
@@ -542,7 +505,6 @@ config = {
             "type": "bool",
             "options": ["True", "False"],
             "default": "False",
-            "set": lambda val: setattr(parameters.pulseHeigthSpect, 'plotPHScorrelation', val)
         },
         
         "parameters.pulseHeigthSpect.plotPHSlog": {
@@ -556,7 +518,6 @@ config = {
                     ("parameters.pulseHeigthSpect.plotPHScorrelation", True)
                     ]},
             "info": "If True, plot pulse height spectra using a logarithmic scale.",
-            "set": lambda val: setattr(parameters.pulseHeigthSpect, 'plotPHSlog', val)
         },
         "parameters.pulseHeigthSpect.energyBins": {
             "label": "Energy Bins",
@@ -569,7 +530,6 @@ config = {
                     ("parameters.pulseHeigthSpect.plotPHScorrelation", True)
                     ]},
             "info": "Number of bins to use in the pulse height histogram.",
-            "set": lambda val: setattr(parameters.pulseHeigthSpect, 'energyBins', val)
         },
         "parameters.pulseHeigthSpect.maxEnerg": {
             "label": "Max Energy",
@@ -582,7 +542,6 @@ config = {
                     ("parameters.pulseHeigthSpect.plotPHScorrelation", True)
                     ]},
             "info": "Maximum energy value considered in pulse height analysis.",
-            "set": lambda val: setattr(parameters.pulseHeigthSpect, 'maxEnerg', val)
          }
     },
     "wavelength": {
@@ -591,7 +550,6 @@ config = {
             "type": "bool",
             "options": ["True", "False"],
             "default": "False",
-            "set": lambda val: setattr(parameters.wavelength, 'calculateLambda', val)
         },
         "parameters.wavelength.distance": {
             "label": "Distance (mm)",
@@ -600,7 +558,6 @@ config = {
             "inputValidation": "int",
             "dependsOn": ("parameters.wavelength.calculateLambda", True),
             "info": "Distance in mm from chopper and wires 0 of detector",
-            "set": lambda val: setattr(parameters.wavelength, 'distance', val)
         },
     
         "parameters.wavelength.plotXLambda": {
@@ -610,7 +567,6 @@ config = {
             "default": "False",
             "dependsOn": ("parameters.wavelength.calculateLambda", True),
             "info": "2D plot of X vs Lambda",
-            "set": lambda val: setattr(parameters.wavelength, 'plotXLambda', val)
         },
         "parameters.wavelength.plotLambdaDistr": {
             "label": "Plot Lambda Distribution",
@@ -619,7 +575,6 @@ config = {
             "default": "False",
             "dependsOn": ("parameters.wavelength.calculateLambda", True),
             "info": "ON/OFF integrated over single cassettes",
-            "set": lambda val: setattr(parameters.wavelength, 'plotLambdaDistr', val)
         },
         "parameters.wavelength.lambdaBins": {
             "label": "Lambda Bins",
@@ -628,7 +583,6 @@ config = {
             "inputValidation": "int",
             "dependsOn": ("parameters.wavelength.calculateLambda", True),
             "info": "Number of bins for the lambda histogram",
-            "set": lambda val: setattr(parameters.wavelength, 'lambdaBins', val)
         },
         "parameters.wavelength.lambdaRange": {
             "label": "Lambda Range [min, max] (Å)",
@@ -637,7 +591,6 @@ config = {
             "inputValidation": "float",
             "dependsOn": ("parameters.wavelength.calculateLambda", True),
             "info": "Range of lambda values (in Å) as [min, max]",
-            "set": lambda val: setattr(parameters.wavelength, 'lambdaRange', val)
         },
         "parameters.wavelength.chopperPeriod": {
             "label": "Chopper Period (s)",
@@ -646,7 +599,6 @@ config = {
             "inputValidation": "float",
             "dependsOn": ("parameters.wavelength.calculateLambda", True),
             "info": "Chopper period in seconds (relevant if multipleFramesPerRest > 1)",
-            "set": lambda val: setattr(parameters.wavelength, 'chopperPeriod', val)
         },
         "parameters.wavelength.multipleFramePerReset": {
             "label": "Multiple Frames per Reset",
@@ -655,7 +607,6 @@ config = {
             "default": "False",
             "dependsOn": ("parameters.wavelength.calculateLambda", True),
             "info": "ON/OFF toggle for if chopper has two openings or more per reset of ToF \n(This only affects the lambda calculation)",
-            "set": lambda val: setattr(parameters.wavelength, 'multipleFramePerReset', val)
         },
         "parameters.wavelength.numOfBunchesPerPulse": {
             "label": "Bunches per Pulse",
@@ -669,7 +620,6 @@ config = {
                     ]
                 },
             "info": "Number of neutron bunches per pulse",
-            "set": lambda val: setattr(parameters.wavelength, 'numOfBunchesPerPulse', val)
         },
         "parameters.wavelength.lambdaMIN": {
             "label": "Minimum Lambda (Å)",
@@ -682,7 +632,6 @@ config = {
                     ("parameters.wavelength.multipleFramePerReset", True)
                     ]
                 },
-            "set": lambda val: setattr(parameters.wavelength, 'lambdaMIN', val)
         },
         "parameters.wavelength.chopperPickUpDelay": {
             "label": "Chopper PickUp Delay (s)",
@@ -695,7 +644,6 @@ config = {
                     ("parameters.wavelength.multipleFramePerReset", True)
                     ]
                 },
-            "set": lambda val: setattr(parameters.wavelength, 'chopperPickUpDelay', val)
         }
     },
     "plotting": {
@@ -705,7 +653,6 @@ config = {
             "options": ["True", "False"],
             "default": "True",
             "info": "If True, plots are shown in dashboard for easier visualization.",
-            "set": lambda val: setattr(parameters.plotting, 'useDashboard', val)
         },
         "parameters.plotting.plottingInSections": {
             "label": "Plot in Sections",
@@ -713,7 +660,6 @@ config = {
             "options": ["True", "False"],
             "default": "False",
             "info": "If True, plots are split into blocks for easier visualization.",
-            "set": lambda val: setattr(parameters.plotting, 'plottingInSections', val)
         },
         "parameters.plotting.plottingInSectionsBlocks": {
             "label": "Sections Per Block",
@@ -722,7 +668,6 @@ config = {
             "inputValidation": "int",
             "dependsOn": ("parameters.plotting.plottingInSections", True),
             "info": "Number of cassettes per plotting section.",
-            "set": lambda val: setattr(parameters.plotting, 'plottingInSectionsBlocks', val)
         },
         # Raw plotting options
         "parameters.plotting.plotRawReadouts": {
@@ -730,21 +675,18 @@ config = {
             "type": "bool",
             "options": ["True", "False"],
             "default": "True",
-            "set": lambda val: setattr(parameters.plotting, 'plotRawReadouts', val)
         },
         "parameters.plotting.plotReadoutsTimeStamps": {
             "label": "Plot Readouts Time Stamps",
             "type": "bool",
             "options": ["True", "False"],
             "default": "False",
-            "set": lambda val: setattr(parameters.plotting, 'plotReadoutsTimeStamps', val)
         },
         "parameters.plotting.plotADCvsCh": {
             "label": "Plot ADC vs Channel",
             "type": "bool",
             "options": ["True", "False"],
             "default": "False",
-            "set": lambda val: setattr(parameters.plotting, 'plotADCvsCh', val)
         },
         "parameters.plotting.plotADCvsChlog": {
             "label": "Plot ADC vs Channel (Log Scale)",
@@ -752,14 +694,12 @@ config = {
             "options": ["True", "False"],
             "default": "False",
             "dependsOn": ("parameters.plotting.plotADCvsCh", True),
-            "set": lambda val: setattr(parameters.plotting, 'plotADCvsChlog', val)
         },
         "parameters.plotting.plotChopperResets": {
             "label": "Plot Chopper Resets",
             "type": "bool",
             "options": ["True", "False"],
             "default": "False",
-            "set": lambda val: setattr(parameters.plotting, 'plotChopperResets', val)
         },
         # Hit-level plotting
         "parameters.plotting.plotRawHits": {
@@ -767,21 +707,18 @@ config = {
             "type": "bool",
             "options": ["True", "False"],
             "default": "False",
-            "set": lambda val: setattr(parameters.plotting, 'plotRawHits', val)
         },
         "parameters.plotting.plotHitsTimeStamps": {
             "label": "Plot Hits Time Stamps",
             "type": "bool",
             "options": ["True", "False"],
             "default": "False",
-            "set": lambda val: setattr(parameters.plotting, 'plotHitsTimeStamps', val)
         },
         "parameters.plotting.plotHitsTimeStampsVSChannels": {
             "label": "Plot Hits Timestamps vs Channels",
             "type": "bool",
             "options": ["True", "False"],
             "default": "False",
-            "set": lambda val: setattr(parameters.plotting, 'plotHitsTimeStampsVSChannels', val)
         },
         # Instantaneous Rate
         "parameters.plotting.plotTimeBetwEv": {
@@ -789,7 +726,6 @@ config = {
             "type": "bool",
             "options": ["True", "False"],
             "default": "False",
-            "set": lambda val: setattr(parameters.plotting, 'plotTimeBetwEv', val)
         },
         "parameters.plotting.timeBetwEvBin": {
             "label": "Time Bin Width (s)",
@@ -797,7 +733,6 @@ config = {
             "default": "100e-6",
             "inputValidation": "scientific",
             "dependsOn": ("parameters.plotting.plotTimeBetwEv", True),
-            "set": lambda val: setattr(parameters.plotting, 'timeBetwEvBin', val)
         },
         # ToF (Time of Flight) plotting
         "parameters.plotting.plotToFDistr": {
@@ -805,28 +740,24 @@ config = {
             "type": "bool",
             "options": ["True", "False"],
             "default": "False",
-            "set": lambda val: setattr(parameters.plotting, 'plotToFDistr', val)
         },
         "parameters.plotting.ToFrange": {
             "label": "ToF Range (s)",
             "type": "entry",
             "default": 0.15,
             "inputValidation": "float",
-            "set": lambda val: setattr(parameters.plotting, 'ToFrange', val)
         },
         "parameters.plotting.ToFbinning": {
             "label": "ToF Binning (s)",
             "type": "entry",
             "default": "100e-6",
             "inputValidation": "scientific",
-            "set": lambda val: setattr(parameters.plotting, 'ToFbinning', val)
         },
         "parameters.plotting.ToFGate": {
             "label": "Enable ToF Gating",
             "type": "bool",
             "options": ["True", "False"],
             "default": "False",
-            "set": lambda val: setattr(parameters.plotting, 'ToFGate', val)
         },
         "parameters.plotting.ToFGateRange": {
             "label": "ToF Gate Range [s]",
@@ -834,14 +765,12 @@ config = {
             "default": [0.02, 0.025],
             "inputValidation": "float",
             "dependsOn": ("parameters.plotting.ToFGate", True),
-            "set": lambda val: setattr(parameters.plotting, 'ToFGateRange', val)
         },
         "parameters.plotting.plotMultiplicity": {
             "label": "Plot Multiplicity",
             "type": "bool",
             "options": ["True", "False"],
             "default": "False",
-            "set": lambda val: setattr(parameters.plotting, 'plotMultiplicity', val)
         },
         "parameters.plotting.plotABSunits": {
             "label": "Use Absolute Units",
@@ -849,7 +778,6 @@ config = {
             "options": ["True", "False"],
             "default": "False",
             "info": "if True plot XY and XtoF plot in absolute unit (mm), if False plot in wire and strip ch no.",
-            "set": lambda val: setattr(parameters.plotting, 'plotABSunits', val)
         },
         "parameters.plotting.plotIMGlog": {
             "label": "Log Scale for Images",
@@ -857,7 +785,6 @@ config = {
             "options": ["True", "False"],
             "default": "False",
             "info": "plot XY and XToF in log scale",
-            "set": lambda val: setattr(parameters.plotting, 'plotIMGlog', val)
         },
         "parameters.plotting.coincidenceWS_ONOFF": {
             "label": "Require Strip Coincidence",
@@ -865,7 +792,6 @@ config = {
             "options": ["True", "False"],
             "default": "True",
             "info": "ON/OFF, if  Tof  and Lambdaplot needs to include only events with strip present (2D) is True otherwise all events also without strip set to False",
-            "set": lambda val: setattr(parameters.plotting, 'coincidenceWS_ONOFF', val)
         },
         "parameters.plotting.removeInvalidToFs": {
             "label": "Remove Invalid ToFs",
@@ -873,7 +799,6 @@ config = {
             "options": ["True", "False"],
             "default": "True",
             "info": "ON/OFF, if  invalid ToFs Tofare included in the plots or removed from events",
-            "set": lambda val: setattr(parameters.plotting, 'removeInvalidToFs', val)
         },
         "parameters.plotting.histogOutBounds": {
             "label": "Histogram Out-of-Bounds",
@@ -881,7 +806,6 @@ config = {
             "options": ["True", "False"],
             "default": "True",
             "info": "histogram outBounds param set as True as default (Events out of bounds stored in first and last bin)",
-            "set": lambda val: setattr(parameters.plotting, 'histogOutBounds', val)
         }
     },
     "monitor": {
@@ -891,7 +815,6 @@ config = {
             "options": ["True", "False"],
             "default": "False",
             "info": "ON/OFF switch for including the monitor in the analysis.",
-            "set": lambda val: setattr(parameters.MONitor, 'MONOnOff', val)
         },
         "parameters.MONitor.MONThreshold": {
             "label": "Monitor Threshold",
@@ -900,7 +823,6 @@ config = {
             "inputValidation": "float",
             "dependsOn": ("parameters.MONitor.MONOnOff", True),
             "info": "Threshold on monitor events. 0 disables threshold; any other value enables it.",
-            "set": lambda val: setattr(parameters.MONitor, 'MONThreshold', val)
         },
         "parameters.MONitor.plotMONtofPHS": {
             "label": "Plot Monitor ToF & PHS",
@@ -909,7 +831,6 @@ config = {
             "default": "True",
             "dependsOn": ("parameters.MONitor.MONOnOff", True),
             "info": "ON/OFF plotting for Monitor Time-of-Flight and Pulse Height spectra.",
-            "set": lambda val: setattr(parameters.MONitor, 'plotMONtofPHS', val)
         },
         "parameters.MONitor.energyBins": {
             "label": "Energy Bins",
@@ -922,7 +843,6 @@ config = {
                     ("parameters.MONitor.plotMONtofPHS", True)
                     ]},
             "info": "Number of bins to use in the MON pulse height histogram.",
-            "set": lambda val: setattr(parameters.MONitor, 'energyBins', val)
         },
         "parameters.MONitor.maxEnerg": {
             "label": "Max Energy",
@@ -935,7 +855,6 @@ config = {
                     ("parameters.MONitor.plotMONtofPHS", True)
                     ]},
             "info": "Maximum energy value considered in MON pulse height analysis.",
-            "set": lambda val: setattr(parameters.MONitor, 'maxEnerg', val)
          },
         "parameters.MONitor.MONDistance": {
             "label": "Monitor Distance (mm)",
@@ -944,7 +863,6 @@ config = {
             "inputValidation": "int",
             "info": "Distance in mm from chopper to monitor (needed for lambda calculation of ToF).", 
             "dependsOn": ("parameters.MONitor.MONOnOff", True),
-            "set": lambda val: setattr(parameters.MONitor, 'MONDistance', val)
         }
     },
     "reduced_file": {#####################################################################################################################
@@ -954,7 +872,6 @@ config = {
             "options": ["True", "False"],
             "default": "False",
             "info": "Enable or disable saving a reduced HDF file with clusters.",
-            "set": lambda val: setattr(parameters.fileManagement, 'saveReducedFileONOFF', val)
         },
         "parameters.fileManagement.saveEventsONOFF": {
                     "label": "Save Events",
@@ -963,7 +880,6 @@ config = {
                     "default": "True",
                     "dependsOn": ("parameters.fileManagement.saveReducedFileONOFF", True),
                     "info": "Include the Readouts in the reduced file",
-                    "set": lambda val: setattr(parameters.fileManagement, 'saveEventsONOFF', val)
                 },
         "parameters.fileManagement.saveReadoutsONOFF": {
                             "label": "Save Readouts",
@@ -972,7 +888,6 @@ config = {
                             "default": "False",
                             "dependsOn": ("parameters.fileManagement.saveReducedFileONOFF", True),
                             "info": "Include the Readouts in the reduced file",
-                            "set": lambda val: setattr(parameters.fileManagement, 'saveReadoutsONOFF', val)
                         },
         "parameters.fileManagement.saveHitsONOFF": {
                     "label": "Save Hits",
@@ -981,7 +896,6 @@ config = {
                     "default": "False",
                     "dependsOn": ("parameters.fileManagement.saveReducedFileONOFF", True),
                     "info": "Include the Hits in the reduced file",
-                    "set": lambda val: setattr(parameters.fileManagement, 'saveHitsONOFF', val)
                 },
         "parameters.fileManagement.combineFiles": {
                             "label": "Combine Files",
@@ -990,7 +904,6 @@ config = {
                             "default": "True",
                             "dependsOn": ("parameters.fileManagement.saveReducedFileONOFF", True),
                             "info": "Select True to combine all files into a single reduced file or False to get one reduced file per original file. ",
-                            "set": lambda val: setattr(parameters.fileManagement, 'combineFiles', val)
                         },
         "parameters.fileManagement.saveReducedPath": {
             "label": "Reduced File Path",
@@ -998,14 +911,12 @@ config = {
             "mustExist": False,
             "dependsOn": ("parameters.fileManagement.saveReducedFileONOFF", True),
             "info": "Destination path for saving reduced HDF files.",
-            "set": lambda val: setattr(parameters.fileManagement, 'saveReducedPath', val)
         },
         "parameters.fileManagement.reducedNameMainFolder": { # don't know if there are more options - if no more options remove from GUI and set fixed value
             "label": "Main Folder in HDF",
             "type": "entry",
             "default": "entry1",
             "dependsOn": ("parameters.fileManagement.saveReducedFileONOFF", True),
-            "set": lambda val: setattr(parameters.fileManagement, 'reducedNameMainFolder', val)
         },
         "parameters.fileManagement.reducedCompressionHDFT": {
             "label": "HDF Compression Type",
@@ -1014,7 +925,6 @@ config = {
             "default": "gzip",
             "dependsOn": ("parameters.fileManagement.saveReducedFileONOFF", True),
             "info": "Compression method used for saving HDF files.",
-            "set": lambda val: setattr(parameters.fileManagement, 'reducedCompressionHDFT', val)
         },
         "parameters.fileManagement.reducedCompressionHDFL": {
             "label": "HDF Compression Level",
@@ -1024,7 +934,6 @@ config = {
             "default": 9,
             "dependsOn": ("parameters.fileManagement.saveReducedFileONOFF", True),
             "info": "Compression level (0-9) used with HDF file saving.",
-            "set": lambda val: setattr(parameters.fileManagement, 'reducedCompressionHDFL', val)
         }
     }
 }
