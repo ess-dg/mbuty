@@ -112,22 +112,11 @@ _themed_toolbar_cls = None
 
 
 def _get_themed_toolbar_class():
-    """Builds (once, memoized) a NavigationToolbar2QT subclass that
-    recolors its icons to match the app's theme.
-
-    matplotlib's own dark-mode icon inversion checks the widget's
-    QPalette, not our QSS stylesheet -- since theming here is
-    setStyleSheet()-only, the palette never actually changes and mpl's
-    detection never fires, so icons stay whatever fixed color they
-    shipped with (black), regardless of app theme. We recolor them
-    ourselves using whatever apply_mpl_theme() last set as the
-    foreground color (text.color), so toolbar icons stay in sync with
-    the rest of the theme automatically.
-
-    Built lazily (only on first actual use) rather than at theme.py's own
-    import time, since theme.py is imported very early -- before
-    matplotlib's Qt backend is necessarily selected/available -- and we
-    don't want importing this module to force that choice.
+    """Memoized toolbar subclass that recolors matplotlib icons to match app theme.
+    
+    matplotlib's dark-mode detection checks QPalette, not QSS stylesheets. Since we
+    use stylesheet-only theming, we manually recolor icons using text.color from
+    apply_mpl_theme(). Built lazily to avoid forcing matplotlib import at module load.
     """
     global _themed_toolbar_cls
     if _themed_toolbar_cls is None:
@@ -152,39 +141,18 @@ def _get_themed_toolbar_class():
 
 
 def ThemedNavigationToolbar(*args, **kwargs):
-    """Drop-in replacement for NavigationToolbar2QT(canvas, parent) that
-    themes its own icons. Used directly by the dashboard's embedded
-    canvases (mbuty_dashboard.py); standalone plt.show() windows pick up
-    the same class automatically via _patch_qt_toolbar() below instead,
-    since those toolbars are built inside matplotlib's own backend code,
-    not through a call site we control."""
+    """Drop-in replacement for NavigationToolbar2QT that themes its own icons.
+    Used by dashboard embedded canvases; standalone plt.show() windows use _patch_qt_toolbar().
+    """
     return _get_themed_toolbar_class()(*args, **kwargs)
 
 
 def _patch_qt_toolbar():
-    """Standalone plt.show() windows (the GUI's "loose plot" path, e.g.
-    "Figure 102") build their own toolbar internally, inside matplotlib's
-    own Qt backend -- not through any code of ours -- so we can't just
-    pass ThemedNavigationToolbar in directly the way the dashboard's
-    embedded canvases do.
-
-    Naively reassigning the module-level name
-    matplotlib.backends.backend_qt.NavigationToolbar2QT does *not* work:
-    modern matplotlib (>=3.5) doesn't look that name up by name when it
-    builds a toolbar. Instead, FigureManagerBase.__init__ does
-    `self.toolbar = self._toolbar2_class(self.canvas)`, and
-    `_toolbar2_class` is a class attribute bound directly to the
-    original class object once, at backend_qt.py's own import time
-    (`FigureManagerQT._toolbar2_class = NavigationToolbar2QT`). Patching
-    the module name afterward changes nothing, since that attribute
-    already holds a direct reference to the old class rather than a
-    name to re-resolve.
-
-    So we patch the class attribute itself instead. This must run after
-    matplotlib.backends.backend_qt has been imported (true by the time
-    apply_mpl_theme() is called, since building any canvas/figure
-    already forces that import) but before any *new* figure manager is
-    constructed; existing already-open windows are unaffected."""
+    """Patch matplotlib's toolbar class for standalone plt.show() windows.
+    
+    Must run after matplotlib.backends.backend_qt is imported but before new figures
+    are created. Replaces the _toolbar2_class attribute on FigureManagerQT to use
+    our themed toolbar for all subsequently created windows."""
     import matplotlib.backends.backend_qt as backend_qt
     themed_cls = _get_themed_toolbar_class()
     if backend_qt.FigureManagerQT._toolbar2_class is not themed_cls:
@@ -192,13 +160,8 @@ def _patch_qt_toolbar():
 
 
 def apply_mpl_theme(mode="dark"):
-    """Sets matplotlib rcParams so every Figure created after this call
-    picks up the app's palette, and patches matplotlib's Qt backend so
-    every toolbar -- dashboard-embedded or a standalone plt.show() window
-    -- recolors its icons to match. Must run before any Figure()/toolbar
-    is built, and needs to be called again any time the mode changes, or
-    any plotting path (dashboard build, loose-plot section) that runs
-    before this has ever been called will show default-black icons."""
+    """Apply theme to matplotlib rcParams and patch Qt toolbar for theming.
+    Call before creating any Figure or toolbar. Call again if mode changes."""
     import matplotlib as mpl
     mpl.rcParams.update(MPL_RC[mode])
     _patch_qt_toolbar()
