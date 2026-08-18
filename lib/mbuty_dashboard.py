@@ -35,8 +35,14 @@ from qtpy.QtWidgets import (
 )
 
 # RESTORED: Standard Matplotlib Agg backend that automatically resolves Qt5 vs Qt6
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
+
+# ThemedNavigationToolbar lives in gui_qt/theme.py now (shared with the
+# standalone plt.show() / loose-plot path, not dashboard-only) -- see
+# theme.apply_mpl_theme()/_patch_qt_toolbar() for why it needs to live
+# centrally rather than here.
+from GUI.theme import ThemedNavigationToolbar
 # --------------------------------------------------------------------------
 # Data source interface — implemented by the real pipeline, not by this file
 # --------------------------------------------------------------------------
@@ -398,7 +404,7 @@ def _build_plot_pane(tab_key: str, plot_name: str, data_source: DashboardDataSou
     page = QWidget()
     page_layout = QVBoxLayout(page)
     page_layout.setContentsMargins(0, 0, 0, 0)
-    page_layout.addWidget(NavigationToolbar2QT(canvas, page))
+    page_layout.addWidget(ThemedNavigationToolbar(canvas, page))
     page_layout.addWidget(canvas)
     data_source.render_plot(tab_key, plot_name, canvas.figure)
     canvas.draw_idle()

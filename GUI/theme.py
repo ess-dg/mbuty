@@ -8,11 +8,9 @@ Created on Mon July 20 2026
 
 Central styling module for the MBUTY Qt GUI.
 """
-import os
-import tempfile
 
-from qtpy.QtCore import QObject, Signal, Qt, QPoint
-from qtpy.QtGui import QFont, QPixmap, QPainter, QColor, QPolygon, QPalette
+from qtpy.QtCore import QObject, Signal, QSize, Qt
+from qtpy.QtGui import QFont, QIcon, QPixmap, QPainter, QColor
 
 
 # --------------------------------------------------------------------------
@@ -109,15 +107,109 @@ MPL_RC = {
     },
 }
 
+
+_themed_toolbar_cls = None
+
+
+def _get_themed_toolbar_class():
+    """Builds (once, memoized) a NavigationToolbar2QT subclass that
+    recolors its icons to match the app's theme.
+
+    matplotlib's own dark-mode icon inversion checks the widget's
+    QPalette, not our QSS stylesheet -- since theming here is
+    setStyleSheet()-only, the palette never actually changes and mpl's
+    detection never fires, so icons stay whatever fixed color they
+    shipped with (black), regardless of app theme. We recolor them
+    ourselves using whatever apply_mpl_theme() last set as the
+    foreground color (text.color), so toolbar icons stay in sync with
+    the rest of the theme automatically.
+
+    Built lazily (only on first actual use) rather than at theme.py's own
+    import time, since theme.py is imported very early -- before
+    matplotlib's Qt backend is necessarily selected/available -- and we
+    don't want importing this module to force that choice.
+    """
+    global _themed_toolbar_cls
+    if _themed_toolbar_cls is None:
+        from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
+
+        class _ThemedNavigationToolbar(NavigationToolbar2QT):
+            def _icon(self, name):
+                icon = super()._icon(name)
+                pixmap = icon.pixmap(QSize(24, 24))
+                tinted = QPixmap(pixmap.size())
+                tinted.fill(Qt.transparent)
+                painter = QPainter(tinted)
+                painter.drawPixmap(0, 0, pixmap)
+                painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
+                import matplotlib as mpl
+                painter.fillRect(tinted.rect(), QColor(mpl.rcParams.get("text.color", "#000000")))
+                painter.end()
+                return QIcon(tinted)
+
+        _themed_toolbar_cls = _ThemedNavigationToolbar
+    return _themed_toolbar_cls
+
+
+def ThemedNavigationToolbar(*args, **kwargs):
+    """Drop-in replacement for NavigationToolbar2QT(canvas, parent) that
+    themes its own icons. Used directly by the dashboard's embedded
+    canvases (mbuty_dashboard.py); standalone plt.show() windows pick up
+    the same class automatically via _patch_qt_toolbar() below instead,
+    since those toolbars are built inside matplotlib's own backend code,
+    not through a call site we control."""
+    return _get_themed_toolbar_class()(*args, **kwargs)
+
+
+def _patch_qt_toolbar():
+    """Standalone plt.show() windows (the GUI's "loose plot" path, e.g.
+    "Figure 102") build their own toolbar internally, inside matplotlib's
+    own Qt backend -- not through any code of ours -- so we can't just
+    pass ThemedNavigationToolbar in directly the way the dashboard's
+    embedded canvases do.
+
+    Naively reassigning the module-level name
+    matplotlib.backends.backend_qt.NavigationToolbar2QT does *not* work:
+    modern matplotlib (>=3.5) doesn't look that name up by name when it
+    builds a toolbar. Instead, FigureManagerBase.__init__ does
+    `self.toolbar = self._toolbar2_class(self.canvas)`, and
+    `_toolbar2_class` is a class attribute bound directly to the
+    original class object once, at backend_qt.py's own import time
+    (`FigureManagerQT._toolbar2_class = NavigationToolbar2QT`). Patching
+    the module name afterward changes nothing, since that attribute
+    already holds a direct reference to the old class rather than a
+    name to re-resolve.
+
+    So we patch the class attribute itself instead. This must run after
+    matplotlib.backends.backend_qt has been imported (true by the time
+    apply_mpl_theme() is called, since building any canvas/figure
+    already forces that import) but before any *new* figure manager is
+    constructed; existing already-open windows are unaffected."""
+    import matplotlib.backends.backend_qt as backend_qt
+    themed_cls = _get_themed_toolbar_class()
+    if backend_qt.FigureManagerQT._toolbar2_class is not themed_cls:
+        backend_qt.FigureManagerQT._toolbar2_class = themed_cls
+
+
 def apply_mpl_theme(mode="dark"):
     """Sets matplotlib rcParams so every Figure created after this call
-    picks up the app's palette."""
+    picks up the app's palette, and patches matplotlib's Qt backend so
+    every toolbar -- dashboard-embedded or a standalone plt.show() window
+    -- recolors its icons to match. Must run before any Figure()/toolbar
+    is built, and needs to be called again any time the mode changes, or
+    any plotting path (dashboard build, loose-plot section) that runs
+    before this has ever been called will show default-black icons."""
     import matplotlib as mpl
     mpl.rcParams.update(MPL_RC[mode])
+    _patch_qt_toolbar()
 
 # --------------------------------------------------------------------------
 # Stylesheet builder
 # --------------------------------------------------------------------------
+import os
+import tempfile
+from qtpy.QtGui import QPixmap, QPainter, QColor, QPolygon
+from qtpy.QtCore import Qt, QPoint
 
 
 def _triangle_icon_path(color_hex: str, direction: str) -> str:
@@ -368,44 +460,6 @@ def build_stylesheet(mode="light"):
 
 
 # --------------------------------------------------------------------------
-# QPalette (drives Qt-native/matplotlib palette-based checks; QSS still
-# governs the actual paint job for our own widgets)
-# --------------------------------------------------------------------------
-def _build_qpalette(mode):
-    """Builds a QPalette matching LIGHT/DARK.
-
-    QSS (build_stylesheet) does the actual painting for our own widgets.
-    This exists for the things that check the palette directly instead of
-    respecting QSS (e.g. matplotlib's NavigationToolbar2QT), which
-    inspects the widget's QPalette to decide whether to invert its icons.
-    Without a real dark QPalette here, that check never fires and toolbar
-    icons stay black regardless of app theme.
-    """
-    p = LIGHT if mode == "light" else DARK
-    palette = QPalette()
-    palette.setColor(QPalette.Window, QColor(p["bg"]))
-    palette.setColor(QPalette.WindowText, QColor(p["text"]))
-    palette.setColor(QPalette.Base, QColor(p["surface"]))
-    palette.setColor(QPalette.AlternateBase, QColor(p["surface_alt"]))
-    palette.setColor(QPalette.ToolTipBase, QColor(p["surface_alt"]))
-    palette.setColor(QPalette.ToolTipText, QColor(p["text"]))
-    palette.setColor(QPalette.Text, QColor(p["text"]))
-    palette.setColor(QPalette.Button, QColor(p["surface"]))
-    palette.setColor(QPalette.ButtonText, QColor(p["text"]))
-    palette.setColor(QPalette.BrightText, QColor(p["error"]))
-    palette.setColor(QPalette.Link, QColor(p["accent"]))
-    palette.setColor(QPalette.Highlight, QColor(p["accent"]))
-    palette.setColor(QPalette.HighlightedText, QColor(p["accent_text"]))
-
-    disabled = QColor(p["disabled"])
-    palette.setColor(QPalette.Disabled, QPalette.Text, disabled)
-    palette.setColor(QPalette.Disabled, QPalette.ButtonText, disabled)
-    palette.setColor(QPalette.Disabled, QPalette.WindowText, disabled)
-
-    return palette
-
-
-# --------------------------------------------------------------------------
 # ThemeManager
 # --------------------------------------------------------------------------
 class ThemeManager(QObject):
@@ -428,7 +482,6 @@ class ThemeManager(QObject):
 
     def apply(self, mode):
         self._mode = mode
-        self._app.setPalette(_build_qpalette(mode))
         self._app.setStyleSheet(build_stylesheet(mode))
         self.theme_changed.emit(mode)
 
