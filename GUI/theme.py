@@ -295,6 +295,22 @@ def build_stylesheet(mode="light"):
         border: 2px solid {p['accent']};
         background-color: {p['accent']};
     }}
+        QCheckBox::indicator {{
+        width: 14px;
+        height: 14px;
+        border-radius: 3px;
+    }}
+    QCheckBox::indicator:unchecked {{
+        border: 2px solid {p['border']};
+        background-color: {p['surface']};
+    }}
+    QCheckBox::indicator:unchecked:hover {{
+        border: 2px solid {p['accent']};
+    }}
+    QCheckBox::indicator:checked {{
+        border: 2px solid {p['accent']};
+        background-color: {p['accent']};
+    }}
 
     QScrollArea {{
         border: none;
