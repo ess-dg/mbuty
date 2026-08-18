@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 pipelines.py
+
+@author: Sheila Monera Cabarique
 ============
 Object-Oriented Pipeline Tracks for ESS Neutron Detectors.
 
@@ -9,33 +11,24 @@ Routing model
 -------------
 build_detector_pipeline() / build_bm_pipeline() are plain if/elif dispatchers:
 they look at detector_type (+ opMode, for VMM hardware) or bm_hardware_type,
-pick the matching pipeline class and readouts container off `readout_source`,
-and return a ready-to-execute pipeline instance (or None, having already
-printed/exited on any error). This is the *only* place config gets inspected
-to make this decision -- callers never re-derive any of that themselves.
+pick the matching pipeline class and readouts container, and return a ready-to-execute 
+pipeline instance (or None, having already printed/exited on any error).
 
 To add a new detector: copy the closest branch in build_detector_pipeline()
 and the closest pipeline class, then adjust the mapper/clusterer/plotter
-names. No registry table to update anywhere else.
+names.
 
 Two independent pipeline families
 ----------------------------------
 Detector pipelines (MB / MB-clustered / MG / He3 / SKADI) all go through
-BasePipeline. They share a mapping -> clustering -> abs-units analyze()
-shape, and -- because the physicist's plotting parameters mean the same
-thing regardless of which of these detectors is active -- they share a
-single plot() if-chain, written once on BasePipeline itself.
+BasePipeline. Since the same plotting parameters are used regardless of 
+which of these detectors is active -- they share a single plot()
+if-chain, written once on BasePipeline itself.
 
 Beam Monitor pipelines (Generic BM / IBM) do NOT go through BasePipeline
 at all. They don't cluster (mapping goes straight to events), they have
 no hits stage, and only two plots exist for them, gated by MONitor
-parameters that don't apply to any detector pipeline. Forcing them through
-the detector if-chain would mean reading fifteen checks against fields
-that don't exist for a monitor stream just to find the two that matter --
-so BeamMonitorPipeline is its own small, standalone base class with its
-own analyze()/plot()/execute(), duplicating the trivial empty-container
-guard rather than sharing it. Tracing "what does the beam monitor do" now
-means opening exactly one self-contained class hierarchy.
+parameters that don't apply to any detector pipeline.
 
 Pipeline shape (detector pipelines)
 ------------------------------------
@@ -52,11 +45,6 @@ Pipeline shape (detector pipelines)
                       plotter doesn't implement a given plot_* method is
                       safe -- it just falls through to that stage's base
                       stub (prints "not supported", does nothing).
-
-execute() (defined once per family) runs analyze() then plot(), after
-checking the readouts container isn't empty. Callers normally only ever
-call execute(); analyze()/plot() are there as a seam for anyone who wants
-to run analysis without plotting (batch jobs, notebooks, etc).
 
 Each pipeline lazily imports the mapper/clusterer/plotter modules it
 actually needs, inside analyze()/build_plotters(), so an inactive pipeline

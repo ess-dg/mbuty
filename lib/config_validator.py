@@ -2,24 +2,18 @@
 # -*- coding: utf-8 -*-
 """
 config_validator.py
---------------------
-Stateless, functional replacement for the upfront (pre-read) validation logic
-formerly embedded in `read_json_config` / `MONmap` / `DETparameters` /
-`DETmap` (lib/libMapping.py, first ~600 lines).
 
-Scope: these functions validate the raw JSON `config: dict` BEFORE any data
-ingestion starts. They do NOT duplicate the post-read stream checks that
-already live in `lib/instrument_registry.py`
+@author: Sheila Monera Cabarique
+--------------------
+Upfront validation for raw JSON config dicts before data ingestion.
+
+These functions validate the config structure and values (instrument/detector
+types, unit counts, monitor settings, operation modes, ID uniqueness) and do NOT
+duplicate the post-read stream checks in `lib/instrument_registry.py`
 (`check_valid_data_stream`, `match_data_stream_with_config`, `check_bm_type`).
 
-Schema note: updated to match the current config generator / sample files
-(`libConfigGenerator.py`, `AMOR26.json`), which use lowerCamelCase keys
-throughout (e.g. `detectorType`, `topology`, `ring`) rather than the legacy
-PascalCase keys (`DetectorType`, `Cassette2ElectronicsConfig`, `Ring`).
-
-All legacy warning/error text and exit behavior are preserved; coloring now
-goes through `lib/colors.py` (WARN / ERR / INFO / OK / RESET) via f-strings
-instead of inline ANSI escapes, for consistency with the rest of lib.
+New config uses lowerCamelCase keys throughout (e.g. `detectorType`, `topology`, `ring`).
+Coloring applied via `lib/colors.py` (WARN / ERR / INFO / OK / RESET).
 """
 
 import sys
@@ -45,9 +39,8 @@ from lib.colors import WARN, ERR, INFO, OK, RESET
 # =============================================================================
 def load_config(config_file_path: str) -> dict:
     """
-    Safely load a JSON config file into a plain dict.
-    Equivalent to legacy openFile() — covers all three failure modes:
-    double extension, file not found, and malformed JSON.
+    Load a JSON config file into a dict.
+    Handles double extensions, missing files, and malformed JSON.
     """
     path     = Path(config_file_path)
     filename = path.name
@@ -81,7 +74,7 @@ def load_config(config_file_path: str) -> dict:
 
     return config
 # =============================================================================
-# Instrument <-> detectorType verification map (legacy verifyTypeWithInstrument)
+# Instrument <-> detectorType verification map
 # =============================================================================
 
 INSTRUMENT_TYPE_MAP = {
@@ -113,28 +106,26 @@ VALID_INSTRUMENT_NAMES = (
 def validate_instrument_and_detector(config: dict) -> None:
     """Validate 'detectorType', 'instrumentName', and their cross-mapping.
 
-    Equivalent to legacy: get_DETtype() + get_instrumName() + verifyTypeWithInstrument().
-    Exits on invalid detectorType or invalid instrumentName.
-    Prints a (non-fatal) warning on instrument/type mismatch.
-    The final success print is gated by printFlag.
+    Exits on invalid detector type or instrument name.
+    Prints a non-fatal warning on instrument/type mismatch.
     """
     det_type   = config.get('detectorType')
     instrument = config.get('instrumentName')
 
-    # --- detectorType check (legacy get_DETtype) ------------------------------
+    # --- detectorType check
     if det_type not in VALID_DETECTOR_TYPES:
         print(f"\n\t{ERR}Config File Error ---> Detector type (found {det_type}) can only be either MB, MG or He3 -> check config file! ---> Exiting ... \n{RESET}", end='')
         time.sleep(2)
         sys.exit()
 
-    # --- instrumentName check (legacy get_instrumName) -------------------------
+    # --- instrumentName check
     if instrument not in VALID_INSTRUMENT_NAMES:
         allowed = ", ".join(VALID_INSTRUMENT_NAMES)
         print(f"\n\t{ERR}Config File Error ---> Instrument name {instrument} is invalid. Must be one of: {allowed} \n{RESET}")
         time.sleep(2)
         sys.exit()
 
-    # --- Instrument <-> detectorType cross-check (legacy verifyTypeWithInstrument) ---
+    # --- Instrument <-> detectorType cross-check
     allowed_types = INSTRUMENT_TYPE_MAP.get(instrument, [])
 
     if det_type not in allowed_types:
@@ -154,20 +145,20 @@ def match_instrument_and_detector(det_type,instrument) -> None:
     
     flag = True
 
-    # --- detectorType check (legacy get_DETtype) ------------------------------
+    # --- detectorType check
     if det_type not in VALID_DETECTOR_TYPES:
         print(f"\n\t{ERR}Config File Error ---> Detector type (found {det_type}) can only be either MB, MG or He3 -> check config file! ---> Exiting ... \n{RESET}", end='')
         time.sleep(2)
         sys.exit()
 
-    # --- instrumentName check (legacy get_instrumName) -------------------------
+    # --- instrumentName check
     if instrument not in VALID_INSTRUMENT_NAMES:
         allowed = ", ".join(VALID_INSTRUMENT_NAMES)
         print(f"\n\t{ERR}Config File Error ---> Instrument name {instrument} is invalid. Must be one of: {allowed} \n{RESET}")
         time.sleep(2)
         sys.exit()
 
-    # --- Instrument <-> detectorType cross-check (legacy verifyTypeWithInstrument) ---
+    # --- Instrument <-> detectorType cross-check
     allowed_types = INSTRUMENT_TYPE_MAP.get(instrument, [])
 
     if det_type not in allowed_types:
@@ -218,23 +209,21 @@ def validate_operation_mode(config: dict) -> None:
 def validate_unit_configuration(config: dict) -> None:
     """Validate unit count consistency and guard against ring 11 misuse.
 
-    Equivalent to legacy: check_cassetteLabelling() + checkRing11().
     - 'units' (declared count) must match len('topology').
-    - No entry in 'topology' may have "ring" == 11
-      (ring 11 is reserved for the Beam Monitor).
+    - No entry in 'topology' may have "ring" == 11 (reserved for Beam Monitor).
     Exits on either violation.
     """
     topology       = config.get('topology', []) or []
     num_units_decl = config.get('units')
 
-    # --- ring 11 guard (legacy checkRing11) -----------------------------------
+    # --- ring 11 guard
     for cc in topology:
         if cc.get("ring") == 11:
             print(f"\t {ERR}Config File Error ---> Ring 11 found in config for detector and not associated to MONITOR! -> exiting! {RESET}", end=' ')
             time.sleep(2)
             sys.exit()
 
-    # --- unit count consistency (legacy check_cassetteLabelling) -------------
+    # --- unit count consistency
     units_in_config = [cc.get("ID") for cc in topology]
     num_units_found  = np.shape(units_in_config)[0]
 
@@ -252,12 +241,9 @@ def validate_unit_configuration(config: dict) -> None:
 def validate_monitor_configuration(config: dict) -> None:
     """Validate the 'monitor' block (hardwareType, connectionType, ring rules).
 
-    Equivalent to legacy: get_MONmap() + checkBMsettings().
-    NOTE: legacy code supports only ONE monitor entry (mapm[0]); preserved here.
-    This is config-time validation only — distinct from `check_bm_type()` in
-    instrument_registry.py, which validates the BM *data* array post-read.
-    The "no monitor found" warning always prints; the hardwareType /
-    connectionType / ring checks below it are gated by printFlag.
+    Config-time validation only—distinct from `check_bm_type()` in
+    instrument_registry.py, which validates the BM data array post-read.
+    Processes the first monitor entry only.
     """
     monitor_block = config.get('monitor')
 
@@ -265,7 +251,7 @@ def validate_monitor_configuration(config: dict) -> None:
         print(f"\t {WARN}Config File WARNING ---> No monitor config found in json file {RESET}")
         return
 
-    # legacy only ever reads the first monitor entry
+    # Process first monitor entry
     mon = monitor_block[0]
 
     hardware_type   = mon.get("hardwareType")
@@ -288,9 +274,7 @@ def validate_monitor_configuration(config: dict) -> None:
         time.sleep(2)
         sys.exit()
 
-    # --- lemo requires ring >= 11 (legacy: prints WARNING text, but exits) -----
-    # NOTE: preserved verbatim from legacy, including the inconsistency where
-    # the message text says "WARNING" but the code still calls sys.exit().
+    # --- lemo requires ring >= 11
     if connection_type == "lemo":
         if ring_id < 11:
             print(f"\n\t{WARN}Config File WARNING ---> MON mode {connection_type} selected with RING < 11 (ring {ring_id}) (can be any ring 11 - inf, but not < 11)-> check config file! ---> Exiting ... \n{RESET}", end='')
@@ -332,12 +316,12 @@ def validate_IDs(config: dict) -> None:
  
 
 # =============================================================================
-# Convenience: run all upfront checks in legacy order
+# Convenience: run all upfront checks
 # =============================================================================
 
 def validate_config(config: dict) -> None:
-    """Run all upfront validations in the same order the legacy constructor did:
-    instrument/detector -> monitor -> unit configuration -> operation mode.
+    """Run all upfront validations: instrument/detector -> monitor -> 
+    unit configuration -> operation mode.
     """
     validate_instrument_and_detector(config)
     validate_monitor_configuration(config)

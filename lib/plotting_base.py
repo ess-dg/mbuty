@@ -3,8 +3,7 @@ plotting_base.py
 
 Shared plotting utilities and the common BasePlotter scaffolding used by
 every concrete plotter module (plotting_readouts.py, plotting_hits.py,
-plotting_events.py). Split out of plotting.py so those modules don't have
-to import from each other.
+plotting_events.py).
 """
 
 from __future__ import annotations

@@ -1,3 +1,17 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+threshold_engine.py
+Created on Thu July 9 2026
+@author: Sheila Monera Cabarique
+--------------------
+Software (pulse-height) threshold engine.
+
+A threshold is a lower bound on pulse height: events whose pulse height
+does not exceed the bound for their channel are rejected. Thresholds are
+defined per physical unit (cassette / column / tube, i.e. matrix['ID'])
+and per local channel within that unit.
+"""
 import os, sys
 import numpy as np
 import pandas as pd
@@ -10,13 +24,6 @@ if _workspace not in sys.path:
 from lib.colors import INFO, WARN, ERR, RESET, OK
 
 # =============================================================================
-# Software (pulse-height) threshold engine.
-#
-# A threshold is a lower bound on pulse height: events whose pulse height
-# does not exceed the bound for their channel are rejected. Thresholds are
-# defined per physical unit (cassette / column / tube, i.e. matrix['ID'])
-# and per local channel within that unit.
-#
 # 'ch0' refers to the channel selector derived from coordinate0 (wires),
 # gating pulseHeight0.
 # 'ch1' refers to the channel selector derived from coordinate1

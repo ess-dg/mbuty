@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+abs_units_engine.py
+
+@author: Sheila Monera Cabarique
+"""
+
 import numpy as np
 import sys
 import os

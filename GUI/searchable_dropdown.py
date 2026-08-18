@@ -37,7 +37,11 @@ class _RefreshingComboBox(QComboBox):
         self._refresh_callback = refresh_callback
         self.setFocusPolicy(Qt.ClickFocus)
         self.setEditable(True)
-        self.lineEdit().setFocusPolicy(Qt.ClickFocus)
+        
+        line_edit = self.lineEdit()
+        line_edit.setFocusPolicy(Qt.ClickFocus)
+        # Install event filter on line edit to capture clicks and show popup
+        line_edit.installEventFilter(self)
         
         # Block wheel events on the internal view
         if self.view():
@@ -56,10 +60,19 @@ class _RefreshingComboBox(QComboBox):
         event.ignore()
 
     def eventFilter(self, obj, event):
-        """Block wheel events on the popup view."""
+        """Block wheel events on the popup view, show popup on line edit click."""
         from qtpy.QtCore import QEvent
+        
+        # Show popup when clicking the line edit (if not already visible)
+        if obj == self.lineEdit() and event.type() == QEvent.MouseButtonPress:
+            if not self.view() or not self.view().isVisible():
+                self.showPopup()
+            return False  # Allow normal processing to continue
+        
+        # Block wheel events on the popup view
         if event.type() == QEvent.Wheel:
             return True  # Consume the event, don't pass it on
+        
         return super().eventFilter(obj, event)
 
 

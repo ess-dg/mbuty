@@ -2,12 +2,14 @@
 """
 MBUTYconfigGen_GUI.py
 
+Created on Mon July 20 2026
+
+@author: Sheila Monera Cabarique
+
 Qt-based GUI for generating and editing detector configuration files.
-Built using GUI_qt components.
 """
 import os
 import json
-import sys
 
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (

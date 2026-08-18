@@ -1,3 +1,14 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+reader.py
+
+@author: Sheila Monera Cabarique
+--------------------
+Packet ingestion and file scanning engine for PCAP/PCAPNG network
+captures, managing container preallocation and core processing threads.
+"""
+
 import os
 import sys
 import time

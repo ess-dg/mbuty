@@ -1,19 +1,11 @@
 """
-mbuty_dashboard.py — Phase 1 Consolidated PySide6 UI Dashboard Shell
+mbuty_dashboard.py
 
-Architectural contract:
-  * This module does NOT import or touch any vectorized core engine, reader,
-    or calibration file. All pipeline access goes through DashboardDataSource,
-    an interface the real pipeline implements elsewhere.
-  * Sorting is assumed already done upstream (kind='stable'). Column-header
-    sort in the UI is a view-only QSortFilterProxyModel reorder — it never
-    mutates or re-sorts the underlying structured array.
-  * Canvas / table widgets are single-source-of-truth dicts keyed by
-    (tab_key, item_name); no parallel/disconnected metadata lists.
-  * Per-instrument-tab plots are fixed at construction time from config
-    (whatever the user selected before running). No add/remove/toggle at
-    runtime, no checkboxes on Readouts / Hits / Events /
-    Beam Monitor. Only the Comparison Matrix tab is interactive.
+@author: Sheila Monera Cabarique
+----------------------------------
+PySide6 interactive dashboard shell providing tabular data 
+views, sorted Qt models, and live matplotlib plotting panes 
+for MBUTY analysis pipelines.
 """
 
 from __future__ import annotations

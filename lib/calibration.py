@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 calibration.py
+
+@author: Sheila Monera Cabarique
 ==============
 Self-contained VMM3A ADC/TDC calibration engine for MB/MG detector readouts.
 

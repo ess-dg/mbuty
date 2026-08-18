@@ -1,14 +1,14 @@
 """
 histograms.py
 
+
+@author: Sheila Monera Cabarique, francescopiscitelli
+--------------------
 Vectorized histogramming engine and axis-construction classes for the MBUTY
 plotting stage. Replaces libHistograms.py.
 
 Architectural notes
 --------------------
-- No physics/math was changed versus the legacy implementation, EXCEPT one
-  bug fix (see Histogrammer.hist1d docstring) and the removal of per-event
-  Python loops in favour of vectorized np.bincount binning.
 - Axis stores bin *centers* (np.linspace(start, stop, steps)), matching the
   legacy convention where index = round((nbins-1) * (x - xmin) / (xmax - xmin)).
 - BaseAxisSet builds axes common to every detector (energy, ToF, wavelength,

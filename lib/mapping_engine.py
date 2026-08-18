@@ -2,6 +2,9 @@
 """
 mapping_engine.py — Vectorized ESS neutron detector geometry mapper.
 
+@author: Sheila Monera Cabarique
+"""
+"""
 Pipeline position: readouts → [mapping_engine] → hits
 
 Contract

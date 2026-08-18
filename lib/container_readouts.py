@@ -1,3 +1,12 @@
+"""
+container_readouts.py
+
+@author: Sheila Monera Cabarique
+==============
+Data containers for the raw readouts of VMM normal/clustered, 
+Helium-3 gas tubes, and skadi detectors as well as beam monitors BM and IBM
+"""
+
 import numpy as np
 import time
 import pandas as pd 

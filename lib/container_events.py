@@ -1,3 +1,13 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+container_events.py
+
+@author: Sheila Monera Cabarique
+==============
+Data containers for the clustered events of VMM normal/clustered, 
+Helium-3 gas tubes, and skadi detectors as well as beam monitors BM and IBM
+"""
 import numpy as np
 import pandas as pd
 import sys
@@ -520,7 +530,7 @@ class eventsIBM(events):
 
 ###############################################################################
 class eventsSKADI(events):
-    """SKADI detector event container placeholder stub."""
+    """SKADI detector event container """
     
     def __init__(self, size: int): 
 

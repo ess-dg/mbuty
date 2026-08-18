@@ -1,11 +1,7 @@
 """
 plotting_readouts.py
 
-Readout-level diagnostic plots for the MBUTY pipeline. Ports the readout
-plotting classes scattered across libPlotting.py (Multi-Blade), libPlottingMG.py
-(Multi-Grid), and libPlottingR5560.py (R5560 tubes) into a single matrix-backed
-hierarchy built on top of plotting_base.BasePlotter, reproducing the legacy
-plot logic, labels, titles, and colors exactly.
+Readout-level diagnostic plots for the MBUTY pipeline. 
 """
 
 import numpy as np

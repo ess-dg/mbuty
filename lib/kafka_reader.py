@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 kafka_reader.py
+
+@author: Sheila Monera Cabarique
 ===============
 Kafka stream ingestion for ESS detector data.
 

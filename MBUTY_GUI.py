@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-main_window.py
+MBUTY_GUI.py
+
+Created on Mon July 20 2026
+
+@author: Sheila Monera Cabarique
 """
 import os
 import sys
@@ -14,7 +18,7 @@ from qtpy.QtGui import QPixmap
 from qtpy.QtWidgets import (
     QMainWindow, QWidget, QLabel, QPushButton, QToolButton, QFrame,
     QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox, QScrollArea,
-    QSlider, QSplitter, QMessageBox, QSizePolicy,
+    QSlider, QSplitter, QMessageBox,
 )
 
 from GUI.expandable_section import ExpandableSection
@@ -26,17 +30,13 @@ from lib import terminal as ta
 
 
 class _MainThreadDispatcher(QObject):
-    """
-    Thread-safe replacement for the Tk main_thread_queue + after(100)
-    polling loop. Any worker thread can call `dispatcher.post(fn)`; `fn`
-    always runs on the GUI thread, because the connection below is a
-    Qt.QueuedConnection - Qt itself marshals the call across threads via
-    its event loop. No queue object, no polling interval to tune.
-    """
+    """Lets worker threads schedule a callable to run on the GUI thread."""
     _run_requested = Signal(object)
 
     def __init__(self):
         super().__init__()
+        # QueuedConnection makes Qt marshal the emit() below across threads
+        # and run _run() on this object's (the GUI) thread.
         self._run_requested.connect(self._run, Qt.QueuedConnection)
 
     def post(self, fn):
@@ -74,19 +74,15 @@ class MBUTYMainWindow(QMainWindow):
         self.run_button = None
         self.buttons_row = None
 
-        # Section flow state -- drives both the dashboard and loose-plot
-        # "plot in sections" paths through one shared controller. See
-        # _start_section_flow / _show_current_section below.
+        # Section flow state -- see _start_section_flow / _show_current_section
         self._section_blocks = []
         self._section_idx = 0
         self._section_mode = None       # 'dashboard' or 'loose'
         self._section_backend = None
         self._current_dashboard = None
-        self._advancing = False         # guards the reentrant case where
-                                         # closing the dashboard ourselves
-                                         # (Next Section / Exit Plotting)
-                                         # would otherwise re-trigger
-                                         # _on_section_window_closed
+        self._advancing = False         # True while we close the dashboard
+                                         # ourselves, so that close doesn't
+                                         # also re-trigger _next_section
 
         self.setWindowTitle("MBUTY GUI")
         self.resize(680, 720)  # Snug default fit for parameter panel on startup
@@ -156,7 +152,7 @@ class MBUTYMainWindow(QMainWindow):
         user_name = os.environ.get("USER", os.environ.get("USERNAME", "User"))
         title = QLabel(f"Ciao {user_name}! Welcome to MBUTY 8.0")
         title.setProperty("role", "header")
-        title.setStyleSheet("color: #228B22;")  # forest green, matches the Tk version's fg
+        title.setStyleSheet("color: #228B22;")  # forest green accent
         title.setAlignment(Qt.AlignCenter)
         layout.addWidget(title, 0, 1, Qt.AlignCenter)
 
@@ -260,8 +256,7 @@ class MBUTYMainWindow(QMainWindow):
         return group
 
     def _display_param(self, frame, key, item, row):
-        """Create one widget from config, wire dependsOn visibility and
-        dynamic options, and register it in self.widgets."""
+        """Build one widget from config, wire up visibility/dynamic options, register it."""
         input_type = item["type"]
         depends_on = item.get("dependsOn")
 
@@ -382,11 +377,11 @@ class MBUTYMainWindow(QMainWindow):
         return row
 
     # ------------------------------------------------------------------
-    # Stop handling (unchanged from the Tk version - this is a plain
-    # threading.Thread issue, not a Tk-vs-Qt one, so the ctypes-based
-    # async KeyboardInterrupt injection still applies as-is)
+    # Stop handling
     # ------------------------------------------------------------------
     def _raise_keyboard_interrupt(self, thread):
+        # Python threads can't be cancelled directly, so this asynchronously
+        # raises KeyboardInterrupt inside the target thread via ctypes.
         if not thread or not thread.is_alive():
             return
         tid = ctypes.c_long(thread.ident)
@@ -442,7 +437,6 @@ class MBUTYMainWindow(QMainWindow):
             return
 
         self.analysis_running = True
-        self.buttons_row.setVisible(True)
         self.stop_button.setVisible(True)
 
         self._setup_output_console(clear_content=False)
@@ -469,7 +463,7 @@ class MBUTYMainWindow(QMainWindow):
                     self.dispatcher.post(dropdown_widget._update_file_list)
 
             except Exception as e:
-                print(f" Error during data synchronization (in sync_work): {e}")
+                print(f"Error during data synchronization (in sync_work): {e}")
                 self.dispatcher.post(
                     lambda exc=e: QMessageBox.critical(self, "Sync Error", f"An error occurred during sync: {exc}")
                 )
@@ -538,7 +532,6 @@ class MBUTYMainWindow(QMainWindow):
                     # which is accessed dynamically via widgets.get() when needed, so we safely ignore it here.
                     break
 
-        self.buttons_row.setVisible(True)
         self.stop_button.setVisible(True)
         self._setup_output_console(clear_content=True)
         plt.close("all")
@@ -558,34 +551,25 @@ class MBUTYMainWindow(QMainWindow):
             except KeyboardInterrupt:
                 print("\nAnalysis was interrupted by user.")
             except Exception as e:
-                print(f"\n Error during analysis execution: {e}")
+                print(f"\nError during analysis execution: {e}")
                 print("\nAnalysis aborted.")
             finally:
                 self.analysis_running = False
-                if self.stop_button.isVisible():
-                    self.dispatcher.post(lambda: self.stop_button.setVisible(False))
+                self.dispatcher.post(lambda: self.stop_button.setVisible(False))
 
         self.backend_thread = threading.Thread(target=backend_work, daemon=True)
         self.backend_thread.start()
 
     # ------------------------------------------------------------------
-    # Section flow: one controller for both dashboard and loose-plot
-    # modes. Next Section / Exit Plotting drive everything from here;
-    # closing the dashboard's own window (the X button) is treated
-    # identically to clicking Next Section -- see
-    # _on_section_window_closed. There is no blocking loop anywhere in
-    # this path, unlike the old modal QMessageBox / nested QEventLoop
-    # approaches, so the plot windows stay fully interactive between
-    # sections.
+    # Section flow: one controller drives both dashboard and loose-plot
+    # "plot in sections" modes. Next Section / Exit Plotting, and closing
+    # the dashboard window itself (X button), all funnel through here --
+    # no blocking loop, so plot windows stay interactive between sections.
     # ------------------------------------------------------------------
     def _start_section_flow(self, backend):
-        # apply_mpl_theme() sets the matplotlib rcParams every Figure picks
-        # up (background/text colors) and patches the Qt toolbar class so
-        # icons get tinted to match -- previously this only ran inside
-        # launch_dashboard(), which this controller bypasses (it calls
-        # build_dashboard_section directly), so theming silently stopped
-        # applying to both the dashboard and the loose-plot path. Must
-        # happen before any Figure/canvas/toolbar is built below.
+        # Sets matplotlib rcParams (background/text colors) and patches the
+        # Qt toolbar so icons match the theme. Must run before any
+        # Figure/canvas/toolbar is built below.
         theme.apply_mpl_theme(self.theme_manager.mode)
 
         self._section_backend = backend
@@ -628,10 +612,8 @@ class MBUTYMainWindow(QMainWindow):
                     backend.detector_pipeline, backend.bm_pipeline, parameters, block, bm_active
                 )
                 if not dashboard.has_content:
-                    # Every tab (readouts/hits/events/BM) came back empty for this
-                    # block -- nothing to show and nothing to compare. Skip the
-                    # window entirely and move straight on, same as if the user
-                    # had clicked Next Section themselves.
+                    # No tab has data for this block -- skip the window and
+                    # move on, as if Next Section had been clicked.
                     print(f"\tWARNING: section {self._section_idx + 1}/{len(blocks)} "
                         f"has no data in any tab -- skipping dashboard window.")
                     self._section_idx += 1
@@ -644,7 +626,7 @@ class MBUTYMainWindow(QMainWindow):
                 dashboard.activateWindow()
                 return
             except Exception as e:
-                print(f" Dashboard failed ({e}) -- falling back to standard plotting.")
+                print(f"Dashboard failed ({e}) -- falling back to standard plotting.")
                 self._section_mode = "loose"
                 # fall through to the loose-plot branch below for this section
 
@@ -665,10 +647,8 @@ class MBUTYMainWindow(QMainWindow):
             backend.bm_pipeline.plot()
 
     def _on_section_window_closed(self):
-        """The dashboard's own close (X button) is treated identically to
-        clicking Next Section. _advancing guards the reentrant case: if
-        Next Section (or Exit Plotting) triggered this close() itself,
-        skip -- otherwise a single button click would advance twice."""
+        # Dashboard's X button behaves like Next Section. Skip if we're the
+        # ones who closed it (_advancing), or a click would advance twice.
         if self._advancing:
             return
         self._next_section()

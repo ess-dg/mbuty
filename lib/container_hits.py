@@ -1,3 +1,12 @@
+"""
+container_hits.py
+
+@author: Sheila Monera Cabarique
+==============
+Data containers for the mapped hits of VMM normal/clustered, 
+ and Helium-3 gas tubes
+"""
+
 import numpy as np
 import pandas as pd
 
@@ -304,7 +313,9 @@ class hitsR5560(hits):
 
          return df
      
-# # Note: wait to implement fully — structure TBD
+# # Note: Removed since these classes do not have clustering, mapping now goes directly 
+# to events skipping hits altogeather
+
 # class hitsSKADI(hits):
 #     """
 #     SKADI detector hits.
@@ -324,11 +335,7 @@ class hitsR5560(hits):
 #         super().__init__(size, subclass_fields)
         
 #     def get_data_frame(self) -> pd.DataFrame:
-#       """Convert active matrix block to labeled DataFrame for easy inspection."""
-      
-      
-#       # NOTE TO BE IMPLEMENTED ....
-      
+#       """Convert active matrix block to labeled DataFrame for easy inspection."""      
 #       columns_to_extract = [
 #          'pulseT',
 #          'prevPT',

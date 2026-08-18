@@ -1,3 +1,12 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+clustering_engine.py
+
+@author: Sheila Monera Cabarique
+--------------------
+Vectorized event clustering engines for VMM normal/clustered readouts and Helium-3 gas tubes.
+"""
 import numpy as np
 import sys 
 import os

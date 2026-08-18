@@ -1,3 +1,12 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+hardware_decoders.py
+
+@author: Sheila Monera Cabarique
+--------------------
+Bit-level payload decoders for ESS detector electronics including VMM, R5560, SKADI, and beam monitors.
+"""
 import numpy as np
 import sys, os
 # =============================================================================
