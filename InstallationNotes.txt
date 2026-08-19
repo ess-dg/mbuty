@@ -5,9 +5,8 @@ MBUTY 8.0
 --------------------------------------------------
 What is in this version:
 
-libReader for CAEN R5560, SKADI and VMM
-
-Plots and analysis for VMM MG (TREX) and MB (ESTIA, FREIA, TBL) detectors and for He3 tubes (TBL, MIRACLES, CSPEC, BIFROST  and VESPA)
+Supports CAEN R5560, SKADI and VMM readouts.
+Plots and analysis for VMM MG (TREX) and MB (ESTIA, FREIA, TBL) detectors and for He3 tubes (TBL, MIRACLES, CSPEC, BIFROST  and VESPA) for NMX (VMM) and SKADI. 
 Beam Monitors are also included, both generic and IBMs.
  
 --------------------------------------------------
@@ -101,7 +100,7 @@ PYTHON of course is required and extra PACKAGES needed:
 NOTE: MBUTY checks for those packages and raises an error and ask to install them. 
 
 Install placing package in anaconda 
-Python >=3.9 
+Python >=3.12 
 >> pip install python-pcapng
 
 NOTE: must be the python installation you use to run the scripts, e.g. >> /opt/anaconda3/bin/python -m pip install python-pcapng 
@@ -115,12 +114,18 @@ For Kafka streamer is needed:
 if you dont'use kafka you can skip those three above. 
 
 Other packages (included in anaconda):
-    pkg_resources
-    pillow
-    matplotlib
+    flatbuffers
+    configargparse
+    python-pcapng
+    confluent-kafka
+    numpy
     pandas
-    PyQt5
+    matplotlib
     h5py
+    PyQt5 
+    PySide6
+    qtpy
+    openpyxl
 
 The GUI uses Qt. 
 
