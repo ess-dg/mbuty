@@ -3,6 +3,8 @@ INSTALLATION NOTES and PACKAGES
 
 MBUTY 8.0
 
+Multi-detector Buffer User Toolkit for analYsis
+
 --------------------------------------------------
 What is in this version:
 

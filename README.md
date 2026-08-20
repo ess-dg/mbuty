@@ -1,4 +1,8 @@
-MBUTY is for reading / recording / analyzing the VMM3A, CAEN R5560 and SKADI data saved in pcap or from kakfa 
+MBUTY 
+
+Multi-detector Buffer User Toolkit for analYsis
+
+Mbuty is for reading / recording / analyzing the VMM3A, CAEN R5560 and SKADI data saved in pcap or from kakfa 
 
 --------------------------------------------------
 

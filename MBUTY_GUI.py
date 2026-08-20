@@ -688,18 +688,20 @@ class MBUTYMainWindow(QMainWindow):
     # Lifecycle
     # ------------------------------------------------------------------
     def show_about_dialog(self):
-        version = "8.0 (July 14, 2026)"
+        version = "8.0 (August 19, 2026)"
         author = "Francesco Piscitelli, Sheila Monera Cabarique"
         about_text = (
             f"MBUTY GUI Analysis Suite\n"
+            f"Multi-detector Buffer User Toolkit for analYsis\n"
             f"--------------------------\n"
             f"Version: {version}\n"
             f"Authors: {author}\n"
-            f"mail: francesco.piscitelli@ess.eu\n\n"
+            f"mail: francesco.piscitelli@ess.eu\n"
             f"Created: June 13, 2021\n"
-            f"Description: Utility Tool for Analysis. Supports readers for all data formats: "
-            f"VMM, BM, R5560 and SKADI. Supports detectors MB (TBL, ESTIA, FREIA), MG (TREX), "
-            f"He3 tubes (TBL, CSPEC, BIFROST, MIRACLES and VESPA)."
+            f"--------------------------\n"
+            f"Description: Utility Tool for Analysis. Supports readers for these data formats: "
+            f"VMM, BM, R5560 and SKADI. Supports detectors (instruments) MB (TBL, ESTIA, FREIA), MG (TREX), Gd-GEM (NMX),"
+            f"He3 tubes (TBL, CSPEC, BIFROST, MIRACLES and VESPA), MAPMT (SKADI)."
         )
         QMessageBox.information(self, "About MBUTY", about_text)
 
