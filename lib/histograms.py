@@ -477,9 +477,7 @@ class BaseAxisSet:
     def rebuild_all(self) -> None:
         self._build_generic_axes()
         self.build_specific_axes()
-        
-        print('ffffffff1')
-        
+
     def _resolve_position_bins(self, default_wires: int, default_strips: int) -> tuple[int, int]:
         """
         Dynamically calculates the total matrix grid bin resolution based on the 
