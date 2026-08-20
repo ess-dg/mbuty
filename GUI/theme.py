@@ -16,13 +16,13 @@ from qtpy.QtGui import QFont, QIcon, QPixmap, QPainter, QColor
 # --------------------------------------------------------------------------
 # Fonts
 # --------------------------------------------------------------------------
-FONT_FAMILY = "Segoe UI"           # falls back to system default if missing
+FONT_FAMILY      = "Segoe UI"      # falls back to system default if missing
 FONT_FAMILY_MONO = "Consolas"      # falls back similarly; used for console/log widgets
 
-FONT_SIZE_BASE = 10       # body text, entries, buttons
-FONT_SIZE_LABEL = 10      # field labels
-FONT_SIZE_HEADER = 12     # section headers
-FONT_SIZE_CONSOLE = 12    # console/log output
+FONT_SIZE_BASE    = 12       # body text, entries, buttons
+FONT_SIZE_LABEL   = 12       # field labels
+FONT_SIZE_HEADER  = 14       # section headers
+FONT_SIZE_CONSOLE = 14       # console/log output
 
 
 def base_font(size=FONT_SIZE_BASE, bold=False):

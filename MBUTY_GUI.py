@@ -168,7 +168,7 @@ class MBUTYMainWindow(QMainWindow):
         theme_btn = QToolButton()
         theme_btn.setText("\u263d")  # crescent moon
         theme_btn.setToolTip("Toggle light/dark mode")
-        theme_btn.setStyleSheet("font-size: 20pt;")
+        theme_btn.setStyleSheet("font-size: 24pt;")
         theme_btn.clicked.connect(self.theme_manager.toggle)
 
         right_box = QWidget()
