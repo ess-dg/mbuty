@@ -426,7 +426,7 @@ class BaseThresholdEngine:
     def process_pipeline(self) -> None:
         """Entry point: load thresholds (if enabled) then apply them."""
         
-        print(f"{INFO}Software thresholds ...{RESET}")
+        print(f"\n{INFO}Software thresholds ...{RESET}",end='')
         
         if self.parameters.dataReduction.softThresholdType == 'off':
             print(f"\t {INFO}detector software thresholds OFF ...{RESET}")

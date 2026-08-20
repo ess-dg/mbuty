@@ -169,8 +169,7 @@ class MBAbsUnitsCalculator(BaseAbsUnitsCalculator):
         
         # Replace NaN with a dummy value (e.g., -1) so the int64 cast doesn't complain
         safe_coord = np.nan_to_num(m['coordinate0'], nan=-1)
-        wire_local = np.where(has_wire, (np.round(np.mod(safe_coord,n_wires))), -1)
-
+        wire_local = np.where(has_wire, (np.round(np.mod(safe_coord,n_wires),2)), -1)
         # absCoordinate0: X along blade (mm)
         x_mm = np.full(len(m), np.nan, dtype='float64')
         for uid in unit_ids:

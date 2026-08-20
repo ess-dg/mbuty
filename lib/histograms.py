@@ -478,6 +478,8 @@ class BaseAxisSet:
         self._build_generic_axes()
         self.build_specific_axes()
         
+        print('ffffffff1')
+        
     def _resolve_position_bins(self, default_wires: int, default_strips: int) -> tuple[int, int]:
         """
         Dynamically calculates the total matrix grid bin resolution based on the 
@@ -498,10 +500,11 @@ class BaseAxisSet:
 class MBAxisSet(BaseAxisSet):
     """Position axes for Multi-Blade (VMM) wire/strip detectors."""
 
-    def build_specific_axes(self) -> None:        
+    def build_specific_axes(self) -> None:   
+
         num_strips  = int(self.config.get('strips', 64))
         num_wires   = int(self.config.get('wires', 32))
-        blades_inclination = float(self.config.get('bladesInclination_deg', 5.0))
+        blades_inclination = float(self.config.get('bladesInclination_deg', 5.1))
         wire_pitch  = float(self.config.get('wirePitch_mm', 4.0))
         strip_pitch = float(self.config.get('stripPitch_mm', 4.0))
         # n_cass      =  self.config.get('units', 0)
@@ -513,20 +516,20 @@ class MBAxisSet(BaseAxisSet):
         sine   = np.sin(np.deg2rad(blades_inclination))
         
         # sine = 1 
-        
+      
         # offset_mm  = 110
         
         pos_w_bins, pos_s_bins = self._resolve_position_bins(num_wires, num_strips)
- 
+  
         min_id = min(d['ID'] for d in topo)    
         max_id = max(d['ID'] for d in topo)    
         
         start = min_id * num_wires
         stop  = (max_id+1) * num_wires
         self.ax_x  = Axis(start, stop-1, int((max_id + 1 - min_id)*pos_w_bins - int(pos_w_bins/num_wires - 1)))  # wire axis
-
+  
         self.ax_y = Axis(0, num_strips-1, pos_s_bins - int(pos_s_bins/num_strips - 1))  # strip axis
-
+  
         # start = min_id * (num_wires * wire_pitch * sine + offset_mm)
         # stop  = (max_id+1) * (num_wires * wire_pitch * sine)  +  (max_id * offset_mm)
         
@@ -534,9 +537,9 @@ class MBAxisSet(BaseAxisSet):
         stop  = (num_wires * wire_pitch * sine)  +  (max_id * offset_mm)
         
         self.ax_x_mm  = Axis(start, stop-1, self.ax_x.steps)  # wire axis, mm
-
+  
         self.ax_y_mm = Axis(0, (num_strips - 1) * strip_pitch, self.ax_y.steps)  # strip axis, mm
-        
+          
  
 class MGAxisSet(BaseAxisSet):
     """Position axes for Multi-Grid detector (VMM-like wire/strip geometry)."""
