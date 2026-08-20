@@ -146,7 +146,8 @@ def dataFileOptions(widgets):
         file_path = widgets.get("parameters.fileManagement.filePath").get()
         dest_path = widgets.get("parameters.fileManagement.destPath").get()
         folder = dest_path if acq_mode == "pcap-sync" and not use_alt else file_path
-        return (folder, ".pcapng")
+        # return (folder, ".pcapng")
+        return (folder, (".pcap", ".pcapng"))
     except Exception:
         return []
     
