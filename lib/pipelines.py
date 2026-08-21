@@ -50,6 +50,7 @@ Each pipeline lazily imports the mapper/clusterer/plotter modules it
 actually needs, inside analyze()/build_plotters(), so an inactive pipeline
 never pays for imports it doesn't use.
 """
+
 import os
 import sys
 import matplotlib.pyplot as plt
