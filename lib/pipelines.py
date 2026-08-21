@@ -160,7 +160,6 @@ class BasePipeline:
             if w.plotXLambda:
                 self.event_plotter.plot_x_lambda()
             if w.plotLambdaDistr:
-                print("should be plotting lambda")
                 self.event_plotter.plot_lambda()
             if p.plotMultiplicity:
                 self.event_plotter.plot_multiplicity()
@@ -260,14 +259,21 @@ class MBPipeline(BasePipeline):
         from lib.mapping_engine import MBMapper
         print(f"{INFO}Mapping MB detector (units mapped according to IDs){RESET}")
         self.hits_container = MBMapper.map(self.readouts_container, self.config)
+        
+        # from lib.data_generator import hits_gen
+        # self.hits_container = hits_gen()
+    
         # Clustering 
-        from lib.clustering_engine import VMMNormalClustererOld
-        time_window = getattr(self.parameters.dataReduction, 'timeWindow', 0.15e-6)
-        self.events_container = VMMNormalClustererOld.cluster(self.hits_container, self.config, time_window)
+        time_window = getattr(self.parameters.dataReduction, 'timeWindow', 0.13e-6)
+
+        # from lib.clustering_engine import VMMNormalClustererOld
+        # self.events_container = VMMNormalClustererOld.cluster(self.hits_container, self.config, time_window)
+        
+        from lib.clustering_engine import  VMMNormalClusterer
+        self.events_container = VMMNormalClusterer.cluster(self.hits_container, self.config, time_window)
+        
         # Calculate abs units
         from lib.abs_units_engine import MBAbsUnitsCalculator
-
-        
         MBAbsUnitsCalculator(self.events_container, self.config, self.parameters).process_pipeline(remove_invalid_tofs=self.parameters.plotting.removeInvalidToFs)
         # Apply soft thresholds
         from lib.threshold_engine import VMMThresholdEngine
@@ -275,16 +281,20 @@ class MBPipeline(BasePipeline):
         
     def build_plotters(self, unit_ids) -> None:
         from lib.histograms import MBAxisSet
+   
         self.axis_set = MBAxisSet(self.parameters, self.config)
+
         from lib.plotting_readouts import MBReadoutsPlotter
         self.readout_plotter = MBReadoutsPlotter(self.readouts_container, self.parameters, self.config, self.axis_set, unit_ids)
 
         if self.hits_container is not None: 
             from lib.plotting_hits import MBHitsPlotter
+
             self.hit_plotter     = MBHitsPlotter(self.hits_container, self.parameters,self.config, self.axis_set,unit_ids)
         
         if self.events_container is not None: 
             from lib.plotting_events import MBEventsPlotter
+ 
             self.event_plotter   = MBEventsPlotter(self.events_container, self.parameters,self.config, self.axis_set, unit_ids)
 
 

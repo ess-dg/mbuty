@@ -139,11 +139,11 @@ class events():
         if removed > 0:
             self.matrix     = self.matrix[:self.fill_count][valid_mask].copy()
             self.fill_count = len(self.matrix)
-            print(f'\t --> removing {removed} rejected rows from events, remaining events {self.fill_count}')
+            print(f'\n\t --> removing {removed} rejected rows from events, remaining rows in events {self.fill_count}')
         else:
             self.matrix     = self.matrix[:self.fill_count].copy()
             self.fill_count = len(self.matrix)
-            print('\t --> no rejected events ...')
+            print('\n\t --> no rejected rows in events ...')
             
     def print_stats(self) -> None:
         """Override in subclasses to print detector-specific clustering diagnostics."""
@@ -307,42 +307,99 @@ class eventsVMMnormal(events):
 
         self.stats = {
             'n_candidates':         0,
+            'n_candidates_p0':      0,
+            'n_candidates_p1':      0,
             'n_accepted':           0,
-            'n_rejected':           0,
             'n_accepted_2d':        0,
             'n_accepted_1dw':       0,
             'n_accepted_1ds':       0,
-            'n_rejected_overflow':  0,
-            'n_rejected_neighbour': 0,
+            'n_rejected':           0,
+            'n_rejected_1dw':       0,
+            'n_rejected_1ds':       0,
         }
 
+    # def print_stats(self) -> None:
+    #     s    = self.stats
+    #     nc0  = s['n_candidates_p0']
+    #     nc1  = s['n_candidates_p1']
+    #     na   = s['n_accepted']
+    #     n2d  = s['n_accepted_2d']
+    #     n1dw = s['n_accepted_1dw']
+    #     n1ds = s['n_accepted_1ds']
+
+    #     if nc0 == 0:
+    #         print('\t --- VMM Normal clustering stats --- (no candidates)')
+    #         return
+
+    #     pct = lambda x: 100.0 * x / nc0
+
+    #     if na > 0:
+    #         print(f'\t N of candidates: 1D(w) {nc0} - 1D(s/g) {nc1} (tot {nc0+nc1}) -> not rejected events {na} ({pct(na):.1f}%) '
+    #             f'(2D: {n2d} ({100.0 * n2d / na:.1f}%), 1D(w): {n1dw} ({100.0 * n1dw / na:.1f}%), 1D(s/g): {n1ds} ({100.0 * n1ds / na:.1f}%))')
+    #     else:
+    #         print(f'\t N of candidates: 1D(w) {nc0} - 1D(s/g) {nc1} (tot {nc0+nc1}) -> not rejected events {na}')
+
+    #     print(f'\t not rej (2D) {pct(n2d):.1f}%, '
+    #         f'not rej (1D w) {pct(n1dw):.1f}%, '
+    #         f'not rej (1D s/g) {pct(n1ds):.1f}%, '
+    #         f'rejected {pct(s["n_rejected"]):.1f}%, '
+    #         f'rejected overflow (>32) {pct(s["n_rejected_overflow"]):.1f}%, '
+    #         f'rejected no neighbour {pct(s["n_rejected_neighbour"]):.1f}%')
+
+    #     n_1d_p0, n_1d_p1 = self._print_multiplicity_stats()
+
     def print_stats(self) -> None:
-        s    = self.stats
-        nc   = s['n_candidates']
-        na   = s['n_accepted']
-        n2d  = s['n_accepted_2d']
-        n1dw = s['n_accepted_1dw']
-        n1ds = s['n_accepted_1ds']
-
-        if nc == 0:
-            print('\t --- VMM Normal clustering stats --- (no candidates)')
+        s = self.stats
+        nc0 = s['n_candidates_p0']
+        nc1 = s['n_candidates_p1']
+        tot_candidates = s['n_candidates']
+ 
+        if tot_candidates == 0:
+            print('\t --- VMM Normal Clustering Stats --- (No candidates)')
             return
+    
+        # Percentage helpers based on single-plane candidate clusters
+        pct_tot = lambda x: (100.0 * x / tot_candidates) if tot_candidates > 0 else 0.0
 
-        pct = lambda x: 100.0 * x / nc
+        n2d_events  = s['n_accepted_2d']
+        n1dw_events = s['n_accepted_1dw']
+        n1ds_events = s['n_accepted_1ds']
+        
+        # Count absorbed candidate clusters: each 2D match takes 2 candidates (1 p0 + 1 p1)
+        accepted_candidates = (2 * n2d_events) + n1dw_events + n1ds_events
+        pct_acc = lambda x: (100.0 * x / accepted_candidates) if accepted_candidates > 0 else 0.0
+    
+        print("=" * 60)
+        print("\t --- Clustering Statistics ---")
+        print("=" * 60)
+        print("\t Candidate clusters:")
+        print(f"\t   • Total Candidates:      {tot_candidates:8d}")
+        print(f"\t   • Plane 0 [Wire]:        {nc0:8d} ({pct_tot(nc0):5.1f}% of candidates)")
+        print(f"\t   • Plane 1 [Strip/Grid]:  {nc1:8d} ({pct_tot(nc1):5.1f}% of candidates)")
+        
+        print(f"\t Accepted Clusters (1D+2D): {accepted_candidates:8d} ({pct_tot(accepted_candidates):5.1f}% candidate conversion)")
+        print(f"\t Output Physical Events:    {s['n_accepted']:8d}")
+        
+        if accepted_candidates > 0:
+            c_2d  = 2 * n2d_events
+            c_1dw = n1dw_events
+            c_1ds = n1ds_events
 
-        if na > 0:
-            print(f'\t N of candidates: {nc} -> not rejected events {na} ({pct(na):.1f}%) '
-                f'(2D: {n2d} ({100.0 * n2d / na:.1f}%), 1D(w): {n1dw} ({100.0 * n1dw / na:.1f}%), 1D(s/g): {n1ds} ({100.0 * n1ds / na:.1f}%))')
-        else:
-            print(f'\t N of candidates: {nc} -> not rejected events {na}')
+            print("\t Candidate Acceptance Breakdown:")
+            print(f"\t   • 2D Matched:        {c_2d:8d} ({pct_acc(c_2d):5.1f}% of accepted | {pct_tot(c_2d):5.1f}% of total cand) [{n2d_events} events]")
+            print(f"\t   • 1D Wire Only:      {c_1dw:8d} ({pct_acc(c_1dw):5.1f}% of accepted | {pct_tot(c_1dw):5.1f}% of total cand) [{n1dw_events} events]")
+            print(f"\t   • 1D Strip/Grid Only:{c_1ds:8d} ({pct_acc(c_1ds):5.1f}% of accepted | {pct_tot(c_1ds):5.1f}% of total cand) [{n1ds_events} events]")
 
-        print(f'\t not rej (2D) {pct(n2d):.1f}%, '
-            f'not rej (1D w) {pct(n1dw):.1f}%, '
-            f'not rej (1D s/g) {pct(n1ds):.1f}%, '
-            f'rejected {pct(s["n_rejected"]):.1f}%, '
-            f'rejected overflow (>32) {pct(s["n_rejected_overflow"]):.1f}%, '
-            f'rejected no neighbour {pct(s["n_rejected_neighbour"]):.1f}%')
+        n_rej = s.get('n_rejected', 0)
+        n_rej_p0 = s.get('n_rejected_1dw', 0)
+        n_rej_p1 = s.get('n_rejected_1ds', 0)
 
+        print("\t Single-Plane Invalid Rejections:")
+        print(f"\t   • Total Rejected:    {n_rej:8d} ({pct_tot(n_rej):5.1f}%)")
+        print(f"\t   • Plane 0 [Wire]:    {n_rej_p0:8d} ({pct_tot(n_rej_p0):5.1f}%)")
+        print(f"\t   • Plane 1 [Strip]:   {n_rej_p1:8d} ({pct_tot(n_rej_p1):5.1f}%)")
+        print("=" * 60)
+        
         
         n_1d_p0, n_1d_p1 = self._print_multiplicity_stats()
         
@@ -372,12 +429,12 @@ class eventsVMMnormal(events):
                 return '(none)'
             return ', '.join(f'{100.0 * c / total:.1f}% ({i+1})' for i, c in enumerate(counts))
 
-        print('\n\t     multiplicity:')
+        print('\t     multiplicity:')
         print(f'\t     2D: % wires        fired per event: {_fmt(wire_mult_2d)}')
         print(f'\t     2D: % strips/grids fired per event: {_fmt(plane1_mult_2d)}')
         print(f'\t     1D: % wires        fired per event (wire-only):         {_fmt(wire_mult_1d)}')
         print(f'\t     1D: % strips/grids fired per event (strips/grids-only): {_fmt(plane1_mult_1d)}')
-
+        print("=" * 60)
         return int(np.sum(mask_1d_p0)), int(np.sum(mask_1d_p1))
     
     

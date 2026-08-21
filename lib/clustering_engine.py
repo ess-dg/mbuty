@@ -56,7 +56,7 @@ class VMMNormalClustererOld:
     @staticmethod
     def cluster(hits, config: dict, time_window_s: float) -> eventsVMMnormal:
         
-        print(f'{INFO}\nClustering VMM normal events ... {RESET}',end='')
+        print(f'{INFO}\nClustering VMM normal events (OLD method - stats approx.)... {RESET}',end='')
         
         m = hits.matrix[:hits.fill_count]
         n = len(m)
@@ -160,15 +160,31 @@ class VMMNormalClustererOld:
 
         # Populate stats BEFORE absorb() so print_stats() sees the correct values
         out.stats.update({
-            'n_candidates':         n_clusters,
-            'n_accepted':           n_accepted,
-            'n_rejected':           n_clusters - n_accepted,
-            'n_accepted_2d':        int(np.sum(accept_2d)),
-            'n_accepted_1dw':        int(np.sum(accept_1dw)),
-            'n_accepted_1ds':        int(np.sum(accept_1ds)),
-            'n_rejected_overflow':  int(np.sum(~accept_window)),
-            'n_rejected_neighbour': int(np.sum(accept_window & ~(accept_2d | accept_1dw | accept_1ds))),
+            'n_candidates':    n_clusters,
+            'n_candidates_p0': 0,
+            'n_candidates_p1': 0,
+            'n_accepted': n_accepted,
+            'n_accepted_2d':  int(np.sum(accept_2d)/2),
+            'n_accepted_1dw': int(np.sum(accept_1dw)),
+            'n_accepted_1ds': int(np.sum(accept_1ds)),
+            'n_rejected': n_clusters - n_accepted,
+            'n_rejected_1dw': 0,
+            'n_rejected_1ds': 0,
         })
+        
+        
+        # out.stats.update({
+        #     'n_candidates': n_clusters,
+        #     'n_candidates_p0': 0, 
+        #     'n_candidates_p1': 0,
+        #     'n_accepted': n_accepted, 
+        #     'n_rejected': n_clusters - n_accepted,
+        #     'n_accepted_2d':        int(np.sum(accept_2d)),
+        #     'n_accepted_1dw':       int(np.sum(accept_1dw)),
+        #     'n_accepted_1ds':       int(np.sum(accept_1ds)),
+        #     'n_rejected_overflow':  int(np.sum(~accept_window)),
+        #     'n_rejected_neighbour': int(np.sum(accept_window & ~(accept_2d | accept_1dw | accept_1ds))),
+        # })
 
         out.absorb(computed, timing_src)
         return out
@@ -340,7 +356,7 @@ class VMMNormalClusterer:
     DEFAULT_MAX_GAP = 0        # 0 = contiguous only (MB/MG behaviour)
 
     # --- labels, used only for logging / stats-dict key naming ---
-    LABEL      = "VMM normal (split-based)"
+    LABEL      = "VMM normal"
     PLANE0_TAG = "w"           # wire
     PLANE1_TAG = "s"           # strip / grid
 
@@ -488,7 +504,6 @@ class VMMNormalClusterer:
         
         return np.array(final_matches_p0, dtype='int64'), np.array(final_matches_p1, dtype='int64')
     
-    
     @staticmethod
     def _populate_output_vectorized(
         p0: dict,
@@ -499,89 +514,187 @@ class VMMNormalClusterer:
         unmatched_p1: np.ndarray,
     ) -> dict:
         """
-        Vectorized population of output arrays using fancy indexing.
-        
-        Replaces three manual for-loops with vectorized array operations:
-        - All 2D matches filled with a single fancy-indexed assignment per field
-        - All 1D plane-0 unmatched filled with a single fancy-indexed assignment per field
-        - All 1D plane-1 unmatched filled with a single fancy-indexed assignment per field
-        
-        ~5-10× faster than manual loop population.
-        
-        Returns:
-            dict with keys: 'id', 'coord0', 'coord1', 'ph0', 'ph1', 'mult0', 'mult1',
-                           'span', 'ts', 'pulseT', 'prevPT'
+        Vectorized output construction that sorts all accepted events chronologically.
         """
-        n2d = len(matched_p0_idx)
-        n1d0 = len(unmatched_p0)
-        n1d1 = len(unmatched_p1)
+        n2d   = len(matched_p0_idx)
+        n1d0  = len(unmatched_p0)
+        n1d1  = len(unmatched_p1)
         total = n2d + n1d0 + n1d1
-        
-        # Pre-allocate all output arrays at once
-        c_id = np.empty(total, dtype='int64')
-        c_coord0 = np.full(total, np.nan, dtype='float64')
-        c_coord1 = np.full(total, np.nan, dtype='float64')
-        c_ph0 = np.zeros(total, dtype='int64')
-        c_ph1 = np.zeros(total, dtype='int64')
-        c_mult0 = np.zeros(total, dtype='int64')
-        c_mult1 = np.zeros(total, dtype='int64')
-        c_span = np.zeros(total, dtype='int64')
-        ts_out = np.zeros(total, dtype='int64')
-        pulseT_out = np.zeros(total, dtype='int64')
-        prevPT_out = np.zeros(total, dtype='int64')
-        
-        # ===== Fill 2D matches: vectorized fancy indexing (no loop) =====
-        if n2d > 0:
-            c_id[:n2d] = p0['id'][matched_p0_idx]
-            c_coord0[:n2d] = p0['coord'][matched_p0_idx]
-            c_coord1[:n2d] = p1['coord'][matched_p1_idx]
-            c_ph0[:n2d] = p0['adc'][matched_p0_idx].astype('int64')
-            c_ph1[:n2d] = p1['adc'][matched_p1_idx].astype('int64')
-            c_mult0[:n2d] = p0['mult'][matched_p0_idx]
-            c_mult1[:n2d] = p1['mult'][matched_p1_idx]
-            
-            # Time span: max timestamp of either plane minus min timestamp
-            c_span[:n2d] = (
-                np.maximum(p0['ts_max'][matched_p0_idx], p1['ts_max'][matched_p1_idx]) -
-                np.minimum(p0['ts'][matched_p0_idx], p1['ts'][matched_p1_idx])
-            )
-            ts_out[:n2d] = np.minimum(p0['ts'][matched_p0_idx], p1['ts'][matched_p1_idx])
-            pulseT_out[:n2d] = p0['pulseT'][matched_p0_idx]
-            prevPT_out[:n2d] = p0['prevPT'][matched_p0_idx]
-        
-        # ===== Fill 1D plane-0 unmatched: vectorized fancy indexing =====
-        if n1d0 > 0:
-            start = n2d
-            end = n2d + n1d0
-            
-            c_id[start:end] = p0['id'][unmatched_p0]
-            c_coord0[start:end] = p0['coord'][unmatched_p0]
-            c_ph0[start:end] = p0['adc'][unmatched_p0].astype('int64')
-            c_mult0[start:end] = p0['mult'][unmatched_p0]
-            c_span[start:end] = p0['span'][unmatched_p0]
-            ts_out[start:end] = p0['ts'][unmatched_p0]
-            pulseT_out[start:end] = p0['pulseT'][unmatched_p0]
-            prevPT_out[start:end] = p0['prevPT'][unmatched_p0]
-        
-        # ===== Fill 1D plane-1 unmatched: vectorized fancy indexing =====
-        if n1d1 > 0:
-            start = n2d + n1d0
-            
-            c_id[start:] = p1['id'][unmatched_p1]
-            c_coord1[start:] = p1['coord'][unmatched_p1]
-            c_ph1[start:] = p1['adc'][unmatched_p1].astype('int64')
-            c_mult1[start:] = p1['mult'][unmatched_p1]
-            c_span[start:] = p1['span'][unmatched_p1]
-            ts_out[start:] = p1['ts'][unmatched_p1]
-            pulseT_out[start:] = p1['pulseT'][unmatched_p1]
-            prevPT_out[start:] = p1['prevPT'][unmatched_p1]
-        
+
+        if total == 0:
+            empty_arr = np.array([], dtype='int64')
+            empty_flt = np.array([], dtype='float64')
+            return {
+                'id': empty_arr, 'coord0': empty_flt, 'coord1': empty_flt,
+                'ph0': empty_arr, 'ph1': empty_arr, 'mult0': empty_arr,
+                'mult1': empty_arr, 'span': empty_arr, 'ts': empty_arr,
+                'pulseT': empty_arr, 'prevPT': empty_arr,
+            }
+
+        # 1. Compute timestamps for all candidate event types
+        ts_2d   = np.minimum(p0['ts'][matched_p0_idx], p1['ts'][matched_p1_idx]) if n2d > 0 else np.array([], dtype='int64')
+        ts_1d0  = p0['ts'][unmatched_p0] if n1d0 > 0 else np.array([], dtype='int64')
+        ts_1d1  = p1['ts'][unmatched_p1] if n1d1 > 0 else np.array([], dtype='int64')
+
+        # Combine timestamps to find chronological sort order
+        ts_combined = np.concatenate([ts_2d, ts_1d0, ts_1d1])
+        sort_order  = np.argsort(ts_combined, kind='stable')
+
+        # 2. Build unsorted component arrays
+        # IDs
+        ids_2d  = p0['id'][matched_p0_idx] if n2d > 0 else np.array([], dtype='int64')
+        ids_1d0 = p0['id'][unmatched_p0] if n1d0 > 0 else np.array([], dtype='int64')
+        ids_1d1 = p1['id'][unmatched_p1] if n1d1 > 0 else np.array([], dtype='int64')
+
+        # Coordinates
+        c0_2d  = p0['coord'][matched_p0_idx] if n2d > 0 else np.array([], dtype='float64')
+        c0_1d0 = p0['coord'][unmatched_p0] if n1d0 > 0 else np.array([], dtype='float64')
+        c0_1d1 = np.full(n1d1, np.nan, dtype='float64')
+
+        c1_2d  = p1['coord'][matched_p1_idx] if n2d > 0 else np.array([], dtype='float64')
+        c1_1d0 = np.full(n1d0, np.nan, dtype='float64')
+        c1_1d1 = p1['coord'][unmatched_p1] if n1d1 > 0 else np.array([], dtype='float64')
+
+        # ADCs / Pulse Heights
+        ph0_2d  = p0['adc'][matched_p0_idx].astype('int64') if n2d > 0 else np.array([], dtype='int64')
+        ph0_1d0 = p0['adc'][unmatched_p0].astype('int64') if n1d0 > 0 else np.array([], dtype='int64')
+        ph0_1d1 = np.zeros(n1d1, dtype='int64')
+
+        ph1_2d  = p1['adc'][matched_p1_idx].astype('int64') if n2d > 0 else np.array([], dtype='int64')
+        ph1_1d0 = np.zeros(n1d0, dtype='int64')
+        ph1_1d1 = p1['adc'][unmatched_p1].astype('int64') if n1d1 > 0 else np.array([], dtype='int64')
+
+        # Multiplicities
+        m0_2d  = p0['mult'][matched_p0_idx] if n2d > 0 else np.array([], dtype='int64')
+        m0_1d0 = p0['mult'][unmatched_p0] if n1d0 > 0 else np.array([], dtype='int64')
+        m0_1d1 = np.zeros(n1d1, dtype='int64')
+
+        m1_2d  = p1['mult'][matched_p1_idx] if n2d > 0 else np.array([], dtype='int64')
+        m1_1d0 = np.zeros(n1d0, dtype='int64')
+        m1_1d1 = p1['mult'][unmatched_p1] if n1d1 > 0 else np.array([], dtype='int64')
+
+        # Spans
+        span_2d  = (np.maximum(p0['ts_max'][matched_p0_idx], p1['ts_max'][matched_p1_idx]) -
+                    np.minimum(p0['ts'][matched_p0_idx], p1['ts'][matched_p1_idx])) if n2d > 0 else np.array([], dtype='int64')
+        span_1d0 = p0['span'][unmatched_p0] if n1d0 > 0 else np.array([], dtype='int64')
+        span_1d1 = p1['span'][unmatched_p1] if n1d1 > 0 else np.array([], dtype='int64')
+
+        # Pulse Timing Metrics
+        pt_2d  = p0['pulseT'][matched_p0_idx] if n2d > 0 else np.array([], dtype='int64')
+        pt_1d0 = p0['pulseT'][unmatched_p0] if n1d0 > 0 else np.array([], dtype='int64')
+        pt_1d1 = p1['pulseT'][unmatched_p1] if n1d1 > 0 else np.array([], dtype='int64')
+
+        ppt_2d  = p0['prevPT'][matched_p0_idx] if n2d > 0 else np.array([], dtype='int64')
+        ppt_1d0 = p0['prevPT'][unmatched_p0] if n1d0 > 0 else np.array([], dtype='int64')
+        ppt_1d1 = p1['prevPT'][unmatched_p1] if n1d1 > 0 else np.array([], dtype='int64')
+
+        # 3. Concatenate and sort everything by timestamps
         return {
-            'id': c_id, 'coord0': c_coord0, 'coord1': c_coord1,
-            'ph0': c_ph0, 'ph1': c_ph1,
-            'mult0': c_mult0, 'mult1': c_mult1, 'span': c_span,
-            'ts': ts_out, 'pulseT': pulseT_out, 'prevPT': prevPT_out,
+            'id':     np.concatenate([ids_2d, ids_1d0, ids_1d1])[sort_order],
+            'coord0': np.concatenate([c0_2d, c0_1d0, c0_1d1])[sort_order],
+            'coord1': np.concatenate([c1_2d, c1_1d0, c1_1d1])[sort_order],
+            'ph0':    np.concatenate([ph0_2d, ph0_1d0, ph0_1d1])[sort_order],
+            'ph1':    np.concatenate([ph1_2d, ph1_1d0, ph1_1d1])[sort_order],
+            'mult0':  np.concatenate([m0_2d, m0_1d0, m0_1d1])[sort_order],
+            'mult1':  np.concatenate([m1_2d, m1_1d0, m1_1d1])[sort_order],
+            'span':   np.concatenate([span_2d, span_1d0, span_1d1])[sort_order],
+            'ts':     ts_combined[sort_order],
+            'pulseT': np.concatenate([pt_2d, pt_1d0, pt_1d1])[sort_order],
+            'prevPT': np.concatenate([ppt_2d, ppt_1d0, ppt_1d1])[sort_order],
         }
+    # @staticmethod
+    # def _populate_output_vectorized(
+    #     p0: dict,
+    #     p1: dict,
+    #     matched_p0_idx: np.ndarray,
+    #     matched_p1_idx: np.ndarray,
+    #     unmatched_p0: np.ndarray,
+    #     unmatched_p1: np.ndarray,
+    # ) -> dict:
+    #     """
+    #     Vectorized population of output arrays using fancy indexing.
+        
+    #     Replaces three manual for-loops with vectorized array operations:
+    #     - All 2D matches filled with a single fancy-indexed assignment per field
+    #     - All 1D plane-0 unmatched filled with a single fancy-indexed assignment per field
+    #     - All 1D plane-1 unmatched filled with a single fancy-indexed assignment per field
+        
+    #     ~5-10× faster than manual loop population.
+        
+    #     Returns:
+    #         dict with keys: 'id', 'coord0', 'coord1', 'ph0', 'ph1', 'mult0', 'mult1',
+    #                        'span', 'ts', 'pulseT', 'prevPT'
+    #     """
+    #     n2d   = len(matched_p0_idx)
+    #     n1d0  = len(unmatched_p0)
+    #     n1d1  = len(unmatched_p1)
+    #     total = n2d + n1d0 + n1d1
+        
+    #     # Pre-allocate all output arrays at once
+    #     c_id     = np.empty(total, dtype='int64')
+    #     c_coord0 = np.full(total, np.nan, dtype='float64')
+    #     c_coord1 = np.full(total, np.nan, dtype='float64')
+    #     c_ph0    = np.zeros(total, dtype='int64')
+    #     c_ph1    = np.zeros(total, dtype='int64')
+    #     c_mult0  = np.zeros(total, dtype='int64')
+    #     c_mult1  = np.zeros(total, dtype='int64')
+    #     c_span   = np.zeros(total, dtype='int64')
+    #     ts_out   = np.zeros(total, dtype='int64')
+    #     pulseT_out = np.zeros(total, dtype='int64')
+    #     prevPT_out = np.zeros(total, dtype='int64')
+        
+    #     # ===== Fill 2D matches: vectorized fancy indexing (no loop) =====
+    #     if n2d > 0:
+    #         c_id[:n2d] = p0['id'][matched_p0_idx]
+    #         c_coord0[:n2d] = p0['coord'][matched_p0_idx]
+    #         c_coord1[:n2d] = p1['coord'][matched_p1_idx]
+    #         c_ph0[:n2d] = p0['adc'][matched_p0_idx].astype('int64')
+    #         c_ph1[:n2d] = p1['adc'][matched_p1_idx].astype('int64')
+    #         c_mult0[:n2d] = p0['mult'][matched_p0_idx]
+    #         c_mult1[:n2d] = p1['mult'][matched_p1_idx]
+            
+    #         # Time span: max timestamp of either plane minus min timestamp
+    #         c_span[:n2d] = (
+    #             np.maximum(p0['ts_max'][matched_p0_idx], p1['ts_max'][matched_p1_idx]) -
+    #             np.minimum(p0['ts'][matched_p0_idx], p1['ts'][matched_p1_idx])
+    #         )
+    #         ts_out[:n2d] = np.minimum(p0['ts'][matched_p0_idx], p1['ts'][matched_p1_idx])
+    #         pulseT_out[:n2d] = p0['pulseT'][matched_p0_idx]
+    #         prevPT_out[:n2d] = p0['prevPT'][matched_p0_idx]
+        
+    #     # ===== Fill 1D plane-0 unmatched: vectorized fancy indexing =====
+    #     if n1d0 > 0:
+    #         start = n2d
+    #         end = n2d + n1d0
+            
+    #         c_id[start:end] = p0['id'][unmatched_p0]
+    #         c_coord0[start:end] = p0['coord'][unmatched_p0]
+    #         c_ph0[start:end] = p0['adc'][unmatched_p0].astype('int64')
+    #         c_mult0[start:end] = p0['mult'][unmatched_p0]
+    #         c_span[start:end] = p0['span'][unmatched_p0]
+    #         ts_out[start:end] = p0['ts'][unmatched_p0]
+    #         pulseT_out[start:end] = p0['pulseT'][unmatched_p0]
+    #         prevPT_out[start:end] = p0['prevPT'][unmatched_p0]
+        
+    #     # ===== Fill 1D plane-1 unmatched: vectorized fancy indexing =====
+    #     if n1d1 > 0:
+    #         start = n2d + n1d0
+            
+    #         c_id[start:] = p1['id'][unmatched_p1]
+    #         c_coord1[start:] = p1['coord'][unmatched_p1]
+    #         c_ph1[start:] = p1['adc'][unmatched_p1].astype('int64')
+    #         c_mult1[start:] = p1['mult'][unmatched_p1]
+    #         c_span[start:] = p1['span'][unmatched_p1]
+    #         ts_out[start:] = p1['ts'][unmatched_p1]
+    #         pulseT_out[start:] = p1['pulseT'][unmatched_p1]
+    #         prevPT_out[start:] = p1['prevPT'][unmatched_p1]
+        
+    #     return {
+    #         'id': c_id, 'coord0': c_coord0, 'coord1': c_coord1,
+    #         'ph0': c_ph0, 'ph1': c_ph1,
+    #         'mult0': c_mult0, 'mult1': c_mult1, 'span': c_span,
+    #         'ts': ts_out, 'pulseT': pulseT_out, 'prevPT': prevPT_out,
+    #     }
 
     # -------------------------------------------------------------------
     # Shared machinery — should not need overriding
@@ -597,6 +710,7 @@ class VMMNormalClusterer:
              discard) wherever the spatial gap exceeds max_gap — one
              time-cluster can yield 1..r space clusters.
         """
+
         n = len(plane_hits)
         empty_res = {
             'count': 0, 'ts': np.array([]), 'pulseT': np.array([]), 'prevPT': np.array([]),
@@ -627,36 +741,47 @@ class VMMNormalClusterer:
             time_cluster_id[sort2], ch_idx[sort2], ts[sort2], adc[sort2],
             ids[sort2], pulseT[sort2], prevPT[sort2],
         )
-
+   
+        # Stage 2: Group hits in the same time cluster within the max_span boundary
         break2 = np.empty(n, dtype=bool)
-        break2[0]  = True
-        break2[1:] = (tc2[1:] != tc2[:-1]) | ((ch2[1:] - ch2[:-1]) > (max_gap + 1))
-        cluster_id  = np.cumsum(break2) - 1
-        n_clusters  = int(cluster_id[-1]) + 1
-
-        counts  = np.bincount(cluster_id, minlength=n_clusters).astype('int64')
+        break2[0] = True
+        # Split only on time-cluster change or if spatial gap exceeds max_span
+        break2[1:] = (tc2[1:] != tc2[:-1]) | ((ch2[1:] - ch2[:-1]) > max_span)
+        cluster_id = np.cumsum(break2) - 1
+        n_clusters = int(cluster_id[-1]) + 1
+        
+        # --- Metrics Calculation ---
+        counts = np.bincount(cluster_id, minlength=n_clusters).astype('int64')
         tot_adc = np.bincount(cluster_id, weights=adc2.astype('float64'), minlength=n_clusters)
-
+        
         c_min = np.full(n_clusters, 999999, dtype='int64')
-        c_max = np.full(n_clusters, -1,     dtype='int64')
+        c_max = np.full(n_clusters, -1, dtype='int64')
         np.minimum.at(c_min, cluster_id, ch2)
         np.maximum.at(c_max, cluster_id, ch2)
         spatial_span = c_max - c_min + 1
-
+        
         ts_min = np.full(n_clusters, np.iinfo(np.int64).max, dtype='int64')
-        ts_max = np.full(n_clusters, 0,                       dtype='int64')
+        ts_max = np.full(n_clusters, 0, dtype='int64')
         np.minimum.at(ts_min, cluster_id, ts2)
         np.maximum.at(ts_max, cluster_id, ts2)
         span = ts_max - ts_min
-
-        # cluster_id is monotonically non-decreasing in this (tc2, ch2)-sorted order,
-        # so the first row of each cluster is reachable via searchsorted
+        
         first_idx = np.searchsorted(cluster_id, np.arange(n_clusters), side='left')
         id_out, pulseT_out, prevPT_out = id2[first_idx], pulseT2[first_idx], prevPT2[first_idx]
-
-        valid_mask = (span <= tw_span_cap) & (spatial_span <= max_span) & (tot_adc > 0)
-
-        coords      = cls._calc_position(ch2, ts2, adc2, cluster_id, n_clusters)
+        
+        # --- REJECTION LOGIC ---
+        # 1. Ensure no missing channels exist inside the cluster span
+        no_gaps = (counts == spatial_span)
+        
+        # 2. Combine all validation constraints
+        valid_mask = (
+            (span <= tw_span_cap) & 
+            (spatial_span <= max_span) & 
+            (tot_adc > 0) & 
+            no_gaps  # <-- Rejects [23, 24, 27] completely
+        )
+    
+        coords = cls._calc_position(ch2, ts2, adc2, cluster_id, n_clusters)
         valid_mask &= ~np.isnan(coords)
 
         return {
@@ -664,15 +789,11 @@ class VMMNormalClusterer:
             'ts': ts_min, 'ts_max': ts_max, 'pulseT': pulseT_out, 'prevPT': prevPT_out,
             'coord': coords, 'adc': tot_adc, 'mult': counts, 'span': span, 'id': id_out,
         }
-
+    
     @classmethod
     def cluster(cls, hits, config: dict, time_window_s: float) -> eventsVMMnormal:
-        """
-        Cluster hits into 2D events by independently clustering two planes,
-        then matching them with optimized vectorized one-to-one matching.
-        """
         from lib.colors import INFO, RESET
-        
+
         print(f'{INFO}\nClustering {cls.LABEL} events ... {RESET}', end='')
 
         m = hits.matrix[:hits.fill_count]
@@ -683,73 +804,212 @@ class VMMNormalClusterer:
         max_span0, max_span1, max_gap0, max_gap1 = cls._get_plane_limits(config)
         tw_recursive, tw_span_cap, tw_coincidence = cls._derive_time_windows(time_window_s)
 
-        # Cluster each plane independently
+        # 1. Cluster each plane independently
         p0 = cls._cluster_plane(m[m['plane'] == 0], max_gap0, max_span0, tw_recursive, tw_span_cap)
         p1 = cls._cluster_plane(m[m['plane'] == 1], max_gap1, max_span1, tw_recursive, tw_span_cap)
 
-        # Get valid clusters
+        # 2. Get valid candidate indices per plane
         idx0, idx1 = np.where(p0['valid_mask'])[0], np.where(p1['valid_mask'])[0]
         ts0, ts1   = p0['ts'][idx0], p1['ts'][idx1]
         id0, id1   = p0['id'][idx0], p1['id'][idx1]
 
-        # ===== Vectorized one-to-one plane matching =====
+        # 3. Vectorized one-to-one plane matching
         matched_p0_idx, matched_p1_idx = cls._match_planes_one_to_one_vectorized(
             idx0, idx1, ts0, ts1, id0, id1, tw_coincidence
         )
 
-        # Determine unmatched clusters
-        p0_matched_set = set(matched_p0_idx)
-        p1_matched_set = set(matched_p1_idx)
-        unmatched_p0 = idx0[~np.isin(idx0, list(p0_matched_set))]
-        unmatched_p1 = idx1[~np.isin(idx1, list(p1_matched_set))]
+        # 4. Identify 1D single-plane candidates
+        matched_p0_mask = np.isin(idx0, matched_p0_idx)
+        matched_p1_mask = np.isin(idx1, matched_p1_idx)
 
-        # ===== Vectorized output array population =====
+        unmatched_p0 = idx0[~matched_p0_mask]
+        unmatched_p1 = idx1[~matched_p1_mask]
+        
+        accepted_2d    = len(matched_p0_idx)
+        accepted_1d_p0 = len(unmatched_p0)
+        accepted_1d_p1 = len(unmatched_p1)
+
+        accepted_total = accepted_2d + accepted_1d_p0 + accepted_1d_p1
+
+        n_candidates0 = p0['count']
+        n_candidates1 = p1['count']
+        n_candidates  = n_candidates0 + n_candidates1
+
+        rejected_p0 = np.sum(~p0['valid_mask'])
+        rejected_p1 = np.sum(~p1['valid_mask'])
+        rejected_total = rejected_p0 + rejected_p1
+
+        out = eventsVMMnormal(size=accepted_total)
+        out.durations, out.instrumentIDs = hits.durations.copy(), hits.instrumentIDs.copy()
+
+        if accepted_total == 0:
+            out.stats.update({
+                'n_candidates':    n_candidates,
+                'n_candidates_p0': n_candidates0,
+                'n_candidates_p1': n_candidates1,
+                'n_accepted': 0,
+                'n_accepted_2d': 0,
+                f'n_accepted_1d{cls.PLANE0_TAG}': 0,
+                f'n_accepted_1d{cls.PLANE1_TAG}': 0,
+                'n_rejected': rejected_total,
+                f'n_rejected_1d{cls.PLANE0_TAG}': rejected_p0,
+                f'n_rejected_1d{cls.PLANE1_TAG}': rejected_p1,
+            })
+            return out
+
+        # 5. Populate output array with 2D and 1D single-plane events in chronological order
         output_dict = cls._populate_output_vectorized(
             p0, p1, matched_p0_idx, matched_p1_idx, unmatched_p0, unmatched_p1
         )
 
-        n2d = len(matched_p0_idx)
-        n1d0 = len(unmatched_p0)
-        n1d1 = len(unmatched_p1)
-        total = n2d + n1d0 + n1d1
-
-        out = eventsVMMnormal(size=total)
-        out.durations, out.instrumentIDs = hits.durations.copy(), hits.instrumentIDs.copy()
-        if total == 0:
-            return out
-
-        # Extract output arrays
-        c_id = output_dict['id']
-        c_coord0 = output_dict['coord0']
-        c_coord1 = output_dict['coord1']
-        c_ph0 = output_dict['ph0']
-        c_ph1 = output_dict['ph1']
-        c_mult0 = output_dict['mult0']
-        c_mult1 = output_dict['mult1']
-        c_span = output_dict['span']
-        ts_out = output_dict['ts']
-        pulseT_out = output_dict['pulseT']
-        prevPT_out = output_dict['prevPT']
-
-        timing_src = {'timeStamp': ts_out, 'pulseT': pulseT_out, 'prevPT': prevPT_out}
-        computed = {
-            'ID': c_id, 'coordinate0': c_coord0, 'coordinate1': c_coord1,
-            'pulseHeight0': c_ph0, 'pulseHeight1': c_ph1,
-            'mult0': c_mult0, 'mult1': c_mult1, 'clusterTimeSpan': c_span,
+        timing_src = {
+            'timeStamp': output_dict['ts'],
+            'pulseT': output_dict['pulseT'],
+            'prevPT': output_dict['prevPT']
         }
 
-        n_candidates = p0['count'] + p1['count']
+        computed = {
+            'ID': output_dict['id'],
+            'coordinate0': output_dict['coord0'],
+            'coordinate1': output_dict['coord1'],
+            'pulseHeight0': output_dict['ph0'],
+            'pulseHeight1': output_dict['ph1'],
+            'mult0': output_dict['mult0'],
+            'mult1': output_dict['mult1'],
+            'clusterTimeSpan': output_dict['span'],
+        }
+
         out.stats.update({
-            'n_candidates': n_candidates, 'n_accepted': total, 'n_rejected': n_candidates - total,
-            'n_accepted_2d': n2d,
-            f'n_accepted_1d{cls.PLANE0_TAG}': n1d0,
-            f'n_accepted_1d{cls.PLANE1_TAG}': n1d1,
-            'n_rejected_overflow': 0, 'n_rejected_neighbour': n_candidates - total,
+            'n_candidates':    n_candidates,
+            'n_candidates_p0': n_candidates0,
+            'n_candidates_p1': n_candidates1,
+            'n_accepted': accepted_total,
+            'n_accepted_2d': accepted_2d,
+            f'n_accepted_1d{cls.PLANE0_TAG}': accepted_1d_p0,
+            f'n_accepted_1d{cls.PLANE1_TAG}': accepted_1d_p1,
+            'n_rejected': rejected_total,
+            f'n_rejected_1d{cls.PLANE0_TAG}': rejected_p0,
+            f'n_rejected_1d{cls.PLANE1_TAG}': rejected_p1,
         })
 
         out.absorb(computed, timing_src)
         return out
+    
+    # @classmethod
+    # def cluster(cls, hits, config: dict, time_window_s: float) -> eventsVMMnormal:
+    #     """
+    #     Cluster hits into 2D and 1D events by independently clustering two planes,
+    #     matching coincident 2D events, and retaining valid unmatched 1D clusters
+    #     (wires-only or strips-only).
+    #     """
+    #     from lib.colors import INFO, RESET
 
+    #     print(f'{INFO}\nClustering {cls.LABEL} events ... {RESET}', end='')
+
+    #     m = hits.matrix[:hits.fill_count]
+    #     n = len(m)
+    #     if n == 0:
+    #         return eventsVMMnormal(size=0)
+
+    #     max_span0, max_span1, max_gap0, max_gap1 = cls._get_plane_limits(config)
+    #     tw_recursive, tw_span_cap, tw_coincidence = cls._derive_time_windows(time_window_s)
+
+    #     # 1. Cluster each plane independently
+    #     p0 = cls._cluster_plane(m[m['plane'] == 0], max_gap0, max_span0, tw_recursive, tw_span_cap)
+    #     p1 = cls._cluster_plane(m[m['plane'] == 1], max_gap1, max_span1, tw_recursive, tw_span_cap)
+
+    #     # 2. Get valid candidate indices per plane
+    #     idx0, idx1 = np.where(p0['valid_mask'])[0], np.where(p1['valid_mask'])[0]
+    #     ts0, ts1   = p0['ts'][idx0], p1['ts'][idx1]
+    #     id0, id1   = p0['id'][idx0], p1['id'][idx1]
+
+    #     # 3. Vectorized one-to-one plane matching
+    #     matched_p0_idx, matched_p1_idx = cls._match_planes_one_to_one_vectorized(
+    #         idx0, idx1, ts0, ts1, id0, id1, tw_coincidence
+    #     )
+
+    #     # 4. Identify 1D single-plane candidates (valid candidates that were not matched in 2D)
+    #     matched_p0_mask = np.isin(idx0, matched_p0_idx)
+    #     matched_p1_mask = np.isin(idx1, matched_p1_idx)
+
+    #     unmatched_p0 = idx0[~matched_p0_mask]
+    #     unmatched_p1 = idx1[~matched_p1_mask]
+        
+    #     # 1D accepted counts must be the UNMATCHED valid candidates
+    #     accepted_2d    = len(matched_p0_idx)
+    #     accepted_1d_p0 = len(unmatched_p0)
+    #     accepted_1d_p1 = len(unmatched_p1)
+
+    #     # Total output events: 2D matched pairs + 1D unmatched p0 + 1D unmatched p1
+    #     accepted_total = accepted_2d + accepted_1d_p0 + accepted_1d_p1
+
+    #     # All formed candidates vs. valid candidates
+    #     n_candidates0 = p0['count']
+    #     n_candidates1 = p1['count']
+    #     n_candidates  = n_candidates0 + n_candidates1
+
+    #     # Calculate rejected candidates (those that failed single-plane validity checks)
+    #     rejected_p0 = np.sum(~p0['valid_mask'])
+    #     rejected_p1 = np.sum(~p1['valid_mask'])
+    #     rejected_total = rejected_p0 + rejected_p1
+
+    #     out = eventsVMMnormal(size=accepted_total)
+    #     out.durations, out.instrumentIDs = hits.durations.copy(), hits.instrumentIDs.copy()
+
+    #     if accepted_total == 0:
+    #         out.stats.update({
+    #             'n_candidates':    n_candidates,
+    #             'n_candidates_p0': n_candidates0,
+    #             'n_candidates_p1': n_candidates1,
+    #             'n_accepted': 0,
+    #             'n_accepted_2d': 0,
+    #             f'n_accepted_1d{cls.PLANE0_TAG}': 0,
+    #             f'n_accepted_1d{cls.PLANE1_TAG}': 0,
+    #             'n_rejected': rejected_total,
+    #             f'n_rejected_1d{cls.PLANE0_TAG}': rejected_p0,
+    #             f'n_rejected_1d{cls.PLANE1_TAG}': rejected_p1,
+    #         })
+    #         return out
+
+    #     # 5. Populate output array with 2D matches followed by 1D single-plane events
+    #     output_dict = cls._populate_output_vectorized(
+    #         p0, p1, matched_p0_idx, matched_p1_idx, unmatched_p0, unmatched_p1
+    #     )
+
+    #     # Extract mapped output arrays
+    #     timing_src = {
+    #         'timeStamp': output_dict['ts'],
+    #         'pulseT': output_dict['pulseT'],
+    #         'prevPT': output_dict['prevPT']
+    #     }
+
+    #     computed = {
+    #         'ID': output_dict['id'],
+    #         'coordinate0': output_dict['coord0'],
+    #         'coordinate1': output_dict['coord1'],
+    #         'pulseHeight0': output_dict['ph0'],
+    #         'pulseHeight1': output_dict['ph1'],
+    #         'mult0': output_dict['mult0'],
+    #         'mult1': output_dict['mult1'],
+    #         'clusterTimeSpan': output_dict['span'],
+    #     }
+
+
+    #     out.stats.update({
+    #         'n_candidates':    n_candidates,
+    #         'n_candidates_p0': n_candidates0,
+    #         'n_candidates_p1': n_candidates1,
+    #         'n_accepted': accepted_total,
+    #         'n_accepted_2d': accepted_2d,
+    #         f'n_accepted_1d{cls.PLANE0_TAG}': accepted_1d_p0,
+    #         f'n_accepted_1d{cls.PLANE1_TAG}': accepted_1d_p1,
+    #         'n_rejected': rejected_total,
+    #         f'n_rejected_1d{cls.PLANE0_TAG}': rejected_p0,
+    #         f'n_rejected_1d{cls.PLANE1_TAG}': rejected_p1,
+    #     })
+
+    #     out.absorb(computed, timing_src)
+    #     return out
 
 # =============================================================================
 # NMX Clusterer — inherits the split/match machinery, overrides only the
