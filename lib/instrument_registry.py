@@ -272,12 +272,16 @@ def match_data_stream_with_config(instr_name_from_conf: str, det_type: str, inst
         print(f"\n\t{WARN}File containing data streams {unique_streams} for detector types {unique_types}{RESET}")
         print(f"\t{WARN}analyzed for instrument {instr_name_from_conf} and type {det_type}{RESET}")
     else:
-        raise SkipFileError(
-                f"CONFIGURATION MISMATCH! You are trying to read a file containing data streams "
-                f"{unique_streams} for detector types {unique_types}, but in your config file you "
-                f"have specified instrument {instr_name_from_conf} and type {det_type}"
-            )
-
+        print(
+            f"\n\t{ERR}CONFIGURATION MISMATCH WARNING! File containing data streams "
+            f"{unique_streams} for detector types {unique_types}, but in your config file you "
+            f"have specified instrument {instr_name_from_conf} and type {det_type}{RESET}"
+        )
+        # raise SkipFileError(
+        #         f"CONFIGURATION MISMATCH! You are trying to read a file containing data streams "
+        #         f"{unique_streams} for detector types {unique_types}, but in your config file you "
+        #         f"have specified instrument {instr_name_from_conf} and type {det_type}"
+        #     )
 
 def check_bm_type(geo: np.ndarray, bm_hw: str) -> None:
     """Cross-check the type field of Beam Monitor readouts against configuration targets."""

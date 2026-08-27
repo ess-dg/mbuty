@@ -114,7 +114,7 @@ def validate_instrument_and_detector(config: dict) -> None:
 
     # --- detectorType check
     if det_type not in VALID_DETECTOR_TYPES:
-        print(f"\n\t{ERR}Config File Error ---> Detector type (found {det_type}) can only be either MB, MG or He3 -> check config file! ---> Exiting ... \n{RESET}", end='')
+        print(f"\n\t{ERR}Config File Error ---> Detector type (found {det_type}) can only be either MB, MG, He3, SKADI or NMX -> check config file! ---> Exiting ... \n{RESET}", end='')
         time.sleep(2)
         sys.exit()
 
@@ -147,7 +147,7 @@ def match_instrument_and_detector(det_type,instrument) -> None:
 
     # --- detectorType check
     if det_type not in VALID_DETECTOR_TYPES:
-        print(f"\n\t{ERR}Config File Error ---> Detector type (found {det_type}) can only be either MB, MG or He3 -> check config file! ---> Exiting ... \n{RESET}", end='')
+        print(f"\n\t{ERR}Config File Error ---> Detector type (found {det_type}) can only be either MB, MG, He3, SKADI or NMX -> check config file! ---> Exiting ... \n{RESET}", end='')
         time.sleep(2)
         sys.exit()
 
