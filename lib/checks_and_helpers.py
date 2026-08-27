@@ -7,6 +7,7 @@ Created on Thu Jul  9 11:34:14 2026
 """
 import importlib.metadata
 import sys, time
+
 ###############################################################################
 
 MIN_PYTHON_VERSION = (3, 11) 
