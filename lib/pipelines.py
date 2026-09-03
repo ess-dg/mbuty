@@ -251,7 +251,7 @@ class MBPipeline(BasePipeline):
     def analyze(self) -> None:
         
         if self.check_empty():
-            print("should not do anything else")
+            # print("should not do anything else")
             return
         # Calibrating
         from lib.calibration import VMMCalibrationEngine
