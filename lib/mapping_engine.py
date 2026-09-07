@@ -979,9 +979,9 @@ class SKADIMapper:
         r3 = valid_mask & (rotation == 3)
 
         adj_row[r0], adj_col[r0] = row[r0],           col[r0]
-        adj_row[r1], adj_col[r1] = col[r1],           pix - 1 - row[r1]
-        adj_row[r2], adj_col[r2] = pix - 1 - row[r2], pix - 1 - col[r2]
-        adj_row[r3], adj_col[r3] = pix - 1 - col[r3], row[r3]
+        adj_row[r1], adj_col[r1] = col[r1],           pix - 1 - row[r1]     # clockwise 90deg 
+        adj_row[r2], adj_col[r2] = pix - 1 - row[r2], pix - 1 - col[r2]     # clockwise 180deg 
+        adj_row[r3], adj_col[r3] = pix - 1 - col[r3], row[r3]               # clockwise 270deg 
 
         return adj_row, adj_col
 

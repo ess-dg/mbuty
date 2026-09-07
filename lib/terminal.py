@@ -79,7 +79,7 @@ def syncData(sourcePath, destPath): # Removed 'verbose' parameter
     # Always include --progress for detailed output
     # Using --info=progress2 is generally better for rsync 3.1+
     # If your rsync is older, you might need to revert to just '--progress'
-    base_cmd = ["rsync", "-av", "--progress"] # Always print progress
+    base_cmd = ["rsync", "-av", "--progress", "-e", "ssh -x"] # Always print progress
 
     # Handle Windows/WSL specific command prefix
     if IS_WINDOWS:
