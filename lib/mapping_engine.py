@@ -227,7 +227,10 @@ class MBMapper(DetectorMapper):
         """Channel coordinate transformation."""
   
         n = len(src)
+        
+        # asic, channel = src['asic'], src['channel'] - 20 #use this line for MRF timing tests 
         asic, channel = src['asic'], src['channel']
+        
         is_wire  = valid_mask & (asic == 1) & (channel >= 16) & (channel <= 47)
         is_strip = valid_mask & (asic == 0) & (channel >= 0) & (channel <= 63)
 
