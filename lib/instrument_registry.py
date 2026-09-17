@@ -268,9 +268,19 @@ def match_data_stream_with_config(instr_name_from_conf: str, det_type: str, inst
     unique_streams = ', '.join(all_streams)
     unique_types   = ', '.join(all_types)
 
+    # Check if the stream contains ONLY the Beam Monitor
+    bm_only_flag = (all_types == ['BM'])
+    is_empty     = not unique_streams or not unique_types
+
     if found_flag:
         print(f"\n\t{WARN}File containing data streams {unique_streams} for detector types {unique_types}{RESET}")
         print(f"\t{WARN}analyzed for instrument {instr_name_from_conf} and type {det_type}{RESET}")
+    elif bm_only_flag:
+        print(f"\n\t{WARN}WARNING: File contains ONLY Beam Monitor (BM) data stream.{RESET}")
+        print(f"\t{WARN}No main detector data stream ({det_type}) found for instrument {instr_name_from_conf} as specified in the config.{RESET}")
+    elif is_empty:
+        print(f"\n\t{ERR}ERROR: No data streams or detector types detected in file.{RESET}")
+        print(f"\t{WARN}Expected instrument {instr_name_from_conf} with detector type {det_type} in config.{RESET}")    
     else:
         print(
             f"\n\t{ERR}CONFIGURATION MISMATCH WARNING! File containing data streams "
