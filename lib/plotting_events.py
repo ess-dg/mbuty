@@ -102,10 +102,10 @@ class VMMEventsPlotter(BaseEventsPlotter):
             self.sel_full_coinc = coord0_valid & coord1_valid
 
             if self.coincidence_ws_onoff:
-                print(f'\t building histograms ... coincidence {self.COINC_LABEL} ON for ToF and Lambda ...')
+                print(f'building histograms ... coincidence {self.COINC_LABEL} ON for ToF and Lambda ...')
                 self.selc = self.sel_full_coinc
             else:
-                print(f'\t building histograms ... coincidence {self.COINC_LABEL} OFF for ToF and Lambda ...')
+                print(f'building histograms ... coincidence {self.COINC_LABEL} OFF for ToF and Lambda ...')
                 self.selc = (self.ACCEPT_1D_X & coord0_valid) | (self.ACCEPT_1D_Y & coord1_valid)
 
     def _get_x_channel(self, global_x_coord: np.ndarray) -> np.ndarray:

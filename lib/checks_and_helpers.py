@@ -74,7 +74,7 @@ def checkPackageKafka():
 class timing():
     def __init__(self):
         self.start_time = time.time()
-        self.last_lap   =  time.time()
+        self.last_lap   = time.time()
 
     def restart(self):
         self.start_time = time.time()
@@ -87,7 +87,7 @@ class timing():
            
     def stop(self):       
            stop_time = time.time() - self.start_time
-           print('\nCompleted --> elapsed time: %.2f s' % stop_time)
+           print('\nAnalysis completed in %.2f s' % stop_time)
            
         
         

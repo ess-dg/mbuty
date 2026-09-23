@@ -319,13 +319,13 @@ class parameters():
 
     def validateHistNotification(self):
         if self.plotting.plottingInSections and self.plotting.histogOutBounds:
-            print('\n\t histogram outBounds param set as True (Events out of bounds stored in first and last bin) -> overridden with False since plottingInSections is True')
+            print('\nhistogram outBounds param set as True (Events out of bounds stored in first and last bin) -> overridden with False since plottingInSections is True')
             self.plotting.histogOutBounds = False
 
         elif self.plotting.histogOutBounds:
-            print('\n\t histogram outBounds param set as True (Events out of bounds stored in first and last bin)')
+            print('\nhistogram outBounds param set as True (Events out of bounds stored in first and last bin)')
         else:
-            print('\n\t histogram outBounds param set as False (Events out of bounds not stored in any bin)')
+            print('\nhistogram outBounds param set as False (Events out of bounds not stored in any bin)')
             
  
       

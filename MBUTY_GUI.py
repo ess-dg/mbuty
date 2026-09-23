@@ -538,11 +538,11 @@ class MBUTYMainWindow(QMainWindow):
 
         def backend_work():
             try:
-                print("\nInitializing Master Ingestion Pipeline...\n")
+                # print("\nInitializing Master Ingestion Pipeline...\n")
                 # Move instantiation inside thread so any config/validation errors happen here
                 backend = MBUTYOrchestrator(parameters, plottingOnOff="gui", main_thread_queue=self.dispatcher)
                 
-                print("\nRunning Master Ingestion Pipeline...\n")
+                # print("\nRunning Master Ingestion Pipeline...\n")
                 backend.run_pipeline()
                 print("\nAnalysis complete. Dispatching plots to main thread...")
 

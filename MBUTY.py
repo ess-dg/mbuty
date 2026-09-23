@@ -44,13 +44,11 @@ class MBUTYOrchestrator():
     """
     def __init__(self, parameters, plottingOnOff: str = 'on', main_thread_queue = None):
         self.main_thread_queue = main_thread_queue
-        self.plottingOnOff          = plottingOnOff
+        self.plottingOnOff     = plottingOnOff
         # NOTE: plot split out of exectute for run gui 
  
         self.parameters = parameters
-        # self.parameters.validate()
-        
-        self.timing  = checks.timing()
+        self.timing     = checks.timing()
  
         user_name = os.environ.get('USER', os.environ.get('USERNAME', 'User'))
         print('----------------------------------------------------------------------')
@@ -135,6 +133,9 @@ class MBUTYOrchestrator():
                     self._process_individual_files(file_resolver, PcapngFileReader)
  
                 self._report_skipped_files()
+                
+                self.timing.stop()
+                print('----------------------------------------------------------------------')
                 
         except KeyboardInterrupt:
             print("\nPipeline interrupted by user or window closure.")
@@ -282,10 +283,17 @@ class MBUTYOrchestrator():
         Extracted plotting logic: dashboard or standard plots, with user input to close.
         Called only in combined mode (plottingOnOff='on' + combineFiles=True).
         """
+        
+        
+        
         dashboard_shown = False
         if self.parameters.plotting.useDashboard:
             try:
                 from lib.mbuty_dashboard import launch_dashboard
+
+                self.timing.stop()
+                print('----------------------------------------------------------------------')
+                
                 self._dashboard = launch_dashboard(self.detector_pipeline, self.bm_pipeline, self.parameters, theme_mode='light')
                 dashboard_shown = True
             except Exception as e:
@@ -305,6 +313,9 @@ class MBUTYOrchestrator():
             input(f"{INFO}\nPress Enter to close all figures...{RESET}")
             plt.close('all')
  
+
+        
+###############################################################################
     
 ###############################################################################
 ###############################################################################
@@ -490,10 +501,10 @@ if __name__ == '__main__':
     ### ON/OFF
     parameters.fileManagement.saveReducedFileONOFF = False   
     
-    parameters.fileManagement.saveEventsONOFF = True
+    parameters.fileManagement.saveEventsONOFF   = True
     parameters.fileManagement.saveReadoutsONOFF = False
-    parameters.fileManagement.saveHitsONOFF = False
-    parameters.fileManagement.combineFiles = True
+    parameters.fileManagement.saveHitsONOFF     = False
+    parameters.fileManagement.combineFiles      = True
     
     parameters.fileManagement.saveReducedPath = parameters.fileManagement.currentPath+'reduced/'
 
@@ -513,12 +524,12 @@ if __name__ == '__main__':
     parameters.timeSettings.sortReadoutsByTimeStampsONOFF = True
 
     ### time stamp is time HI + time LO or if fine corrected with TDC 
-    parameters.timeSettings.timeResolutionType = 'fine'
+    parameters.timeSettings.timeResolutionType   = 'fine'
     # parameters.timeSettings.timeResolutionType = 'coarse'
 
     ### timeWindow to search for clusters, timeWindow is max time between events in candidate cluster 
     ### and timeWindow/2 is the recursive time distance between adjacent hits
-    parameters.dataReduction.timeWindow = 0.1e-6
+    parameters.dataReduction.timeWindow = 0.13e-6
 
     ### 'OFF', 'fromFile' = File With Threhsolds Loaded, 'userDefined' = User defines the Thresholds in an array softTh
     parameters.dataReduction.softThresholdType = 'off' 
@@ -556,12 +567,12 @@ if __name__ == '__main__':
     parameters.wavelength.distance  = 32000
 
     ##ON/OFF
-    parameters.wavelength.calculateLambda = True
+    parameters.wavelength.calculateLambda = False
 
     ### ON/OFF plot X vs Lambda 2D plot
-    parameters.wavelength.plotXLambda     = True
+    parameters.wavelength.plotXLambda     = False
     ### ON/OFF integrated over single cassettes
-    parameters.wavelength.plotLambdaDistr = True
+    parameters.wavelength.plotLambdaDistr = False
 
     parameters.wavelength.lambdaBins  = 128
     parameters.wavelength.lambdaRange = [1, 16]   #A
@@ -569,7 +580,7 @@ if __name__ == '__main__':
     parameters.wavelength.chopperPeriod = 0.12 #s (NOTE: only matters if multipleFramesPerRest > 1)
 
     ### if chopper has two openings or more per reset of ToF
-    parameters.wavelength.multipleFramePerReset = True  #ON/OFF (this only affects the lambda calculation)
+    parameters.wavelength.multipleFramePerReset = False  #ON/OFF (this only affects the lambda calculation)
     parameters.wavelength.numOfBunchesPerPulse  = 2
     parameters.wavelength.lambdaMIN             = 2.5     #A
 
@@ -607,7 +618,7 @@ if __name__ == '__main__':
     parameters.plotting.bareReadoutsCalculation = False
 
     ###############     
-    parameters.plotting.useDashboard = True
+    parameters.plotting.useDashboard            = True
     ###############   
     
     ###############   
@@ -618,23 +629,23 @@ if __name__ == '__main__':
     ###############     
     ### raw plots
     parameters.plotting.plotRawReadouts         = True
-    parameters.plotting.plotReadoutsTimeStamps  = True
-    parameters.plotting.plotADCvsCh             = True 
-    parameters.plotting.plotADCvsChlog          = True 
-    parameters.plotting.plotChopperResets       = True 
+    parameters.plotting.plotReadoutsTimeStamps  = False
+    parameters.plotting.plotADCvsCh             = False 
+    parameters.plotting.plotADCvsChlog          = False 
+    parameters.plotting.plotChopperResets       = False 
 
-    parameters.plotting.plotRawHits             = True
-    parameters.plotting.plotHitsTimeStamps      = True
-    parameters.plotting.plotHitsTimeStampsVSChannels = True
+    parameters.plotting.plotRawHits             = False
+    parameters.plotting.plotHitsTimeStamps      = False
+    parameters.plotting.plotHitsTimeStampsVSChannels = False
 
     ###############
     ### time between events 
-    parameters.plotting.plotTimeBetwEv    = True
+    parameters.plotting.plotTimeBetwEv    = False
     parameters.plotting.timeBetwEvBin     = 1e-6  # s
     
     ###############
     ### ToF plot integrated over individual cassette, one per cassette
-    parameters.plotting.plotToFDistr    = True
+    parameters.plotting.plotToFDistr    = False
 
     parameters.plotting.ToFrange        = 0.12    # s
     parameters.plotting.ToFbinning      = 100e-6 # s
@@ -642,7 +653,7 @@ if __name__ == '__main__':
     parameters.plotting.ToFGate         = False
     parameters.plotting.ToFGateRange    = [0.02,0.025]   # s
          
-    parameters.plotting.plotMultiplicity = True 
+    parameters.plotting.plotMultiplicity = False 
 
     ### 'W.max-S.max' is max max,  'W.cog-S.cog' is CoG CoG, 'W.max-S.cog' is wires max and strips CoG 
     parameters.plotting.positionReconstruction = 'W.max-S.cog'
@@ -650,17 +661,16 @@ if __name__ == '__main__':
     # parameters.plotting.positionReconstruction = 'W.cog-S.cog'
 
     ### if True plot XY and XtoF plot in absolute unit (mm), if False plot in wire and strip ch no.
-    parameters.plotting.plotABSunits = True
+    parameters.plotting.plotABSunits = False
      
     ### plot XY and XToF in log scale 
     parameters.plotting.plotIMGlog   = False
 
     ### ON/OFF, if  Tof  and Lambdaplot needs to include only events with strip present (2D) is True otherwise all events also without strip set to False
-    
     parameters.plotting.coincidenceWS_ONOFF = True
 
-    ### ON/OFF, if  invalid ToFs Tofare included in the plots or removed from events 
-    parameters.plotting.removeInvalidToFs   = False
+    ### ON/OFF, if  invalid ToFs Tof are included in the plots or removed from events 
+    parameters.plotting.removeInvalidToFs   = True
 
     ### histogram outBounds param set as True as default (Events out of bounds stored in first and last bin)
     parameters.plotting.histogOutBounds = True
@@ -669,7 +679,7 @@ if __name__ == '__main__':
     ### PHS
 
     ### ON/OFF PHS per channel and global
-    parameters.pulseHeigthSpect.plotPHS = True
+    parameters.pulseHeigthSpect.plotPHS    = True
 
     ### plot PHS in log scale 
     parameters.pulseHeigthSpect.plotPHSlog = False
@@ -678,7 +688,7 @@ if __name__ == '__main__':
     parameters.pulseHeigthSpect.maxEnerg   = 1700
 
     ### plot the PHS correaltion wires vs strips
-    parameters.pulseHeigthSpect.plotPHScorrelation = True
+    parameters.pulseHeigthSpect.plotPHScorrelation = False
 
     ###############################################################################
     ###############################################################################
