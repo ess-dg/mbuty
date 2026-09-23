@@ -3,8 +3,10 @@
 """
 Created on Fri Sep  3 11:34:33 2021
 
-@author: francescopiscitelli
+@authors: Francesco Piscitelli
 """
+
+###############################################################################
 
 import numpy as np
 import os
@@ -16,9 +18,7 @@ if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
     
 from lib.colors import INFO, OK, WARN, ERR, RESET
-
-
-           
+       
 ###############################################################################
 
 class dumpSettings():

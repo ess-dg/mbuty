@@ -1,10 +1,16 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 """
 plotting_base.py
+
+@authors: Francesco Piscitelli, Sheila Monera Cabarique
 
 Shared plotting utilities and the common BasePlotter scaffolding used by
 every concrete plotter module (plotting_readouts.py, plotting_hits.py,
 plotting_events.py).
 """
+###############################################################################
 
 from __future__ import annotations
 
@@ -21,6 +27,9 @@ if _workspace not in sys.path:
 from lib.histograms import Histogrammer
 from lib.colors import WARN, RESET
 
+###############################################################################
+###############################################################################
+###############################################################################
 
 # ============================================================================
 # Shared utilities

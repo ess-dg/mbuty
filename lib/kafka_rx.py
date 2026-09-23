@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+kafka_rx.py
+
+@authors: Francesco Piscitelli, Sheila Monera Cabarique
+"""
+###############################################################################
 import time
 import os
 import sys

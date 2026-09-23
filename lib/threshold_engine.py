@@ -3,7 +3,8 @@
 """
 threshold_engine.py
 Created on Thu July 9 2026
-@author: Sheila Monera Cabarique
+
+@authors: Francesco Piscitelli, Sheila Monera Cabarique
 --------------------
 Software (pulse-height) threshold engine.
 
@@ -12,6 +13,9 @@ does not exceed the bound for their channel are rejected. Thresholds are
 defined per physical unit (cassette / column / tube, i.e. matrix['ID'])
 and per local channel within that unit.
 """
+
+###############################################################################
+
 import os, sys
 import numpy as np
 import pandas as pd
@@ -22,6 +26,10 @@ if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
 
 from lib.colors import INFO, WARN, ERR, RESET, OK
+
+###############################################################################
+###############################################################################
+###############################################################################
 
 # =============================================================================
 # 'ch0' refers to the channel selector derived from coordinate0 (wires),
@@ -37,6 +45,7 @@ from lib.colors import INFO, WARN, ERR, RESET, OK
 # per-channel thresholds, so they don't share the ThresholdTable machinery.
 # =============================================================================
 
+###############################################################################
 
 def _read_threshold_file(filepath: str):
     """Read a .csv or .xlsx threshold file into a DataFrame, or None if missing."""

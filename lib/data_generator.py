@@ -3,12 +3,12 @@
 """
 Created on Thu Aug 20 21:21:39 2026
 
-@author: francescopiscitelli
+@authors: Francesco Piscitelli
 """
-
+###############################################################################
 from lib.container_hits import hitsVMMnormal
 
-
+###############################################################################
 def hits_gen():
     
     n = 14

@@ -3,6 +3,8 @@
 """
 libReducedFileH5.py
 
+@authors: Francesco Piscitelli, Sheila Monera Cabarique
+
 Save/read the "reduced data" HDF5 file produced after clustering.
 
 -------------------------------------------------------------------------
@@ -41,6 +43,8 @@ FILE LAYOUT
 
 """
 
+###############################################################################
+
 import os
 import re
 import sys
@@ -56,7 +60,8 @@ if _workspace not in sys.path:
 from lib.colors import INFO, OK, WARN, ERR, RESET
 
 
-
+###############################################################################
+###############################################################################
 ###############################################################################
 
 def prepareReducedFileBaseName(fileNameList):

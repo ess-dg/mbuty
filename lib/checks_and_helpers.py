@@ -3,8 +3,9 @@
 """
 Created on Thu Jul  9 11:34:14 2026
 
-@author: francescopiscitelli
+@authors: Francesco Piscitelli
 """
+###############################################################################
 import importlib.metadata
 import sys, time
 

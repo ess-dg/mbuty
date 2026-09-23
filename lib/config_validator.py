@@ -3,7 +3,7 @@
 """
 config_validator.py
 
-@author: Sheila Monera Cabarique
+@authors: Francesco Piscitelli, Sheila Monera Cabarique
 --------------------
 Upfront validation for raw JSON config dicts before data ingestion.
 
@@ -15,7 +15,7 @@ duplicate the post-read stream checks in `lib/instrument_registry.py`
 New config uses lowerCamelCase keys throughout (e.g. `detectorType`, `topology`, `ring`).
 Coloring applied via `lib/colors.py` (WARN / ERR / INFO / OK / RESET).
 """
-
+###############################################################################
 import sys
 import time
 import os
@@ -23,7 +23,7 @@ import numpy as np
 from pathlib import Path
 import json
 
-
+###############################################################################
 # =============================================================================
 # RUNTIME PATH BOOTSTRAP (Ensures absolute imports always work)
 # =============================================================================

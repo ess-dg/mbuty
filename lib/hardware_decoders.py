@@ -3,10 +3,12 @@
 """
 hardware_decoders.py
 
-@author: Sheila Monera Cabarique
+@authors: Francesco Piscitelli, Sheila Monera Cabarique
 --------------------
 Bit-level payload decoders for ESS detector electronics including VMM, R5560, SKADI, and beam monitors.
 """
+###############################################################################
+
 import numpy as np
 import sys, os
 # =============================================================================
@@ -19,6 +21,7 @@ if _workspace not in sys.path:
 from lib.instrument_registry import get_readout_spec
 
 # =============================================================================
+###############################################################################
 
 class BaseHardwareDecoder:
     """

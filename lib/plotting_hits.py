@@ -1,9 +1,14 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 """
 plotting_hits.py
 
+@authors: Francesco Piscitelli, Sheila Monera Cabarique
+
 Hit-level (post-mapping) diagnostic plots for the MBUTY pipeline.
 """
-
+###############################################################################
 import numpy as np
 import sys, os
 # =============================================================================
@@ -14,7 +19,7 @@ if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
 from lib.colors import WARN, RESET
 from lib.plotting_base import PlotGrid, BasePlotter, log_scale_norm
-
+###############################################################################
 
 # ============================================================================
 # Detector-agnostic base

@@ -3,7 +3,7 @@
 """
 calibration.py
 
-@author: Sheila Monera Cabarique
+@authors: Francesco Piscitelli, Sheila Monera Cabarique
 ==============
 Self-contained VMM3A ADC/TDC calibration engine for MB/MG detector readouts.
 
@@ -28,14 +28,14 @@ Once the legacy format is fully retired, delete everything marked
 _parse_hybrid_id_legacy, and the 'legacy' branch in _detect_calib_file_format)
 and this file collapses to serial-only resolution.
 """
-
+###############################################################################
 from __future__ import annotations
 import json
 import os
 import sys
 from dataclasses import dataclass, field
 import numpy as np
-
+###############################################################################
 # =============================================================================
 # RUNTIME PATH BOOTSTRAP
 # =============================================================================

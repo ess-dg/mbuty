@@ -3,7 +3,7 @@
 """
 pipelines.py
 
-@author: Sheila Monera Cabarique
+@authors: Francesco Piscitelli, Sheila Monera Cabarique
 ============
 Object-Oriented Pipeline Tracks for ESS Neutron Detectors.
 
@@ -50,6 +50,7 @@ Each pipeline lazily imports the mapper/clusterer/plotter modules it
 actually needs, inside analyze()/build_plotters(), so an inactive pipeline
 never pays for imports it doesn't use.
 """
+###############################################################################
 
 import os
 import sys
@@ -68,6 +69,11 @@ from lib.colors import INFO, WARN, ERR, RESET
 def _chunk(seq: list, size: int) -> list:
     size = max(1, int(size))
     return [seq[i:i + size] for i in range(0, len(seq), size)]
+
+###############################################################################
+###############################################################################
+###############################################################################
+
 # =============================================================================
 # Detector pipelines (MB / MB-clustered / MG / He3 / SKADI)
 # =============================================================================

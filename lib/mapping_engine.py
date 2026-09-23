@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 """
 mapping_engine.py — Vectorized ESS neutron detector geometry mapper.
 
-@author: Sheila Monera Cabarique
+@authors: Francesco Piscitelli, Sheila Monera Cabarique
 """
 """
 Pipeline position: readouts → [mapping_engine] → hits
@@ -40,6 +42,8 @@ Dispatcher
     mon, found = MonitorMapper.map(readouts_vmm_normal, config)
 """
 
+###############################################################################
+
 import numpy as np
 import os
 import sys
@@ -64,6 +68,9 @@ from lib.container_events import (
     eventsSKADI,
 )
 
+###############################################################################
+###############################################################################
+###############################################################################
 
 # =============================================================================
 # MG hardware iteration constant

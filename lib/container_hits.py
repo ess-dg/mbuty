@@ -1,16 +1,19 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 """
 container_hits.py
 
-@author: Sheila Monera Cabarique
+@authors: Francesco Piscitelli, Sheila Monera Cabarique
 ==============
 Data containers for the mapped hits of VMM normal/clustered, 
  and Helium-3 gas tubes
 """
-
+###############################################################################
 import numpy as np
 import pandas as pd
 
-
+###############################################################################
 class hits():
     """
     Abstract base class for all detector hits.

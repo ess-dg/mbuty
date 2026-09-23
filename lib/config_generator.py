@@ -3,9 +3,9 @@
 """
 Created on Thu Jun 19 11:59:32 2025
 
-@author: francescopiscitelli
+@authors: Francesco Piscitelli
 """
-
+###############################################################################
 import json
 import os
 import sys

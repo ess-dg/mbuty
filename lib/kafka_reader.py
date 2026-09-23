@@ -3,7 +3,7 @@
 """
 kafka_reader.py
 
-@author: Sheila Monera Cabarique
+@authors: Francesco Piscitelli, Sheila Monera Cabarique
 ===============
 Kafka stream ingestion for ESS detector data.
 
@@ -12,7 +12,7 @@ same container layout, same run() entry point. The only difference is how raw
 ESS packet bytes are obtained: polled from a Kafka broker (or the bytesGen
 testing simulator) rather than read from a pcapng file.
 """
-
+###############################################################################
 import sys
 import time
 import numpy as np
@@ -35,6 +35,8 @@ from lib.instrument_registry import (
     check_valid_data_stream,
     match_data_stream_with_config,
 )
+
+###############################################################################
 
 # =============================================================================
 # Testing simulator

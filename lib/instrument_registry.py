@@ -2,6 +2,9 @@
 # -*- coding: utf-8 -*-
 """
 instrument_registry.py
+
+@authors: Francesco Piscitelli, Sheila Monera Cabarique
+
 -----------------------
 Central registry of ESS instrument identifiers and associated hardware metadata.
 
@@ -9,7 +12,7 @@ Replaces the original checkInstrumentID and checkBMtype classes. All state and
 mutation has been removed; the registry is a module-level constant and all logic
 is in plain functions.
 """
-
+###############################################################################
 import sys
 import os
 import numpy as np
@@ -21,6 +24,10 @@ if _workspace not in sys.path:
     
 
 from lib.colors import WARN, ERR, RESET
+
+###############################################################################
+###############################################################################
+###############################################################################
 
 # =============================================================================
 # Registry
@@ -51,6 +58,9 @@ INSTRUMENTS = {
     96:  {'name': 'DREAM',    'hex': '0x60', 'type': 'JAL',   'hw': 'CPIX',     'bytes': 20, 'supported': False, 'reader_supported': False},
 }
 
+###############################################################################
+###############################################################################
+###############################################################################
 
 # =============================================================================
 # Core lookup functions

@@ -3,9 +3,9 @@
 """
 Created on Thu Sep  2 13:15:57 2021
 
-@author: francescopiscitelli
+@authors: Francesco Piscitelli
 """
-
+###############################################################################
 import numpy as np
 
 import time 

@@ -1,12 +1,16 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 """
 mbuty_dashboard.py
 
-@author: Sheila Monera Cabarique
+@authors: Francesco Piscitelli, Sheila Monera Cabarique
 ----------------------------------
 PySide6 interactive dashboard shell providing tabular data 
 views, sorted Qt models, and live matplotlib plotting panes 
 for MBUTY analysis pipelines.
 """
+###############################################################################
 
 from __future__ import annotations
 
@@ -39,9 +43,16 @@ from matplotlib.figure import Figure
 # ThemedNavigationToolbar is shared across the plotting paths, so it
 # lives centrally in GUI/theme.py rather than here.
 from GUI.theme import ThemedNavigationToolbar
+
+
 # --------------------------------------------------------------------------
 # Data source interface — implemented by the real pipeline, not by this file
 # --------------------------------------------------------------------------
+
+
+###############################################################################
+###############################################################################
+###############################################################################
 
 class DashboardDataSource:
     """Contract the dashboard shell relies on. No implementation here touches

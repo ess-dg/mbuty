@@ -1,8 +1,14 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 """
 plotting_readouts.py
 
+@authors: Francesco Piscitelli, Sheila Monera Cabarique
+
 Readout-level diagnostic plots for the MBUTY pipeline. 
 """
+###############################################################################
 
 import numpy as np
 import sys, os
@@ -15,6 +21,7 @@ if _workspace not in sys.path:
 from lib.colors import WARN, RESET
 from lib.plotting_base import PlotGrid, BasePlotter, log_scale_norm, fg_color
 
+###############################################################################
 
 # ============================================================================
 # Detector-agnostic base

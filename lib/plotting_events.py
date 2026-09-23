@@ -1,9 +1,14 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 """
 plotting_events.py
 
+@authors: Francesco Piscitelli, Sheila Monera Cabarique
+
 Event-level (post-clustering) physics plots for the MBUTY pipeline. 
 """
-
+###############################################################################
 import time
 import sys
 import os
@@ -21,6 +26,10 @@ if _workspace not in sys.path:
 from lib.colors import WARN, RESET
 from lib.histograms import Histogrammer
 from lib.plotting_base import PlotGrid, BasePlotter, log_scale_norm, _safe_colorbar, fg_color
+
+###############################################################################
+###############################################################################
+###############################################################################
 
 # ============================================================================
 # Detector-agnostic base

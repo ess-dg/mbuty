@@ -1,8 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 """
 histograms.py
 
 
-@author: Sheila Monera Cabarique, francescopiscitelli
+@authors: Francesco Piscitelli, Sheila Monera Cabarique
 --------------------
 Vectorized histogramming engine and axis-construction classes for the MBUTY
 plotting stage. Replaces libHistograms.py.
@@ -16,7 +19,7 @@ Architectural notes
   coordinates) are supplied by build_specific_axes() overrides in concrete
   subclasses (e.g. VMMAxisSet).
 """
-
+###############################################################################
 import numpy as np
 import sys
 import os
@@ -30,7 +33,7 @@ if _workspace not in sys.path:
 from lib.colors import INFO, RESET, WARN, ERR, OK
 
 
-
+###############################################################################
 # ============================================================================
 # Axis
 # ============================================================================
