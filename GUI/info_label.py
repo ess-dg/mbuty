@@ -14,6 +14,10 @@ changes.
 """
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QWidget, QHBoxLayout, QLabel, QToolButton, QSizePolicy
+# from PyQt5.QtGui import QCursor
+
+from PyQt5.QtWidgets import QMessageBox
+
 
 from . import theme
 
@@ -52,13 +56,32 @@ class InfoLabel(QWidget):
             self.info_btn = self._make_info_button(info)
             layout.addWidget(self.info_btn, alignment=Qt.AlignTop)
 
+    # def _make_info_button(self, info):
+    #     btn = QToolButton()
+    #     btn.setText("(i)")
+    #     btn.setFixedSize(theme.ICON_BUTTON_SIZE, theme.ICON_BUTTON_SIZE)
+    #     btn.setCursor(Qt.PointingHandCursor)
+    #     btn.setToolTip(info)
+    #     btn.setFocusPolicy(Qt.NoFocus)
+        
+    #     # Show tooltip instantly right at the button on mouse click
+    #     btn.clicked.connect(lambda: QToolTip.showText(QCursor.pos(), info, btn))
+    
+    #     return btn
+    
     def _make_info_button(self, info):
         btn = QToolButton()
         btn.setText("(i)")
         btn.setFixedSize(theme.ICON_BUTTON_SIZE, theme.ICON_BUTTON_SIZE)
         btn.setCursor(Qt.PointingHandCursor)
+    
+        # Hover tooltip (works on mouse hover after ~1s pause)
         btn.setToolTip(info)
         btn.setFocusPolicy(Qt.NoFocus)
+    
+        # Show a message popup when clicked
+        btn.clicked.connect(lambda: QMessageBox.information(self, "Info", info))
+
         return btn
 
     def set_text(self, text):
