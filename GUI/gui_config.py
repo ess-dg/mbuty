@@ -190,7 +190,7 @@ config = {
         "parameters.dumpSettings.interface_selection": {
             "label": "Network Interface",
             "type": "radio",
-            "options": ["ens2np0", "ens2", "ens1f0np0","enp5s0np0","custom"],
+            "options": ["ens2np0", "ens2", "ens1f0np0","enp5s0np0","ens2f0","custom"],
             "default": "ens2np0",
             "dependsOn": ("parameters.acqMode", ["pcap-local", "pcap-local-overwrite"]),
             "info": "Used for acqMode = pcap-local, pcap-local-overwrite",
