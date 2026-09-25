@@ -668,3 +668,60 @@ class readoutsSKADI(readouts):
         df = pd.DataFrame(active_data[columns_to_extract])
 
         return df
+    
+ 
+    def clean_and_sort(self, parameters=None) -> None:
+        """Remove invalid operation mode and flag combinations for skadi."""
+        if self.fill_count == 0:
+            return
+
+        flags    = self.matrix["flag"]
+        op_modes = self.matrix["opMode"]
+ 
+        # Condition 1: Valid if (opMode == 0 AND flag == 0)
+        cond1 = (op_modes == 0) & (flags == 0)
+    
+        # Condition 2: Valid if ((opMode == 1 OR opMode == 2) AND flag == 2)
+        cond2 = np.isin(op_modes, [1, 2]) & (flags == 2)
+    
+        # Valid rows are True, invalid rows are False
+        mask = cond1 | cond2
+    
+        total_readouts = len(self.matrix)
+        valid_qty      = int(np.sum(mask))
+        removed_qty    = total_readouts - valid_qty
+    
+        # Apply mask filtering to keep only valid rows
+        self.matrix = self.matrix[mask]
+        self.fill_count = valid_qty
+    
+        # Warn ONLY if there were invalid rows (i.e. mask contained False values)
+        if removed_qty > 0:
+            # Determine unique operation modes involved for logging clarity
+            unique_modes = np.unique(op_modes)
+            mode_str = (
+                ", ".join(map(str, unique_modes))
+                if len(unique_modes) > 1
+                else str(unique_modes[0])
+            )
+    
+            print(
+                f"\n\t{WARN}WARNING: Found {removed_qty} invalid readout(s) matching "
+                f"mode {mode_str} with mismatched flags.{RESET}",
+                end="",
+            )
+    
+            time.sleep(1)
+    
+            print(f" --> removing invalid data from readouts ...")
+            print(
+                f"Removed {removed_qty} invalid readout(s) --> "
+                f"readouts left: {self.fill_count}\n"
+            )
+    
+        # Call parent class clean_and_sort if required
+        super().clean_and_sort(parameters)
+            
+            
+        
+   

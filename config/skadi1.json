@@ -1,0 +1,28 @@
+{
+    "detectorName": "SKADI1",
+    "detectorType": "SKADI",
+    "instrumentName": "SKADI",
+    "units": 1,
+    "orientation": "horizontal",
+    "topology": [
+        {
+            "ID": 1090,
+            "IP": 100,
+            "rotation": 0
+        }
+    ],
+    "tilesPerRow": 10,
+    "pix": 16,
+    "pix_size_mm": 5,
+    "gapX_mm": 4,
+    "gapY_mm": 4,
+    "monitor": [
+        {
+            "ID": 99,
+            "hardwareType": "generic",
+            "connectionType": "ring",
+            "ring": 11,
+            "channel": 0
+        }
+    ]
+}

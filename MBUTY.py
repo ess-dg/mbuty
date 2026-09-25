@@ -338,7 +338,7 @@ if __name__ == '__main__':
     configFileName  = "AMOR.json"
     # configFileName  = "clustered.json"
     
-    # configFileName  = "skadi48.json"
+    # configFileName  = "skadi1.json"
     # configFileName  = "skadi_full.json"
     
     # configFileName  = "MGtestVessels2col.json"
