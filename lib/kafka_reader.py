@@ -294,8 +294,8 @@ if __name__ == '__main__':
 
     # Minimal stub — only attributes KafkaReader / BaseReader reads
     parameters = SimpleNamespace(
-        clockTicks     = SimpleNamespace(NSperClockTick      = 11.356860963629653),
-        timeSettings    = SimpleNamespace(timeResolutionType  = 'coarse'),
+        clockTicks     = SimpleNamespace(NSperClockTick      = 11.356861479542839),
+        timeSettings   = SimpleNamespace(timeResolutionType  = 'coarse'),
         sortByTimeStampsONOFF = False,
     )
 
