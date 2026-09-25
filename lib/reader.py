@@ -1265,7 +1265,7 @@ if __name__ == '__main__':
     # Minimal stub — mirrors only the attributes PcapngFileReader reads
     parameters = SimpleNamespace(
         acqMode       = 'pcap',
-        clockTicks    = SimpleNamespace(NSperClockTick = 11.356861479542839),
+        clockTicks    = SimpleNamespace(NSperClockTick =  11.35686147954284),
         timeSettings  = SimpleNamespace(timeResolutionType = 'coarse'),
         fileManagement= SimpleNamespace(pcapLoadingMethod  = 'allocate'),
     )

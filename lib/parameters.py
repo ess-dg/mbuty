@@ -124,11 +124,15 @@ class timeSettings():
 class clockTicks():
       def __init__(self):      
           
-          # self.NSperClockTick =  11.356860963629653  #ns per clock tick ESS for 88.0525 MHz
+          # old_clock = 88052500.039339065 #Hz
+          # new_clock = 88052496           #Hz
           
-          self.NSperClockTick   = 11.356861479542839 #ns per clock tick ESS for 88.052496 MHz
           
-          self.clockFreq      =  1/self.NSperClockTick
+          # self.NSperClockTick =  11.356860958555767  #ns per clock tick ESS for 88.0525 MHz
+          
+          self.NSperClockTick   =  11.35686147954284 #ns per clock tick ESS for 88.052496 MHz
+          
+          self.clockFreq      =  (1/self.NSperClockTick)*1e9
           
 class MONitor():
       def __init__(self):
