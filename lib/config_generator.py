@@ -491,14 +491,14 @@ if __name__ == '__main__':
     # instrumentName = 'ESTIA'
     
     
-    # detectorName = "SKADI48"
-    # detectorType = 'SKADI'
-    # instrumentName = 'SKADI'
+    detectorName = "SKADI48"
+    detectorType = 'SKADI'
+    instrumentName = 'SKADI'
     
     
-    detectorName = "NMXtest"
-    detectorType = 'NMX'
-    instrumentName = 'NMX'
+    # detectorName = "NMXtest"
+    # detectorType = 'NMX'
+    # instrumentName = 'NMX'
  
     
     operationMode = 'normal'
