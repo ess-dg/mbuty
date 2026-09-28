@@ -435,6 +435,10 @@ class Histogrammer:
              
         # return xy, xy_proj, xz
 
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
 
 # ============================================================================
 # Axis sets
@@ -498,6 +502,8 @@ class BaseAxisSet:
             return default_wires, default_strips
 
 
+###############################################################################
+
 class MBAxisSet(BaseAxisSet):
     """Position axes for Multi-Blade (VMM) wire/strip detectors."""
 
@@ -540,7 +546,9 @@ class MBAxisSet(BaseAxisSet):
         self.ax_x_mm  = Axis(start, stop-1, self.ax_x.steps)  # wire axis, mm
   
         self.ax_y_mm = Axis(0, (num_strips - 1) * strip_pitch, self.ax_y.steps)  # strip axis, mm
-          
+         
+        
+###############################################################################
  
 class MGAxisSet(BaseAxisSet):
     """Position axes for Multi-Grid detector (VMM-like wire/strip geometry)."""
@@ -579,6 +587,7 @@ class MGAxisSet(BaseAxisSet):
         self.ax_y_mm = Axis(0, (num_grids - 1) * gridPitchY_mm, self.ax_y.steps)  # grid axis, mm
 
         
+###############################################################################
         
 class R5560AxisSet(BaseAxisSet):
     """Position axes for R5560 tube detector (1D position geometry)."""
@@ -588,8 +597,13 @@ class R5560AxisSet(BaseAxisSet):
         # n_units      =  self.config.get('units', 0)
         bins         = int(self.config.get('positionBins', 256))
         tube_length  = self.config.get('tubeLength', 256)
-        tube_spacing = self.config.get('tubeSpacing', 10)
-        topo         =  self.config.get('topology', [])
+       
+        topo         = self.config.get('topology', [])
+        instrument   = self.config.get('instrumentName', 'CSPEC').upper()
+        
+        # left here for future devel, in case coordiante of the tube becomes a real mm coord 
+        # tube_spacing = self.config.get('tubeSpacing', 10)
+        tube_spacing = 1
         
         self.ax_mult = Axis(0, 9, 10)  # Multiplicity 0-9
 
@@ -603,8 +617,25 @@ class R5560AxisSet(BaseAxisSet):
 
         # Physical position in mm along tube
         self.ax_length_mm  = Axis(0, tube_length, bins)
+        
+        if instrument == 'MIRACLES':
+            manyTubes = 2
+        elif instrument == 'BIFROST':
+            manyTubes = 3
+        elif instrument == 'CSPEC':
+            manyTubes = 1
+        
+        num_single_items = max_id - min_id + 1
+        total_steps = num_single_items * manyTubes 
+        start_mm    = min_id * tube_spacing
+        end_mm      = start_mm + (total_steps - 1) * tube_spacing
 
-        self.ax_tubes_mm = Axis(min_id*tube_spacing, max_id*tube_spacing, (max_id-min_id+1))  
+        self.ax_tubes_mm = Axis(start_mm, end_mm, total_steps)
+        
+        # self.ax_tubes_mm   = Axis(min_id*tube_spacing, max_id*tube_spacing, (max_id-min_id+1))  
+            
+        
+###############################################################################
 
 
 class SKADIAxisSet(BaseAxisSet):
@@ -640,7 +671,10 @@ class SKADIAxisSet(BaseAxisSet):
         # Define the clean, un-drifted physical axes
         self.ax_pix_x_mm = Axis(0, stop_x_mm, steps_x_mm)
         self.ax_pix_y_mm = Axis(0, stop_y_mm, steps_y_mm)
+ 
         
+###############################################################################
+ 
 class NMXAxisSet(BaseAxisSet):
     """
     Axis set for NMX. 

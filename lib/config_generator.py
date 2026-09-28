@@ -311,7 +311,7 @@ def generateDefaultDetConfig(path, detectorName, detectorType, instrumentName, u
             "positionBins": 256,
             "tubesPerRow": 8,
             "tubeLength": 300,
-            "tubeSpacing": 10,
+            # "tubeSpacing": 10,
             "monitor" : monitor,
         })
     

@@ -33,7 +33,6 @@
     "positionBins": 256,
     "tubesPerRow": 8,
     "tubeLength": 300,
-    "tubeSpacing": 10,
     "monitor": [
         {
             "ID": 99,

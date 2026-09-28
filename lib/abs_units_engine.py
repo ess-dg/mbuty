@@ -279,9 +279,13 @@ class R5560AbsUnitsCalculator(BaseAbsUnitsCalculator):
 
         m            = self.events.matrix[:self.events.fill_count]
         tube_length  = float(self.config['tubeLength'])   # mm
-        tube_spacing = float(self.config['tubeSpacing'])  # mm
         instrument   = self.config.get('instrumentName', 'CSPEC').upper()
-
+        
+        # left here for future devel, in case coordiante of the tube becomes a real mm coord 
+        # tube_spacing = float(self.config['tubeSpacing'])  # mm
+        tube_spacing = 1 
+        
+        
         # Create working copies to avoid modifying original data
         coordinate0 = m['coordinate0'].copy()
         coordinate1 = m['coordinate1'].copy()
@@ -328,6 +332,11 @@ class R5560AbsUnitsCalculator(BaseAbsUnitsCalculator):
             coordinate0[mask_tube1] = coordinate0[mask_tube1] * 3
             coordinate0[mask_tube2] = 3 * (1 - coordinate0[mask_tube2])
             coordinate0[mask_tube3] = (coordinate0[mask_tube3] - 2.0/3.0) * 3
+        
+        elif instrument == 'CSPEC':   
+              # just leave it as is since CSPEC is a single tube
+              pass 
+            
 
         # Convert to absolute coordinates (mm)
         pos_mm  = np.round(coordinate0 * tube_length, 3)

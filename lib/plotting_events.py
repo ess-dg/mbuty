@@ -798,6 +798,15 @@ class R5560EventsPlotter(BaseEventsPlotter):
         log_scale   = self.parameters.plotting.plotIMGlog
         abs_units   = self.parameters.plotting.plotABSunits
         orientation = self.config.get('orientation')
+        
+        instrument  = self.config.get('instrumentName', 'CSPEC').upper()
+        
+        if instrument == 'MIRACLES':
+            lab = 'Tube ID in Doublet'
+        elif instrument == 'BIFROST':
+            lab = 'Tube ID in Triplet'
+        elif instrument == 'CSPEC':
+            lab = 'Tube ID'
 
         norm_colors = log_scale_norm(log_scale)
         m = self.matrix
@@ -805,11 +814,11 @@ class R5560EventsPlotter(BaseEventsPlotter):
 
         if not abs_units:
             ax_length, pos0_values, pos0_label = self.axis_set.ax_length, m['coordinate0'], 'Along tube position (a.u.)'
-            ax_tubes,  pos1_values, pos1_label = self.axis_set.ax_tubes, m['coordinate1'], 'Tube ID (a.u.)'
+            ax_tubes,  pos1_values, pos1_label = self.axis_set.ax_tubes, m['coordinate1'], 'Tube ID'
             
         else:
             ax_length, pos0_values, pos0_label = self.axis_set.ax_length_mm, m['absCoordinate0'], 'Along tube position (mm)'
-            ax_tubes,  pos1_values, pos1_label = self.axis_set.ax_tubes_mm, m['absCoordinate1'], 'Tube Position (mm)'
+            ax_tubes,  pos1_values, pos1_label = self.axis_set.ax_tubes_mm, m['absCoordinate1'], lab
            
         half_x_pixel = (ax_tubes.stop - ax_tubes.start)   / (2 * (len(ax_tubes.centers) - 1))
         half_y_pixel = (ax_length.stop - ax_length.start) / (2 * (len(ax_length.centers) - 1))
