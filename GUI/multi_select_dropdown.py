@@ -82,12 +82,24 @@ class _MultiSelectPopup(QWidget):
         self._list = QListWidget()
         self._list.setUniformItemSizes(True)
         outer.addWidget(self._list)
+        
+        # self._list = QListWidget()
+        # self._list.setUniformItemSizes(True)
+        # self._list.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)  # Enable horizontal scrollbar
+        # outer.addWidget(self._list)
 
+        # for opt in options:
+        #     item = QListWidgetItem(opt)
+        #     item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+        #     item.setCheckState(Qt.Checked if opt in checked_values else Qt.Unchecked)
+        #     self._list.addItem(item)
+        
         for opt in options:
             item = QListWidgetItem(opt)
+            item.setToolTip(opt)  # <-- Shows full text on hover
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
             item.setCheckState(Qt.Checked if opt in checked_values else Qt.Unchecked)
-            self._list.addItem(item)
+            self._list.addItem(item)   
 
         self._list.itemClicked.connect(self._on_item_clicked)
         self._list.itemChanged.connect(self._on_item_changed)
@@ -162,11 +174,26 @@ class MultiSelectDropDown(QWidget):
         self._popup.toggled.connect(self._on_item_toggled)
         self._popup.destroyed.connect(self._on_popup_destroyed)
 
+        ###
+
         pos = self.field.mapToGlobal(QPoint(0, self.field.height()))
         self._popup.setMinimumWidth(self.field.width())
         self._popup.move(pos)
         self._popup.show()
+        
+        # in case you want the full pop up of file name length comment above and uncomment below 
+        
+        # # Calculate width needed for the longest list item (plus padding for scrollbar/checkbox)
+        # content_width = self._popup._list.sizeHintForColumn(0) + 30
+        # popup_width = max(self.field.width(), content_width)
 
+        # pos = self.field.mapToGlobal(QPoint(0, self.field.height()))
+        # self._popup.setMinimumWidth(popup_width)
+        # self._popup.move(pos)
+        # self._popup.show()
+
+        ###
+        
     def _on_popup_destroyed(self):
         self._popup = None
 
