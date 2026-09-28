@@ -622,7 +622,7 @@ class R5560AxisSet(BaseAxisSet):
             manyTubes = 2
         elif instrument == 'BIFROST':
             manyTubes = 3
-        elif instrument == 'CSPEC':
+        elif instrument in ('CSPEC', 'VESPA'):
             manyTubes = 1
         
         num_single_items = max_id - min_id + 1

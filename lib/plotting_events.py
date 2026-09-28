@@ -805,7 +805,7 @@ class R5560EventsPlotter(BaseEventsPlotter):
             lab = 'Tube ID in Doublet'
         elif instrument == 'BIFROST':
             lab = 'Tube ID in Triplet'
-        elif instrument == 'CSPEC':
+        elif instrument in ('CSPEC', 'VESPA'):
             lab = 'Tube ID'
 
         norm_colors = log_scale_norm(log_scale)

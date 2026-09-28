@@ -333,8 +333,9 @@ class R5560AbsUnitsCalculator(BaseAbsUnitsCalculator):
             coordinate0[mask_tube2] = 3 * (1 - coordinate0[mask_tube2])
             coordinate0[mask_tube3] = (coordinate0[mask_tube3] - 2.0/3.0) * 3
         
-        elif instrument == 'CSPEC':   
-              # just leave it as is since CSPEC is a single tube
+        elif instrument in ('CSPEC', 'VESPA'):
+            
+              # just leave it as is since CSPEC/VESPA is a single tube
               pass 
             
 
