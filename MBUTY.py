@@ -452,7 +452,7 @@ if __name__ == '__main__':
     
     # parameters.fileManagement.fileName = ['skadiDataQ.pcapng']
     
-    # parameters.fileManagement.fileName = ['triggertime-1000V-30a11_July8th.pcapng']
+    # parameters.fileManagement.fileName = ['miracles24doublets.pcapng']
     
     # parameters.fileManagement.fileName = ['skadi_48tiles.pcapng']
     

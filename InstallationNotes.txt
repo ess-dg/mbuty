@@ -90,6 +90,15 @@ To "copy" your identity to the remote server, use the following syntax:
 To test it, from terminal try to ssh to the remote computer from your local machine:
 >> ssh username@remote_host
 
+
+_______
+NOTE 4:
+If remote computer doe into have rsync installed, here is how to install: 
+ 
+>> sudo apt update && sudo apt install -y rsync
+
+This is needed when pcap-sync method is used to transfer data from one computer to another. 
+
 --------------------------------------------------
 --------------------------------------------------
 PACKAGES
