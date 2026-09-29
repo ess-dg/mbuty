@@ -358,7 +358,7 @@ def configAssister(fen_portal, ring, fen, cfg, mask):
 		fen_portal.userRegWrite(ring, node, reg, value)
 
 
-def resetFec(fen_portal, cfg_or_file):
+def resetFec(fen_portal, cfg_or_file):    # this is warm init 
 	cfg = asConfig(cfg_or_file)
 	checkConfigNames(cfg)
 
@@ -371,6 +371,28 @@ def resetFec(fen_portal, cfg_or_file):
 		fen_portal.userRegWrite(ring, fen, "sc_app_reset_assister", 0)
 		fen_portal.userRegWrite(ring, fen, "sc_app_reset_assister", 1)
 		fen_portal.userRegWrite(ring, fen, "sc_app_reset_assister", 0)
+        
+        
+# VMM Hard reset:
+
+# else if(QObject::sender() == m_ui->vmmReset){
+#         for (unsigned short j=0; j < FECS_PER_DAQ; j++){
+#             if (m_daq.GetFEC(j) ){
+#                 m_daq.m_fecs[m_fecIndex].m_fecConfigModule->ACQoff();
+#             }
+#         }
+#         m_ui->offACQ->setCheckable(true);
+#         m_ui->offACQ->setChecked(true);
+#         m_ui->onACQ->setChecked(false);
+#         SetVMM(“reset1”, 1);
+#         SetVMM(“reset2", 1);
+#         m_daq.m_fecs[m_fecIndex].m_fecConfigModule->ConfigVMM(m_hybridIndex, m_vmmIndex);
+#         QThread::sleep(1);
+#         SetVMM(“reset1”, 0);
+#         SetVMM(“reset2", 0);
+#         m_daq.m_fecs[m_fecIndex].m_fecConfigModule->ConfigVMM(m_hybridIndex, m_vmmIndex);
+#         m_ui->Send->setEnabled(true);
+#     }        
 
 
 def acqOnOff(fen_portal, cfg_or_file, on):
@@ -453,9 +475,9 @@ if __name__ == "__main__":
 
     cfg         = os.path.join(VMMcfgPath, VMMcfgFile)
     
-    fen_portal = 
+    # fen_portal = 
     
-    configDetector(fen_portal,cfg)
+    # configDetector(fen_portal,cfg)
     
 
 
