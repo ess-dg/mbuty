@@ -18,6 +18,8 @@ if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
     
 from lib.colors import INFO, OK, WARN, ERR, RESET
+
+
        
 ###############################################################################
 
@@ -268,6 +270,31 @@ class wavelength():
           self.chopperPickUpDelay =  13.5/(2.*180.) * self.chopperPeriod/self.numOfBunchesPerPulse  #s  
           
 ###############################################################################
+###############################################################################              
+          
+          
+class slowCtrl():  
+    
+    def __init__(self,currentPath):
+        
+        self.doSlowCtrl = False
+        
+        self.hardReset = False 
+        
+        self.warmInit  = False 
+        
+        self.acqOnOff  = False
+        
+        self.cfg_path  =  os.path.join(currentPath,'slow_ctrl_VMM','config_VMM')
+        self.cfg_file  = 'MB.FREIA.diagonalNoSymm.json'
+        
+        self.addr_path = os.path.join(currentPath,'slow_ctrl_VMM','sys_regs_map')
+        self.addr_file = 'vmm_sys_regs_map_A0v1.txt'
+        
+        self.rbu_path  = '/home/essdaq/detg_git/slow_control_driver/freia/'
+        self.rbu_file  = 'cfg.json'
+ 
+###############################################################################
 ###############################################################################               
 
 class parameters():
@@ -293,7 +320,9 @@ class parameters():
         
         self.kafkaSettings = kafkaSettings()
         
-        self.timeSettings   = timeSettings()
+        self.timeSettings  = timeSettings()
+        
+        self.slowCtrl     = slowCtrl(currentPath)
         
     def validate(self):
         """
@@ -381,6 +410,13 @@ class parameters():
                 
                 print('\n\t\033[1;31mERROR: Acquisition mode (found {}) can only be only one of these 5 options: off, pcap-sync, pcap-local, pcap-local-overwrite or kafka ---> Exiting ... \n\033[1;37m'.format(self.acqMode),end='') 
                 time.sleep(2)
-                sys.exit()        
+                sys.exit()    
+                
+                
+###############################################################################
+###############################################################################
 
- 
+if __name__ == '__main__':
+    
+     current_dir = os.path.abspath(os.path.dirname(__file__)) + os.sep
+     parameters  = parameters(current_dir)

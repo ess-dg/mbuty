@@ -72,6 +72,7 @@ def findVmm(cfg, ring, fen, hybrid, vmm_index):
     the_hybrid = findHybrid(the_fen, hybrid)
     return the_hybrid[f"vmm{vmm_index}"]
 
+###############################################################################
 
 # def setVmmConfig(cfg, fen, hybrid, vmm_index, name, value):
 # 	vmm = findVmm(cfg, fen, hybrid, vmm_index)
@@ -290,6 +291,7 @@ def fillGlobalRegisters2(vmm):
 
     return regs
 
+###############################################################################
 
 def configVmm(fen_portal, ring, fen, hybrid, vmm_index, cfg, reset=False):
     vmm = findVmm(cfg, ring, fen, hybrid, vmm_index)
@@ -351,11 +353,11 @@ def configAssister(fen_portal, ring, fen, cfg, mask):
     for reg, value in writes:
         fen_portal.userRegWrite(ring, fen, reg, value)
 
+###############################################################################
 
 # WARM INIT
 def resetFec(fen_portal, ring, fen):  # this is warm init
     print(f"Resetting ring {ring}, fen {fen}")
-
     fen_portal.userRegWrite(ring, fen, "sc_app_reset_assister", 0)
     fen_portal.userRegWrite(ring, fen, "sc_app_reset_assister", 1)
     fen_portal.userRegWrite(ring, fen, "sc_app_reset_assister", 0)
@@ -367,16 +369,16 @@ def resetFec_global(fen_portal, cfg):
     for the_fen in cfg["fecs"]:
         resetFec(fen_portal, the_fen["ring"], the_fen["fen"])
 
+###############################################################################
 
 # VMM Hard reset
 def hardReset(fen_portal, ring, fen, hybrid, vmm_index, cfg):
     print(f"Hard resetting ring {ring}, fen {fen}, hybrid {hybrid}, vmm {vmm_index}")
     configVmm(fen_portal, ring, fen, hybrid, vmm_index, cfg, reset=True)
-    time.sleep(1)
+    time.sleep(0.1)
     configVmm(fen_portal, ring, fen, hybrid, vmm_index, cfg, reset=False)
 
 # VMM Hard reset global
-
 def hardReset_global(fen_portal, cfg):
     print(f"Hard resetting ALL but really ALL!")
     
@@ -384,6 +386,8 @@ def hardReset_global(fen_portal, cfg):
         for the_hybrid in the_fen["hybrids"]:
             for vmm_index in [0, 1]:
                 hardReset(fen_portal, the_fen['ring'], the_fen['fen'], the_hybrid['hybrid'], vmm_index, cfg)
+
+###############################################################################
 
 def acqOnOff(fen_portal, ring, fen, on=True):
 # 	cfg = asConfig(cfg_or_file)
@@ -412,11 +416,7 @@ def acqOnOff_global(fen_portal, cfg, on=True):
         acqOnOff(fen_portal, the_fen["ring"], the_fen["fen"], on=on)
 
 
-# def acqOff_allRings(fen_portal):
-# 	print(f"Stopping acquisition on all rings")
-# 	for the_ring in range(11):
-# 		acqOnOff(fen_portal, the_ring, 0, on=False)
-
+###############################################################################
 
 def checkConfigNames(cfg):
     for fec_index, fen in enumerate(cfg["fecs"]):
@@ -435,6 +435,7 @@ def checkConfigNames(cfg):
 
     print("JSON config check passed.")
 
+###############################################################################
 
 def configDetector(fen_portal, cfg):
 # 	cfg = asConfig(cfg_or_file)
