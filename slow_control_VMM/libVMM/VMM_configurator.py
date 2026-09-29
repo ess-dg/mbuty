@@ -397,7 +397,7 @@ def acqOnOff(fen_portal, ring, fen, on=True):
     fen_portal.userRegWrite(ring, fen, "sc_acq_on_off", 0)
 
 def acqOnOff_global(fen_portal, cfg, on=True):
-    checkConfigNames(cfg)
+    # checkConfigNames(cfg)
     if on:
         print(f"Starting acquisition on all rings all fens")
     else:
@@ -428,7 +428,7 @@ def checkConfigNames(cfg):
 def configDetector(fen_portal, cfg):
     
 # 	cfg = asConfig(cfg_or_file)
-	checkConfigNames(cfg)
+# 	checkConfigNames(cfg)
 
 	for the_fen in cfg["fecs"]:
 		fen  = the_fen["fen"]

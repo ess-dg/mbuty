@@ -60,7 +60,7 @@ if __name__ == "__main__":
     cfg = loadConfig(os.path.join(cfg_path, VMM_cfg))
     
 	
-    checkConfigNames(cfg)
+    # checkConfigNames(cfg)
 	
 # 	for n in range(1, 6):
 # 		setVmmConfig(cfg, fen=0, hybrid=0, vmm_index=0, name="sdp10", value=n*200)
