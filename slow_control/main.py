@@ -42,6 +42,7 @@ if __name__ == "__main__":
     
     map_assister = os.path.join(VMMcfgPath, 'vmm_sys_regs_map_A0v1.txt') 
 
+    
 
 	# Create RMM instance as normal, topology defined in cfg_ring
     rmm = ReadoutMasterModule(cfg_json=ringcfg)
@@ -50,8 +51,10 @@ if __name__ == "__main__":
 	# Use this to create a generic interface to all FEN userspace
     fen_portal = FrontEndGenericPortal(RMMRegs=rmm.RMMRegs, regmap=map_assister)
 
+    
 	
     cfg = loadConfig(VMMcfg)
+    
 	
     checkConfigNames(cfg)
 	
@@ -59,6 +62,7 @@ if __name__ == "__main__":
 # 		setVmmConfig(cfg, fen=0, hybrid=0, vmm_index=0, name="sdp10", value=n*200)
 # 		setVmmConfig(cfg, fen=0, hybrid=0, vmm_index=1, name="sdp10", value=n*200)
 
+    acqOnOff(fen_portal, cfg, on=False)
 
     configDetector(fen_portal,cfg)
     acqOnOff(fen_portal, cfg, on=True)
