@@ -417,7 +417,7 @@ def checkConfigNames(cfg):
 
 				vmm = hybrid[vmm_name]
 
-				fillGlobalRegisters(fen, vmm)
+				fillGlobalRegisters(vmm)
 				fillGlobalRegisters2(vmm)
 				fillChannelRegisters(vmm)
 
