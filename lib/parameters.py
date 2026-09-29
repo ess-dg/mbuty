@@ -285,10 +285,10 @@ class slowCtrl():
         
         self.acqOnOff  = False
         
-        self.cfg_path  =  os.path.join(currentPath,'slow_ctrl_VMM','config_VMM')
+        self.cfg_path  =  os.path.join(currentPath,'slow_control_VMM','config_VMM')
         self.cfg_file  = 'MB.FREIA.diagonalNoSymm.json'
         
-        self.addr_path = os.path.join(currentPath,'slow_ctrl_VMM','sys_regs_map')
+        self.addr_path = os.path.join(currentPath,'slow_control_VMM','sys_regs_map')
         self.addr_file = 'vmm_sys_regs_map_A0v1.txt'
         
         self.rbu_path  = '/home/essdaq/detg_git/slow_control_driver/freia/'
