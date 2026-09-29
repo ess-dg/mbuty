@@ -340,8 +340,8 @@ def configAssister(fen_portal, ring, fen, cfg, mask):
 	writes = [
 		("app_debug_data_format", 0),
 		("app_latency_reset", the_fen["latency_reset"]),
-		("app_latency_data_max", the_fen["latency_data_max"]),
-		("app_latency_data_jitter", the_fen["latency_data_error"]),
+# 		("app_latency_data_max", the_fen["latency_data_max"]),
+# 		("app_latency_data_jitter", the_fen["latency_data_error"]),
 		("app_tp_offset_first", the_fen["tp_offset_first"]),
 		("app_tp_offset", the_fen["tp_offset"]),
 		("app_tp_offset_long", 0),
