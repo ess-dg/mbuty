@@ -24,7 +24,7 @@ sys.path.insert(0, '/home/essdaq/detg_git/slow_control_driver')
 from essrmmdriverlib.ReadoutMasterModule import ReadoutMasterModule
 from essrmmdriverlib.frontend.FrontEndGenericPortal import FrontEndGenericPortal
 
-from libVMM.VMM_configurator import configDetector, acqOnOff, loadConfig, checkConfigNames, acqOnOff_global
+from libVMM.VMM_configurator import configDetector, acqOnOff, loadConfig, checkConfigNames, acqOnOff_global, acqOff_allRings
 
 
 
@@ -66,7 +66,9 @@ if __name__ == "__main__":
 # 		setVmmConfig(cfg, fen=0, hybrid=0, vmm_index=0, name="sdp10", value=n*200)
 # 		setVmmConfig(cfg, fen=0, hybrid=0, vmm_index=1, name="sdp10", value=n*200)
 
-    acqOnOff_global(fen_portal, cfg, on=False)
+    # acqOnOff_global(fen_portal, cfg, on=False)
+    
+    acqOff_allRings(fen_portal)
 
     configDetector(fen_portal,cfg)
     

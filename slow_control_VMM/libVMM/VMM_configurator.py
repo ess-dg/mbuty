@@ -405,6 +405,13 @@ def acqOnOff_global(fen_portal, cfg, on=True):
         
     for the_fen in cfg["fecs"]:
         acqOnOff(fen_portal, the_fen['ring'], the_fen['fen'], on=on)
+        
+def acqOff_allRings(fen_portal):
+
+    print(f"Stopping acquisition on all rings")	
+        
+    for the_ring in range(11):
+        acqOnOff(fen_portal, the_ring, 0, on=False)        
 
 
 def checkConfigNames(cfg):
@@ -457,21 +464,7 @@ def configDetector(fen_portal, cfg):
 ###############################################################################
 ###############################################################################
 
-if __name__ == "__main__":
-    
-    VMMcfgFile  = 'MB.FREIA.diagonalNoSymm.json'
-    
-    VMMcfgPath  = '/Users/francescopiscitelli/gitlab_repos/mb_configs/VMM slow ctrl/' 
-    
-    current_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__))) + os.sep
-    
-    VMMcfgPath  = current_dir + 'config_slowCtrlVMM'
 
-    cfg         = os.path.join(VMMcfgPath, VMMcfgFile)
-    
-    # fen_portal = 
-    
-    # configDetector(fen_portal,cfg)
     
 
 
