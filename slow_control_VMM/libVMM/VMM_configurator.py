@@ -385,15 +385,16 @@ def acqOnOff(fen_portal, ring, fen, on=True):
 # 	cfg = asConfig(cfg_or_file)
 # 	checkConfigNames(cfg)
 
-		if on:
-			print(f"Starting acquisition on ring {ring}, fen {fen}")
-		else:
-			print(f"Stopping acquisition on ring {ring}, fen {fen}")	
+    if on:
+        print(f"Starting acquisition on ring {ring}, fen {fen}")
+        fen_portal.userRegWrite(ring, fen, "app_acq_enable", 1)
+    else:
+        print(f"Stopping acquisition on ring {ring}, fen {fen}")
+        fen_portal.userRegWrite(ring, fen, "app_acq_enable", 0)
 
-		fen_portal.userRegWrite(ring, fen, "app_acq_enable", 1 if on else 0)
-		fen_portal.userRegWrite(ring, fen, "sc_acq_on_off", 0)
-		fen_portal.userRegWrite(ring, fen, "sc_acq_on_off", 1)
-		fen_portal.userRegWrite(ring, fen, "sc_acq_on_off", 0)
+    fen_portal.userRegWrite(ring, fen, "sc_acq_on_off", 0)
+    fen_portal.userRegWrite(ring, fen, "sc_acq_on_off", 1)
+    fen_portal.userRegWrite(ring, fen, "sc_acq_on_off", 0)
 
 def acqOnOff_global(fen_portal, cfg, on=True):
     checkConfigNames(cfg)
