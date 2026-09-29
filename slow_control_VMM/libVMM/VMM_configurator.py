@@ -403,8 +403,8 @@ def acqOnOff_global(fen_portal, cfg, on=True):
     else:
         print(f"Stopping acquisition on all rings all fens")	
         
-    for the_ring, the_fen in enumerate(cfg["fecs"]):
-        acqOnOff(fen_portal, the_ring, the_fen, on=on)
+    for the_fen in enumerate(cfg["fecs"]):
+        acqOnOff(fen_portal, the_fen['ring'], the_fen['fen'], on=on)
 
 
 def checkConfigNames(cfg):
