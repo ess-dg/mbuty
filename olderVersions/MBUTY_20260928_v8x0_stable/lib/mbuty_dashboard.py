@@ -1,0 +1,820 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+mbuty_dashboard.py
+
+@authors: Francesco Piscitelli, Sheila Monera Cabarique
+----------------------------------
+PySide6 interactive dashboard shell providing tabular data 
+views, sorted Qt models, and live matplotlib plotting panes 
+for MBUTY analysis pipelines.
+"""
+###############################################################################
+
+from __future__ import annotations
+
+from typing import Iterable, NamedTuple, Sequence
+
+import numpy as np
+import os
+# os.environ["QT_API"] = "pyside6"
+
+from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex, QSortFilterProxyModel, QTimer, QEventLoop, Signal
+from qtpy.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QWidget,
+    QTabWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QTableView,
+    QCheckBox,
+    QLabel,
+    QGridLayout,
+    QSizePolicy,
+    QScrollArea,
+    QFrame,
+)
+
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
+from matplotlib.figure import Figure
+
+# ThemedNavigationToolbar is shared across the plotting paths, so it
+# lives centrally in GUI/theme.py rather than here.
+from GUI.theme import ThemedNavigationToolbar
+
+
+# --------------------------------------------------------------------------
+# Data source interface — implemented by the real pipeline, not by this file
+# --------------------------------------------------------------------------
+
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+class DashboardDataSource:
+    """Contract the dashboard shell relies on. No implementation here touches
+    engine internals; the real pipeline subclasses this."""
+
+    def beam_monitor_present(self) -> bool:
+        raise NotImplementedError
+
+    def get_dataframe_array(self, tab_key: str) -> tuple[np.ndarray, int]:
+        """Return (structured_array, fill_count) for the given tab."""
+        raise NotImplementedError
+
+    def get_available_plots(self, tab_key: str) -> Sequence[str]:
+        """All plots the pipeline can produce for this tab. InstrumentView
+        only ever renders the config-selected subset; ComparisonMatrixView
+        lists all of them, per tab section."""
+        raise NotImplementedError
+
+    def render_plot(self, tab_key: str, plot_name: str, figure: Figure) -> None:
+        """Draw directly onto the given matplotlib Figure."""
+        raise NotImplementedError
+
+
+class OrchestratorDataSource(DashboardDataSource):
+    def __init__(self, detector_pipeline, bm_pipeline):
+        self._plotters = {
+            "readouts":           detector_pipeline.readout_plotter,
+            "hits":        detector_pipeline.hit_plotter,
+            "events": detector_pipeline.event_plotter,
+            "beam_monitor":       bm_pipeline.event_plotter if bm_pipeline else None,
+        }
+        # Container backing each tab's dataframe pane, keyed like _plotters.
+        self._containers = {
+            "readouts":              detector_pipeline.readouts_container,
+            "hits":           detector_pipeline.hits_container,
+            "events":    detector_pipeline.events_container,
+            "beam_monitor":          bm_pipeline.events_container if bm_pipeline else None,
+            "beam_monitor_readouts": bm_pipeline.readouts_container if bm_pipeline else None,
+        }
+
+    def beam_monitor_present(self) -> bool:
+        if self._plotters.get("beam_monitor") is None:
+            return False
+        _, fill_count = self.get_dataframe_array("beam_monitor")
+        return fill_count > 0
+    
+    def get_available_plots(self, tab_key):
+        p = self._plotters.get(tab_key)
+        return p.available_plot_names() if p else []
+
+    def get_dataframe_array(self, tab_key):
+        container = self._containers.get(tab_key)
+        if container is None:
+            return np.empty(0, dtype=[("_", "i4")]), 0
+        return container.matrix, container.fill_count
+
+    def render_plot(self, tab_key, plot_name, figure):
+        p = self._plotters.get(tab_key)
+        if p:
+            p.render(plot_name, figure)
+
+
+# --------------------------------------------------------------------------
+# Orchestration entry point -- everything MBUTY.py needs is this one call
+# --------------------------------------------------------------------------
+
+def _selected_plot_names_by_tab(parameters) -> dict:
+    """Determine which plots are selected per tab, based on the same
+    parameters.plotting / .wavelength / .pulseHeigthSpect / .MONitor flags
+    a CLI run would use. Returns display-name sets keyed by dashboard
+    tab_key; launch_dashboard() intersects each set against
+    get_available_plots() so a flag being on never surfaces a plot the
+    pipeline can't actually produce.
+    """
+    p, w, phs, mon = parameters.plotting, parameters.wavelength, parameters.pulseHeigthSpect, parameters.MONitor
+
+    readouts = {name for name, on in {
+        "Raw Channels":   p.plotRawReadouts,
+        "Timestamps":     p.plotReadoutsTimeStamps,
+        "ADC vs Channel": p.plotADCvsCh,
+        "Chopper Resets": p.plotChopperResets,
+    }.items() if on}
+
+    hits = {name for name, on in {
+        "Raw Channels":          p.plotRawHits,
+        "Timestamps":            p.plotHitsTimeStamps,
+        "Timestamps vs Channel": p.plotHitsTimeStampsVSChannels,
+    }.items() if on}
+
+    events = {"XY", "ToF vs XY", "Position per Tube"}  # always drawn, no flag
+    events |= {name for name, on in {
+        "ToF":                 p.plotToFDistr,
+        "Wavelength":          w.plotLambdaDistr,
+        "X vs Wavelength":     w.plotXLambda,
+        "Multiplicity":        p.plotMultiplicity,
+        "PHS":                 phs.plotPHS,
+        "PHS Correlation":     phs.plotPHScorrelation,
+        "Time Between Events": p.plotTimeBetwEv,
+    }.items() if on}
+
+    # Wavelength is only shown if plotMONtofPHS is also on.
+    beam_monitor = set()
+    if mon.plotMONtofPHS:
+        beam_monitor.add("ToF & PHS")
+        if w.plotLambdaDistr:
+            beam_monitor.add("Wavelength")
+
+    return {
+        "readouts":           readouts,
+        "hits":        hits,
+        "events": events,
+        "beam_monitor":       beam_monitor,
+    }
+
+
+def launch_dashboard(detector_pipeline, bm_pipeline, parameters, theme_mode="dark"):
+    """Builds the plotters, wraps them in OrchestratorDataSource, works out
+    which plots the user's parameters select, and shows the Qt window(s).
+
+    If plottingInSections is on, topology unit_ids are chunked into blocks
+    and one dashboard is shown per block, closing one to advance to the
+    next. Beam Monitor has no per-unit concept, so its plotter is built
+    once and reused across every section.
+
+    Returns the last MbutyDashboard instance shown, so the caller can hold
+    a reference and keep it alive.
+    """
+    import sys
+    from lib.pipelines import _chunk
+    from GUI import theme
+    theme.apply_mpl_theme(theme_mode)   # before any Figure() is constructed
+
+    bm_active = bool(bm_pipeline) and parameters.MONitor.MONOnOff
+    if bm_active:
+        bm_pipeline.build_plotter()  # construction only, doesn't draw; BM isn't sectioned
+
+    app = QApplication.instance() or QApplication(sys.argv)
+
+    # Ensures the CLI path also gets a themed stylesheet, matching the
+    # dark plots/toolbar icons applied above. Harmless if already set.
+    app.setStyleSheet(theme.build_stylesheet(theme_mode))
+
+    def _show_section(unit_ids) -> MbutyDashboard:
+        dashboard = build_dashboard_section(
+            detector_pipeline, bm_pipeline, parameters, unit_ids, bm_active
+        )
+        if not dashboard.has_content:
+            print('\tWARNING: no data in any tab (readouts/hits/events/BM all empty) '
+                '-- skipping dashboard window for this section.')
+            return dashboard
+
+        dashboard.show()
+
+        loop = QEventLoop()
+        dashboard.closing.connect(loop.quit)
+        loop.exec()
+        return dashboard  
+
+    topology = detector_pipeline.config.get('topology', [])
+    unit_ids = np.sort([entry['ID'] for entry in topology])
+
+    if not parameters.plotting.plottingInSections:
+        return _show_section(unit_ids)
+
+    blocks = _chunk(list(unit_ids), parameters.plotting.plottingInSectionsBlocks)
+    print(f'\nDashboard: plotting in {len(blocks)} section(s) of '
+          f'{parameters.plotting.plottingInSectionsBlocks} unit(s) each.')
+
+    dashboard = None
+    for i, block in enumerate(blocks):
+        print(f'\n\tSection {i + 1}/{len(blocks)} -- unit IDs {block[0]} to {block[-1]}'
+              f' -- close this window to continue.')
+        dashboard = _show_section(block)
+
+        if i == len(blocks) - 1:
+            continue
+
+        answer = input('press (enter) to continue to the next section, or (q + enter) to quit: ')
+        if answer.strip().lower() == 'q':
+            break
+    return dashboard
+
+
+def build_dashboard_section(detector_pipeline, bm_pipeline, parameters, unit_ids, bm_active) -> MbutyDashboard:
+    """Builds (but does not show) a single dashboard window scoped to one
+    block of unit_ids. Split out of launch_dashboard() so a GUI can drive
+    section-by-section display itself instead of relying on its blocking
+    event loop.
+    """
+    detector_pipeline.build_plotters(unit_ids=unit_ids)
+    data_source = OrchestratorDataSource(detector_pipeline, bm_pipeline if bm_active else None)
+    selected = _selected_plot_names_by_tab(parameters)
+    config = {
+        "readouts_active_plots": [n for n in data_source.get_available_plots("readouts")
+                                   if n in selected["readouts"]],
+        "hits_active_plots":     [n for n in data_source.get_available_plots("hits")
+                                   if n in selected["hits"]],
+        "events_active_plots":   [n for n in data_source.get_available_plots("events")
+                                   if n in selected["events"]],
+        "bm_active_plots":       [n for n in data_source.get_available_plots("beam_monitor")
+                                   if n in selected["beam_monitor"]],
+    }
+    dashboard = MbutyDashboard(data_source, config=config)
+    dashboard.resize(1300, 800)
+    return dashboard
+
+
+# --------------------------------------------------------------------------
+# Table model: structured numpy array -> QTableView, with the validity gate
+# --------------------------------------------------------------------------
+
+class StructuredArrayTableModel(QAbstractTableModel):
+    """Read-only view over array[:fill_count], filtered by sentinel masks."""
+
+    def __init__(self, index_fields: Iterable[str] = (), parent=None):
+        super().__init__(parent)
+        self._array: np.ndarray = np.empty(0, dtype=[("_", "i4")])
+        self._fill_count: int = 0
+        self._index_fields = tuple(index_fields)
+        self._valid_rows: np.ndarray = np.empty(0, dtype=np.int64)
+
+    def set_data(self, array: np.ndarray, fill_count: int) -> None:
+        self.beginResetModel()
+        self._array = array
+        self._fill_count = max(0, min(fill_count, len(array)))
+        self._valid_rows = self._compute_valid_rows()
+        self.endResetModel()
+
+    def sort(self, column: int, order: Qt.SortOrder = Qt.AscendingOrder) -> None:
+        """
+        Bypasses Qt loops by using C-optimized NumPy vector sorting on the underlying array data.
+        """
+        if self._fill_count == 0 or self._array.dtype.names is None or len(self._valid_rows) == 0:
+            return
+
+        self.layoutAboutToBeChanged.emit()
+        
+        field_name = self._array.dtype.names[column]
+        sort_values = self._array[field_name][self._valid_rows]
+        sorted_indices = np.argsort(sort_values)
+        
+        if order == Qt.DescendingOrder:
+            sorted_indices = sorted_indices[::-1]
+            
+        self._valid_rows = self._valid_rows[sorted_indices]
+        
+        self.layoutChanged.emit()
+
+    def _compute_valid_rows(self) -> np.ndarray:
+        """Return all row indices up to fill_count."""
+        if self._fill_count == 0 or self._array.dtype.names is None:
+            return np.empty(0, dtype=np.int64)
+            
+        return np.arange(self._fill_count, dtype=np.int64)
+
+    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
+        return 0 if parent.isValid() else len(self._valid_rows)
+
+    def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:
+        if parent.isValid() or self._array.dtype.names is None:
+            return 0
+        return len(self._array.dtype.names)
+
+    def data(self, index: QModelIndex, role: int = Qt.DisplayRole):
+        if not index.isValid() or index.row() >= len(self._valid_rows):
+            return None
+        row = self._valid_rows[index.row()]
+        field = self._array.dtype.names[index.column()]
+        value = self._array[field][row]
+        if role == Qt.DisplayRole:
+            if isinstance(value, np.floating):
+                return f"{value:.6g}"
+            return str(value)
+        return None
+
+    def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.DisplayRole):
+        if role != Qt.DisplayRole:
+            return None
+        if orientation == Qt.Horizontal:
+            return self._array.dtype.names[section]
+        return str(section)
+
+
+def _build_dataframe_pane(index_fields: Iterable[str]) -> tuple[QWidget, StructuredArrayTableModel, QTableView]:
+    """Single reusable factory for a sortable, read-only dataframe view."""
+    model = StructuredArrayTableModel(index_fields=index_fields)
+    
+    view = QTableView()
+    view.setModel(model)
+    view.setEditTriggers(QTableView.NoEditTriggers)
+    view.setSelectionBehavior(QTableView.SelectRows)
+    view.setAlternatingRowColors(True)
+    view.setSortingEnabled(True)
+
+    # Slightly larger font for readability on wide tables.
+    font = view.font()
+    font.setPointSize(font.pointSize() + 1)
+    view.setFont(font)
+    view.horizontalHeader().setFont(font)
+
+    # Fixed row height avoids per-row sizeHint measurement on large tables.
+    vheader = view.verticalHeader()
+    vheader.setSectionResizeMode(vheader.ResizeMode.Fixed)
+    vheader.setDefaultSectionSize(28)
+
+    return view, model, view
+
+
+def _build_plot_pane(tab_key: str, plot_name: str, data_source: DashboardDataSource) -> tuple[QWidget, FigureCanvasQTAgg]:
+    canvas = FigureCanvasQTAgg(Figure(figsize=(5, 4)))
+    canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+    canvas.setMinimumSize(50, 50)
+    page = QWidget()
+    page_layout = QVBoxLayout(page)
+    page_layout.setContentsMargins(0, 0, 0, 0)
+    page_layout.addWidget(ThemedNavigationToolbar(canvas, page))
+    page_layout.addWidget(canvas)
+    data_source.render_plot(tab_key, plot_name, canvas.figure)
+    canvas.draw_idle()
+    return page, canvas
+
+
+# --------------------------------------------------------------------------
+# TabSpec: single source of truth for tab key / title / filter fields /
+# which plots that tab shows, consumed by both InstrumentView and
+# ComparisonMatrixView.
+# --------------------------------------------------------------------------
+
+class TabSpec(NamedTuple):
+    key: str
+    title: str
+    index_fields: tuple[str, ...]
+    active_plots: tuple[str, ...]  # fixed set chosen in config, pre-run
+    # (sub-tab title, data-source key). None means "use this tab's own key".
+    dataframe_tabs: tuple[tuple[str, str | None], ...] = (("Dataframe View", None),)
+
+
+# --------------------------------------------------------------------------
+# One instrument tab: flat sub-tabs — Dataframe View + one per active plot.
+# No checkboxes, no runtime add/remove. Set once from config at construction.
+# --------------------------------------------------------------------------
+
+class InstrumentView(QWidget):
+    """
+    Sub-tabs are ordered plots-first, with "Dataframe View" last.
+
+    Only the sub-tab shown first is built synchronously. The rest fill in
+    one at a time on idle Qt event loop turns, so switching tabs feels
+    instant once the background queue catches up. Clicking an unbuilt tab
+    jumps it ahead of the queue.
+    """
+
+    def __init__(self, spec: TabSpec, data_source: DashboardDataSource, parent=None):
+        super().__init__(parent)
+        self._tab_key = spec.key
+        self._spec = spec
+        self._data_source = data_source
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        self.sub_tabs = QTabWidget()
+        layout.addWidget(self.sub_tabs)
+
+        self.table_models: dict[str, StructuredArrayTableModel] = {}
+        self.table_views: dict[str, QTableView] = {}
+        self._plot_canvases: dict[str, FigureCanvasQTAgg] = {}
+
+        # sub-tab title -> data-source key (None resolves to this tab's own key)
+        self._dataframe_keys: dict[str, str] = {
+            title: (data_key if data_key is not None else spec.key)
+            for title, data_key in spec.dataframe_tabs
+        }
+
+        self._built: set[str] = set()
+        for plot_name in spec.active_plots:
+            self.sub_tabs.addTab(QWidget(), plot_name)
+        for title in self._dataframe_keys:
+            self.sub_tabs.addTab(QWidget(), title)
+
+        self._fill_queue: list[str] = [self.sub_tabs.tabText(i) for i in range(self.sub_tabs.count())]
+
+        self.sub_tabs.currentChanged.connect(self._ensure_built)
+        self._ensure_built(0)  # the sub-tab shown by default needs content now
+        QTimer.singleShot(0, self._process_background_queue)
+
+    def _process_background_queue(self) -> None:
+        while self._fill_queue and self._fill_queue[0] in self._built:
+            self._fill_queue.pop(0)
+        if not self._fill_queue:
+            return
+        title = self._fill_queue.pop(0)
+        index = self._index_of(title)
+        if index is not None:
+            self._ensure_built(index)
+        # Yield back to the event loop between builds so clicks stay
+        # responsive and can jump ahead of the queue.
+        QTimer.singleShot(0, self._process_background_queue)
+
+    def _index_of(self, title: str) -> int | None:
+        for i in range(self.sub_tabs.count()):
+            if self.sub_tabs.tabText(i) == title:
+                return i
+        return None
+
+    def _ensure_built(self, index: int) -> None:
+        if index < 0:
+            return  # removeTab() below can transiently emit currentChanged(-1)
+        title = self.sub_tabs.tabText(index)
+        if not title or title in self._built:
+            return
+        self._built.add(title)
+
+        if title in self._dataframe_keys:
+            page, model, view = _build_dataframe_pane(self._spec.index_fields)
+            self.table_models[title] = model
+            self.table_views[title] = view
+            array, fill_count = self._data_source.get_dataframe_array(self._dataframe_keys[title])
+            model.set_data(array, fill_count)
+        else:
+            page, canvas = _build_plot_pane(self._tab_key, title, self._data_source)
+            self._plot_canvases[title] = canvas
+
+        # Block signals during the tab swap, then restore selection --
+        # only force focus onto the rebuilt tab if the user was already on it.
+        was_current_index = self.sub_tabs.currentIndex()
+        was_current_title = self.sub_tabs.tabText(was_current_index) if was_current_index >= 0 else None
+
+        old = self.sub_tabs.widget(index)
+        self.sub_tabs.blockSignals(True)
+        try:
+            self.sub_tabs.removeTab(index)
+            self.sub_tabs.insertTab(index, page, title)
+        finally:
+            self.sub_tabs.blockSignals(False)
+
+        if index == was_current_index or title == was_current_title:
+            self.sub_tabs.setCurrentIndex(index)
+        if old is not None:
+            old.deleteLater()
+
+    def refresh_dataframe(self) -> None:
+        for title, model in self.table_models.items():
+            array, fill_count = self._data_source.get_dataframe_array(self._dataframe_keys[title])
+            model.set_data(array, fill_count)
+
+
+# --------------------------------------------------------------------------
+# Comparison Matrix tab: sectioned checkbox panel (dataframe + plots per
+# tab) + dynamic grid, 2-4 items, that never lets one cell dominate.
+# This is the one interactive/runtime-configurable tab.
+# --------------------------------------------------------------------------
+
+class ComparisonMatrixView(QWidget):
+    MIN_ACTIVE = 2
+    MAX_ACTIVE = 4
+    DATAFRAME_ITEM = "Dataframe View"
+
+    def __init__(self, data_source: DashboardDataSource, tab_specs: Sequence[TabSpec], parent=None):
+        super().__init__(parent)
+        self._data_source = data_source
+        self._index_fields_by_tab = {spec.key: spec.index_fields for spec in tab_specs}
+
+        # item_key = (tab_key, item_name) -> checkbox
+        self._checkboxes: dict[tuple[str, str], QCheckBox] = {}
+        # item_key -> live widget (FigureCanvasQTAgg or QTableView), single source
+        self._cells: dict[tuple[str, str], QWidget] = {}
+
+        root = QHBoxLayout(self)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFixedWidth(240)
+        panel = QWidget()
+        panel_layout = QVBoxLayout(panel)
+        panel_layout.addWidget(QLabel(f"Select {self.MIN_ACTIVE}-{self.MAX_ACTIVE} items to compare:"))
+
+        for spec in tab_specs:
+            header = QLabel(spec.title)
+            header.setStyleSheet("font-weight: bold; margin-top: 8px;")
+            panel_layout.addWidget(header)
+            line = QFrame()
+            line.setFrameShape(QFrame.HLine)
+            panel_layout.addWidget(line)
+
+            # Lists every plot the pipeline supports for this tab, not just
+            # the config-selected subset. Plots first, Dataframe View last.
+            for plot_name in data_source.get_available_plots(spec.key):
+                item_key = (spec.key, plot_name)
+                cb = QCheckBox(plot_name)
+                cb.toggled.connect(self._on_toggle)
+                panel_layout.addWidget(cb)
+                self._checkboxes[item_key] = cb
+
+            df_key = (spec.key, self.DATAFRAME_ITEM)
+            df_cb = QCheckBox(self.DATAFRAME_ITEM)
+            df_cb.toggled.connect(self._on_toggle)
+            panel_layout.addWidget(df_cb)
+            self._checkboxes[df_key] = df_cb
+
+        panel_layout.addStretch()
+        scroll.setWidget(panel)
+        root.addWidget(scroll)
+
+        self.grid_container = QWidget()
+        self.grid_layout = QGridLayout(self.grid_container)
+        root.addWidget(self.grid_container, stretch=1)
+
+        self._status_label = QLabel(f"Select at least {self.MIN_ACTIVE} items to compare.")
+        self._status_label.setAlignment(Qt.AlignCenter)
+        self.grid_layout.addWidget(self._status_label, 0, 0)
+
+    def _active_keys(self) -> list[tuple[str, str]]:
+        return [key for key, cb in self._checkboxes.items() if cb.isChecked()]
+
+    def _on_toggle(self, checked: bool) -> None:
+        if checked and len(self._active_keys()) > self.MAX_ACTIVE:
+            sender = self.sender()
+            sender.blockSignals(True)
+            sender.setChecked(False)
+            sender.blockSignals(False)
+            return
+        self._rebuild_grid()
+
+    def _clear_grid(self) -> None:
+        while self.grid_layout.count():
+            item = self.grid_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.setParent(None)
+        # Reset stretch/minimums so a previous 1- or 2-item layout can't
+        # keep dominating space when the item count changes.
+        for r in range(2):
+            self.grid_layout.setRowStretch(r, 0)
+            self.grid_layout.setRowMinimumHeight(r, 0)
+        for c in range(2):
+            self.grid_layout.setColumnStretch(c, 0)
+            self.grid_layout.setColumnMinimumWidth(c, 0)
+
+    def _rebuild_grid(self) -> None:
+        active = self._active_keys()
+        self._clear_grid()
+
+        # Drop cells for items that were unchecked.
+        for key in list(self._cells.keys()):
+            if key not in active:
+                widget = self._cells.pop(key)
+                widget.setParent(None)
+                widget.deleteLater()
+
+        if len(active) < self.MIN_ACTIVE:
+            self._status_label = QLabel(
+                f"Select at least {self.MIN_ACTIVE} items to compare "
+                f"({len(active)} selected)."
+            )
+            self._status_label.setAlignment(Qt.AlignCenter)
+            self.grid_layout.addWidget(self._status_label, 0, 0, 1, 1)
+            self.grid_layout.setRowStretch(0, 1)
+            self.grid_layout.setColumnStretch(0, 1)
+            return
+
+        positions = self._positions_for(len(active))
+        rows_used = {p[0] for p in positions}
+        cols_used = {p[1] for p in positions}
+        for r in rows_used:
+            self.grid_layout.setRowStretch(r, 1)
+        for c in cols_used:
+            self.grid_layout.setColumnStretch(c, 1)
+
+        for key, pos in zip(active, positions):
+            tab_key, item_name = key
+            widget = self._cells.get(key)
+            if widget is None:
+                widget = self._build_cell(tab_key, item_name)
+                self._cells[key] = widget
+            row, col, rspan, cspan = pos
+            self.grid_layout.addWidget(widget, row, col, rspan, cspan)
+
+    def _build_cell(self, tab_key: str, item_name: str) -> QWidget:
+        if item_name == self.DATAFRAME_ITEM:
+            index_fields = self._index_fields_by_tab.get(tab_key, ())
+            df_pane, model, _view = _build_dataframe_pane(index_fields)
+            array, fill_count = self._data_source.get_dataframe_array(tab_key)
+            model.set_data(array, fill_count)
+            df_pane.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+            df_pane.setMinimumSize(50, 50)
+            return df_pane
+
+        canvas = FigureCanvasQTAgg(Figure(figsize=(5, 4)))
+        canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        canvas.setMinimumSize(50, 50)
+        self._data_source.render_plot(tab_key, item_name, canvas.figure)
+        canvas.draw_idle()
+        return canvas
+
+    @staticmethod
+    def _positions_for(n: int) -> list[tuple[int, int, int, int]]:
+        if n <= 1:
+            return [(0, 0, 1, 1)]
+        if n == 2:
+            return [(0, 0, 1, 1), (0, 1, 1, 1)]
+        return [(0, 0, 1, 1), (0, 1, 1, 1), (1, 0, 1, 1), (1, 1, 1, 1)][:n]
+
+
+# --------------------------------------------------------------------------
+# Main window
+# --------------------------------------------------------------------------
+
+class MbutyDashboard(QMainWindow):
+    # Emitted from closeEvent, so callers can react to the window actually
+    # being closed rather than relying on Qt object-deletion timing.
+    closing = Signal()
+
+    def __init__(self, data_source: DashboardDataSource, config: dict, parent=None):
+        super().__init__(parent)
+        self._data_source = data_source
+        self._config = config
+        self.setWindowTitle("MBUTY Dashboard")
+
+        self.main_tabs = QTabWidget()
+        self.setCentralWidget(self.main_tabs)
+
+        # Which tabs exist, their field config, and which plots each
+        # instrument tab shows (config-selected, fixed for this window).
+        # Events is shown first (most-watched during a run); Readouts/Hits
+        # load later since they're mainly for debugging. A tab is only
+        # added if the pipeline actually has data behind it.
+        def _maybe_tab(key: str, title: str, index_cfg_key: str, active_cfg_key: str) -> TabSpec | None:
+            available = data_source.get_available_plots(key)
+            if not available:
+                return None
+            _, fill_count = data_source.get_dataframe_array(key)
+            if fill_count == 0:
+                return None
+            return TabSpec(
+                key, title,
+                tuple(config.get(index_cfg_key, ())),
+                tuple(config.get(active_cfg_key, available)),
+            )
+
+        tab_specs: list[TabSpec] = []
+        for spec in (
+            _maybe_tab("events", "Events", "events_index_fields", "events_active_plots"),
+            _maybe_tab("hits", "Hits", "hits_index_fields", "hits_active_plots"),
+            _maybe_tab("readouts", "Readouts", "readouts_index_fields", "readouts_active_plots"),
+        ):
+            if spec is not None:
+                tab_specs.append(spec)
+
+        # Beam Monitor is an independent pipeline, so it gets its own
+        # presence check rather than the generic tab availability rule.
+        if data_source.beam_monitor_present():
+            tab_specs.append(TabSpec(
+                "beam_monitor", "Beam Monitor",
+                tuple(config.get("bm_index_fields", ())),
+                tuple(config.get("bm_active_plots", data_source.get_available_plots("beam_monitor"))),
+                dataframe_tabs=(
+                    ("BM Readouts", "beam_monitor_readouts"),
+                    ("BM Events",   "beam_monitor"),
+                ),
+            ))
+
+        # Each InstrumentView is only constructed when its tab is clicked.
+        self._tab_specs = tab_specs
+        self._data_source = data_source
+        self.views: dict[str, InstrumentView] = {}
+        self._built_main: set[int] = set()
+
+        # False if the run produced no data at all; callers use this to
+        # skip showing an empty window.
+        self.has_content = bool(tab_specs)
+
+        for spec in tab_specs:
+            self.main_tabs.addTab(QWidget(), spec.title)
+
+        if self.has_content:
+            self.comparison_view = ComparisonMatrixView(data_source, tab_specs)
+            self.main_tabs.addTab(self.comparison_view, "Comparison Matrix")
+        else:
+            self.comparison_view = None
+
+        self.main_tabs.currentChanged.connect(self._ensure_main_built)
+        if self.has_content:
+            self._ensure_main_built(0)  # whichever tab is shown first needs content now
+
+    def _ensure_main_built(self, index: int) -> None:
+        if index < 0 or index in self._built_main:
+            return  # removeTab() below can transiently emit currentChanged(-1)
+        title = self.main_tabs.tabText(index)
+        spec = next((s for s in self._tab_specs if s.title == title), None)
+        if spec is None:
+            return  # Comparison Matrix -- already fully built up front
+        self._built_main.add(index)
+
+        view = InstrumentView(spec, self._data_source)
+        self.views[spec.key] = view
+
+        old = self.main_tabs.widget(index)
+        self.main_tabs.blockSignals(True)
+        try:
+            self.main_tabs.removeTab(index)
+            self.main_tabs.insertTab(index, view, title)
+        finally:
+            self.main_tabs.blockSignals(False)
+        self.main_tabs.setCurrentIndex(index)
+        if old is not None:
+            old.deleteLater()
+
+    def refresh_all_dataframes(self) -> None:
+        """Refresh dataframes only for tabs that have actually been opened."""
+        for view in self.views.values():
+            view.refresh_dataframe()
+
+    def closeEvent(self, event):
+        super().closeEvent(event)
+        self.closing.emit()
+
+
+# --------------------------------------------------------------------------
+# Demo data source — for manual smoke-testing this shell only.
+# --------------------------------------------------------------------------
+
+class _DemoDataSource(DashboardDataSource):
+    _DTYPE = np.dtype([("ts", "f8"), ("wire", "i4"), ("strip", "i4"), ("adc", "f8")])
+
+    def beam_monitor_present(self) -> bool:
+        return True
+
+    def get_dataframe_array(self, tab_key: str):
+        n = 50
+        arr = np.zeros(n, dtype=self._DTYPE)
+        arr["ts"] = np.arange(n, dtype="f8")
+        arr["wire"] = np.arange(n) % 16
+        arr["strip"] = np.arange(n) % 32
+        arr["adc"] = np.random.rand(n) * 1000
+        arr["wire"][3] = -1        # sentinel row
+        arr["adc"][7] = np.nan     # sentinel row
+        return arr, n
+
+    def get_available_plots(self, tab_key: str):
+        return ["ADC Spectrum", "Wire vs Strip", "Time Profile", "Rate vs Time"]
+
+    def render_plot(self, tab_key: str, plot_name: str, figure: Figure) -> None:
+        figure.clear()
+        ax = figure.add_subplot(111)
+        ax.plot(np.random.rand(50))
+        ax.set_title(f"{tab_key} :: {plot_name}")
+
+
+if __name__ == "__main__":
+    import sys
+
+    app = QApplication(sys.argv)
+    # Demo config: each instrument tab shows only the plots selected
+    # "before running" — a fixed subset of what the pipeline can produce.
+    demo_config = {
+        "readouts_active_plots": ["ADC Spectrum", "Time Profile"],
+        "hits_active_plots": ["Wire vs Strip"],
+        "events_active_plots": ["ADC Spectrum", "Wire vs Strip", "Rate vs Time"],
+        "bm_active_plots": ["Rate vs Time"],
+    }
+    window = MbutyDashboard(_DemoDataSource(), config=demo_config)
+    window.resize(1300, 800)
+    window.show()
+    sys.exit(app.exec())

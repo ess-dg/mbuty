@@ -701,7 +701,7 @@ class MBUTYMainWindow(QMainWindow):
             f"--------------------------\n"
             f"Description: Utility Tool for Analysis. Supports readers for these data formats: "
             f"VMM, BM, R5560 and SKADI. Supports detectors (instruments) MB (TBL, ESTIA, FREIA), MG (TREX), Gd-GEM (NMX),"
-            f"He3 tubes (TBL, CSPEC, BIFROST, MIRACLES and VESPA), SONDE (SKADI)."
+            f"He3 tubes (TBL, CSPEC, BIFROST, MIRACLES and VESPA), MAPMT (SKADI)."
         )
         QMessageBox.information(self, "About MBUTY", about_text)
 
@@ -714,9 +714,6 @@ class MBUTYMainWindow(QMainWindow):
         sys.stdout = self.original_stdout
         super().closeEvent(event)
 
-###############################################################################
-###############################################################################
-###############################################################################
 
 def main():
     import sys as _sys
@@ -728,9 +725,6 @@ def main():
     window.show()
     _sys.exit(app.exec())
 
-###############################################################################
-###############################################################################
-###############################################################################
 
 if __name__ == "__main__":
     main()

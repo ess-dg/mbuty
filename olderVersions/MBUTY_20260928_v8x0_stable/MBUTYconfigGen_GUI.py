@@ -435,10 +435,6 @@ class ConfigCreatorWidget(QWidget):
             QMessageBox.critical(self, "Save Error", f"An error occurred while saving the JSON file: {e}")
 
 
-###############################################################################
-###############################################################################
-###############################################################################
-
 if __name__ == "__main__":
     import sys as _sys
     from qtpy.QtWidgets import QApplication
