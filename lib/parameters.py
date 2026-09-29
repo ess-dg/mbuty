@@ -277,7 +277,7 @@ class slowCtrl():
     
     def __init__(self,currentPath):
         
-        self.doSlowCtrl = False
+        self.doSlowCtrl  = False
         
         self.hardReset = False 
         
