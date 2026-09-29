@@ -354,9 +354,12 @@ def resetFec(fen_portal, ring, fen):    # this is warm init
 		fen_portal.userRegWrite(ring, fen, "sc_app_reset_assister", 0)
 		fen_portal.userRegWrite(ring, fen, "sc_app_reset_assister", 1)
 		fen_portal.userRegWrite(ring, fen, "sc_app_reset_assister", 0)
+   
         
-# add reset all wqith loop 
-
+def  resetFec_global(fen_portal, cfg): 
+    print(f"Resetting all rings all fens")
+    for the_fen in cfg["fecs"]:
+        resetFec(fen_portal, the_fen['ring'], the_fen['fen'])
 
         # 
 # VMM Hard reset:
@@ -406,12 +409,12 @@ def acqOnOff_global(fen_portal, cfg, on=True):
     for the_fen in cfg["fecs"]:
         acqOnOff(fen_portal, the_fen['ring'], the_fen['fen'], on=on)
         
-def acqOff_allRings(fen_portal):
+# def acqOff_allRings(fen_portal):
 
-    print(f"Stopping acquisition on all rings")	
+#     print(f"Stopping acquisition on all rings")	
         
-    for the_ring in range(11):
-        acqOnOff(fen_portal, the_ring, 0, on=False)        
+#     for the_ring in range(11):
+#         acqOnOff(fen_portal, the_ring, 0, on=False)        
 
 
 def checkConfigNames(cfg):
