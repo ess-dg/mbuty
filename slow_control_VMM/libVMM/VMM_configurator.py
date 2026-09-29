@@ -403,7 +403,7 @@ def acqOnOff_global(fen_portal, cfg, on=True):
     else:
         print(f"Stopping acquisition on all rings all fens")	
         
-    for the_fen in enumerate(cfg["fecs"]):
+    for the_fen in cfg["fecs"]:
         acqOnOff(fen_portal, the_fen['ring'], the_fen['fen'], on=on)
 
 
