@@ -80,20 +80,20 @@ class VMMSlowCtrl():
 
 if __name__ == "__main__":
     
-    current_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))  + os.sep
+    # current_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__))) + os.sep
   
-    cfg_path     = os.path.join(current_dir, 'config_VMM' )
+    # cfg_path     = os.path.join(current_dir, 'config_VMM' )
     
-    addr_path    = os.path.join(current_dir, 'sys_regs_map' )
+    # addr_path    = os.path.join(current_dir, 'sys_regs_map' )
     
-    sys_regs_map = 'vmm_sys_regs_map_A0v1.txt'
+    # sys_regs_map = 'vmm_sys_regs_map_A0v1.txt'
 
-    VMM_cfg      = 'MB.FREIA.diagonalNoSymm.json'
+    # VMM_cfg      = 'MB.FREIA.diagonalNoSymm.json'
     
-    ring_cfg     = '/home/essdaq/detg_git/slow_control_driver/freia/cfg.json'
+    # ring_cfg     = '/home/essdaq/detg_git/slow_control_driver/freia/cfg.json'
     
     
-    current_dir = os.path.abspath(os.path.dirname(__file__)) + os.sep
+    current_dir = '/home/essdaq/mbuty/'
     parameters  = para.parameters(current_dir)
     
     
