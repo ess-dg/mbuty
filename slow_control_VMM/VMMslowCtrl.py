@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+@authors: Dorothea Pfeiffer, Francesco Piscitelli
+"""
+###############################################################################
+###############################################################################
+
+# import argparse
+# import time
+import os 
+import sys 
+
+# =============================================================================
+# RUNTIME PATH BOOTSTRAP
+# =============================================================================
+_workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _workspace not in sys.path:
+    sys.path.insert(0, _workspace)
+    
+# if essrmmdirver is not installed with pip -e 
+sys.path.insert(0, '/home/essdaq/detg_git/slow_control_driver')
+    
+from essrmmdriverlib.ReadoutMasterModule import ReadoutMasterModule
+from essrmmdriverlib.frontend.FrontEndGenericPortal import FrontEndGenericPortal
+
+from libVMM.VMM_configurator import configDetector, acqOnOff, loadConfig, setAssisterConfig, setVmmConfig, setChannelConfig, checkConfigNames
+
+
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+if __name__ == "__main__":
+    
+    current_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__))) + os.sep + 'slow_control_VMM' + os.sep
+  
+    cfg_path     = os.path.join(current_dir, 'config_VMM' )
+    
+    addr_path    = os.path.join(current_dir, 'sys_regs_map' )
+    
+    sys_regs_map = 'vmm_sys_regs_map_A0v1.txt'
+
+    VMM_cfg      = 'MB.FREIA.diagonalNoSymm.json'
+    
+    ring_cfg     = '/home/essdaq/detg_git/slow_control_driver/freia/cfg.json'
+    
+
+
+	# Create RMM instance as normal, topology defined in cfg_ring
+    rmm = ReadoutMasterModule(cfg_json=ring_cfg)
+    
+
+	# Use this to create a generic interface to all FEN userspace
+    fen_portal = FrontEndGenericPortal(RMMRegs=rmm.RMMRegs, regmap=os.path.join(addr_path, sys_regs_map ))
+
+    
+	
+    cfg = loadConfig(os.path.join(cfg_path, VMM_cfg))
+    
+	
+    checkConfigNames(cfg)
+	
+# 	for n in range(1, 6):
+# 		setVmmConfig(cfg, fen=0, hybrid=0, vmm_index=0, name="sdp10", value=n*200)
+# 		setVmmConfig(cfg, fen=0, hybrid=0, vmm_index=1, name="sdp10", value=n*200)
+
+    acqOnOff(fen_portal, cfg, on=False)
+
+    configDetector(fen_portal,cfg)
+    
+    acqOnOff(fen_portal, cfg, on=True)
+    
+# 		time.sleep(5)
+# 		acqOnOff(fen_portal, cfg, on=False)

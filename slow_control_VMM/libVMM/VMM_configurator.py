@@ -15,15 +15,15 @@ def loadConfig(cfg_vmm):
 		return json.load(f)
 
 
-def saveConfig(cfg, cfg_vmm):
-	with open(cfg_vmm, "w") as f:
-		json.dump(cfg, f, indent="\t")
+# def saveConfig(cfg, cfg_vmm):
+# 	with open(cfg_vmm, "w") as f:
+# 		json.dump(cfg, f, indent="\t")
 
 
-def asConfig(cfg_or_file):
-	if isinstance(cfg_or_file, str):
-		return loadConfig(cfg_or_file)
-	return cfg_or_file
+# def asConfig(cfg_or_file):
+# 	if isinstance(cfg_or_file, str):
+# 		return loadConfig(cfg_or_file)
+# 	return cfg_or_file
 
 
 def b(value, width):
@@ -51,63 +51,61 @@ def getCh(vmm, ch, name):
 	return vmm[f"channel{ch:02d}"][name]
 
 
-def findFen(cfg, fen):
+def findFen(cfg, ring, fen):
 	for the_fen in cfg["fecs"]:
-		if the_fen["fen"] == fen:
+		if the_fen["fen"] == fen and the_fen["ring"]  == ring:
 			return the_fen
-
-	raise KeyError(f"FEN {fen} not found")
+	raise KeyError(f"FEN: ring {ring} node {fen} not found")
 
 
 def findHybrid(the_fen, hybrid):
 	for the_hybrid in the_fen["hybrids"]:
 		if the_hybrid["hybrid"] == hybrid:
 			return the_hybrid
-
 	raise KeyError(f"Hybrid {hybrid} not found in FEN {the_fen['fen']}")
 
 
-def findVmm(cfg, fen, hybrid, vmm_index):
-	the_fen = findFen(cfg, fen)
+def findVmm(cfg, ring, fen, hybrid, vmm_index):
+	the_fen    = findFen(cfg, ring, fen)
 	the_hybrid = findHybrid(the_fen, hybrid)
 	return the_hybrid[f"vmm{vmm_index}"]
 
 
-def setVmmConfig(cfg, fen, hybrid, vmm_index, name, value):
-	vmm = findVmm(cfg, fen, hybrid, vmm_index)
-	vmm[name] = value
-	return cfg
+# def setVmmConfig(cfg, fen, hybrid, vmm_index, name, value):
+# 	vmm = findVmm(cfg, fen, hybrid, vmm_index)
+# 	vmm[name] = value
+# 	return cfg
 
 
-def setChannelConfig(cfg, fen, hybrid, vmm_index, ch, name, value):
-	vmm = findVmm(cfg, fen, hybrid, vmm_index)
-	vmm[f"channel{ch:02d}"][name] = value
-	return cfg
+# def setChannelConfig(cfg, fen, hybrid, vmm_index, ch, name, value):
+# 	vmm = findVmm(cfg, fen, hybrid, vmm_index)
+# 	vmm[f"channel{ch:02d}"][name] = value
+# 	return cfg
 
 
-def updateVmmConfig(cfg, fen, hybrid, vmm_index, values):
-	vmm = findVmm(cfg, fen, hybrid, vmm_index)
-	vmm.update(values)
-	return cfg
+# def updateVmmConfig(cfg, fen, hybrid, vmm_index, values):
+# 	vmm = findVmm(cfg, fen, hybrid, vmm_index)
+# 	vmm.update(values)
+# 	return cfg
 
 
-def updateChannelConfig(cfg, fen, hybrid, vmm_index, ch, values):
-	vmm = findVmm(cfg, fen, hybrid, vmm_index)
-	vmm[f"channel{ch:02d}"].update(values)
-	return cfg
+# def updateChannelConfig(cfg, fen, hybrid, vmm_index, ch, values):
+# 	vmm = findVmm(cfg, fen, hybrid, vmm_index)
+# 	vmm[f"channel{ch:02d}"].update(values)
+# 	return cfg
 
-def setAssisterConfig(cfg, fen, name, value):
-	the_fen = findFen(cfg, fen)
-	the_fen[name] = value
-	return cfg
+# def setAssisterConfig(cfg, fen, name, value):
+# 	the_fen = findFen(cfg, fen)
+# 	the_fen[name] = value
+# 	return cfg
 
 
-def updateAssisterConfig(cfg, fen, values):
-	the_fen = findFen(cfg, fen)
-	the_fen.update(values)
-	return cfg
+# def updateAssisterConfig(cfg, fen, values):
+# 	the_fen = findFen(cfg, fen)
+# 	the_fen.update(values)
+# 	return cfg
 
-def fillGlobalRegisters(fec, vmm):
+def fillGlobalRegisters(vmm):
 	regs = []
 
 	spi0 = "0" * 32
@@ -286,62 +284,53 @@ def fillGlobalRegisters2(vmm):
 						
 						
 def configVmm(fen_portal, ring, fen, hybrid, vmm_index, cfg):
-	the_fen = findFen(cfg, fen)
-	the_hybrid = findHybrid(the_fen, hybrid)
-	vmm = the_hybrid[f"vmm{vmm_index}"]
-
-	ring = the_fen["ring"]
-	node = the_fen["fen"]
+   
+	vmm = findVmm(cfg, ring, fen, hybrid, vmm_index)
 
 	idx = hybrid * 2 + vmm_index
 	s_vmm = f"{idx:02d}" if idx < 10 else str(idx)
 
-	bank2 = fillGlobalRegisters2(vmm)
+	bank2    = fillGlobalRegisters2(vmm)
 	channels = fillChannelRegisters(vmm)
-	bank1 = fillGlobalRegisters(the_fen, vmm)
+	bank1    = fillGlobalRegisters(vmm)
 
 	for i, word in enumerate(bank2):
-		fen_portal.userRegWrite(ring, node, f"vmm_global_bank2_sp{i}{s_vmm}", int(word, 2))
+		fen_portal.userRegWrite(ring, fen, f"vmm_global_bank2_sp{i}{s_vmm}", int(word, 2))
 
 	for ch, word in enumerate(channels):
-		fen_portal.userRegWrite(ring, node, f"vmm_ch{ch:02d}{s_vmm}", int(word, 2))
+		fen_portal.userRegWrite(ring, fen, f"vmm_ch{ch:02d}{s_vmm}", int(word, 2))
 
 	for i, word in enumerate(bank1):
-		fen_portal.userRegWrite(ring, node, f"vmm_global_bank1_sp{i}{s_vmm}", int(word, 2))
+		fen_portal.userRegWrite(ring, fen, f"vmm_global_bank1_sp{i}{s_vmm}", int(word, 2))
 
-	fen_portal.userRegWrite(ring, node, "sc_cfg_vmm", 0)
-	fen_portal.userRegWrite(ring, node, "sc_cfg_vmm", 1 << idx)
-	fen_portal.userRegWrite(ring, node, "sc_cfg_vmm", 0)
+	fen_portal.userRegWrite(ring, fen, "sc_cfg_vmm", 0)
+	fen_portal.userRegWrite(ring, fen, "sc_cfg_vmm", 1 << idx)
+	fen_portal.userRegWrite(ring, fen, "sc_cfg_vmm", 0)
 
 
 def configHybrid(fen_portal, ring, fen, hybrid, cfg):
-	the_fen = findFen(cfg, fen)
-	the_hybrid = findHybrid(the_fen, hybrid)
+    
+	the_fen    = findFen(cfg, ring, fen)
 
-	ring = the_fen["ring"]
-	node = the_fen["fen"]
+	the_hybrid = findHybrid(the_fen, hybrid)
 
 	param = the_hybrid["TP_pol"]
 
-	fen_portal.userRegWrite(ring, node, f"hyb_tp_skew0{hybrid}", the_hybrid["TP_skew"])
-	fen_portal.userRegWrite(ring, node, f"hyb_tp_width0{hybrid}", the_hybrid["TP_width"])
-	fen_portal.userRegWrite(ring, node, f"hyb_tp_polarity0{hybrid}", param)
+	fen_portal.userRegWrite(ring, fen, f"hyb_tp_skew0{hybrid}", the_hybrid["TP_skew"])
+	fen_portal.userRegWrite(ring, fen, f"hyb_tp_width0{hybrid}", the_hybrid["TP_width"])
+	fen_portal.userRegWrite(ring, fen, f"hyb_tp_polarity0{hybrid}", param)
 
-	fen_portal.userRegWrite(ring, node, "sc_cfg_hyb", 0)
-	fen_portal.userRegWrite(ring, node, "sc_cfg_hyb", 1 << hybrid)
-	fen_portal.userRegWrite(ring, node, "sc_cfg_hyb", 0)
+	fen_portal.userRegWrite(ring, fen, "sc_cfg_hyb", 0)
+	fen_portal.userRegWrite(ring, fen, "sc_cfg_hyb", 1 << hybrid)
+	fen_portal.userRegWrite(ring, fen, "sc_cfg_hyb", 0)
 
 
 def configAssister(fen_portal, ring, fen, cfg, mask):
-	the_fen = findFen(cfg, fen)
-	ring = the_fen["ring"]
-	node = the_fen["fen"]
+	the_fen = findFen(cfg, ring, fen)
 
 	writes = [
 		("app_debug_data_format", 0),
 		("app_latency_reset", the_fen["latency_reset"]),
-# 		("app_latency_data_max", the_fen["latency_data_max"]),
-# 		("app_latency_data_jitter", the_fen["latency_data_error"]),
 		("app_tp_offset_first", the_fen["tp_offset_first"]),
 		("app_tp_offset", the_fen["tp_offset"]),
 		("app_tp_offset_long", 0),
@@ -355,16 +344,10 @@ def configAssister(fen_portal, ring, fen, cfg, mask):
 	]
 
 	for reg, value in writes:
-		fen_portal.userRegWrite(ring, node, reg, value)
+		fen_portal.userRegWrite(ring, fen, reg, value)
 
 
-def resetFec(fen_portal, cfg_or_file):    # this is warm init 
-	cfg = asConfig(cfg_or_file)
-	checkConfigNames(cfg)
-
-	for the_fen in cfg["fecs"]:
-		fen = the_fen["fen"]
-		ring = the_fen["ring"]
+def resetFec(fen_portal, ring, fen):    # this is warm init 
 
 		print(f"Resetting ring {ring}, fen {fen}")
 
@@ -372,7 +355,10 @@ def resetFec(fen_portal, cfg_or_file):    # this is warm init
 		fen_portal.userRegWrite(ring, fen, "sc_app_reset_assister", 1)
 		fen_portal.userRegWrite(ring, fen, "sc_app_reset_assister", 0)
         
-        
+# add reset all wqith loop 
+
+
+        # 
 # VMM Hard reset:
 
 # else if(QObject::sender() == m_ui->vmmReset){
@@ -395,13 +381,9 @@ def resetFec(fen_portal, cfg_or_file):    # this is warm init
 #     }        
 
 
-def acqOnOff(fen_portal, cfg_or_file, on):
-	cfg = asConfig(cfg_or_file)
-	checkConfigNames(cfg)
-
-	for the_fen in cfg["fecs"]:
-		fen = the_fen["fen"]
-		ring = the_fen["ring"]
+def acqOnOff(fen_portal, ring, fen, on=True):
+# 	cfg = asConfig(cfg_or_file)
+# 	checkConfigNames(cfg)
 
 		if on:
 			print(f"Starting acquisition on ring {ring}, fen {fen}")
@@ -412,6 +394,16 @@ def acqOnOff(fen_portal, cfg_or_file, on):
 		fen_portal.userRegWrite(ring, fen, "sc_acq_on_off", 0)
 		fen_portal.userRegWrite(ring, fen, "sc_acq_on_off", 1)
 		fen_portal.userRegWrite(ring, fen, "sc_acq_on_off", 0)
+
+def acqOnOff_global(fen_portal, cfg, on=True):
+    checkConfigNames(cfg)
+    if on:
+        print(f"Starting acquisition on all rings all fens")
+    else:
+        print(f"Stopping acquisition on all rings all fens")	
+        
+    for the_ring, the_fen in enumerate(cfg["fecs"]):
+        acqOnOff(fen_portal, the_ring, the_fen, on=on)
 
 
 def checkConfigNames(cfg):
@@ -432,12 +424,13 @@ def checkConfigNames(cfg):
 	print("JSON config check passed.")
 
 
-def configDetector(fen_portal, cfg_or_file):
-	cfg = asConfig(cfg_or_file)
+def configDetector(fen_portal, cfg):
+    
+# 	cfg = asConfig(cfg_or_file)
 	checkConfigNames(cfg)
 
 	for the_fen in cfg["fecs"]:
-		fen = the_fen["fen"]
+		fen  = the_fen["fen"]
 		ring = the_fen["ring"]
 		channel_mask = 0
 
