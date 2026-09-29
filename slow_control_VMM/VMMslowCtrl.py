@@ -80,7 +80,7 @@ class VMMSlowCtrl():
 
 if __name__ == "__main__":
     
-    current_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__))) + os.sep + 'slow_control_VMM' + os.sep
+    current_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))  + os.sep
   
     cfg_path     = os.path.join(current_dir, 'config_VMM' )
     
