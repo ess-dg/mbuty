@@ -24,7 +24,7 @@ sys.path.insert(0, '/home/essdaq/detg_git/slow_control_driver')
 from essrmmdriverlib.ReadoutMasterModule import ReadoutMasterModule
 from essrmmdriverlib.frontend.FrontEndGenericPortal import FrontEndGenericPortal
 
-from libVMM.VMM_configurator import configDetector, acqOnOff, loadConfig, setAssisterConfig, setVmmConfig, setChannelConfig, checkConfigNames
+from libVMM.VMM_configurator import configDetector, acqOnOff, loadConfig, checkConfigNames
 
 
 
