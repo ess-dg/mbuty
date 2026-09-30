@@ -126,10 +126,10 @@ class MBUTYMainWindow(QMainWindow):
             task()
         self.after_widgets_created_tasks.clear()
 
-        info_btn = QToolButton(self)
-        info_btn.setText("info")
-        info_btn.clicked.connect(self.show_about_dialog)
-        self.statusBar().addPermanentWidget(info_btn)
+        # info_btn = QToolButton(self)
+        # info_btn.setText("About MBUTY")
+        # info_btn.clicked.connect(self.show_about_dialog)
+        # self.statusBar().addPermanentWidget(info_btn)
 
     def _build_header(self):
         header = QWidget()
@@ -140,6 +140,7 @@ class MBUTYMainWindow(QMainWindow):
 
         current_path = os.path.abspath(os.path.dirname(__file__))
 
+        # Left Logo
         left_logo_path = os.path.join(current_path, "GUI", "logos", "DetGlogo.png")
         left_logo = QLabel()
         pix = QPixmap(left_logo_path)
@@ -149,13 +150,34 @@ class MBUTYMainWindow(QMainWindow):
             print(f"Left logo not found: {left_logo_path}")
         layout.addWidget(left_logo, 0, 0, Qt.AlignLeft)
 
+        # Center Container (Title + About Button stacked vertically)
+        center_box = QWidget()
+        center_layout = QVBoxLayout(center_box)
+        center_layout.setContentsMargins(0, 0, 0, 0)
+        center_layout.setSpacing(4)
+        center_layout.setAlignment(Qt.AlignCenter)
+
         user_name = os.environ.get("USER", os.environ.get("USERNAME", "User"))
-        title = QLabel(f"Ciao {user_name}! Welcome to MBUTY 8.0")
+        title = QLabel(f"Ciao {user_name}! Welcome to MBUTY 9.0")
         title.setProperty("role", "header")
         title.setStyleSheet("color: #228B22;")  # forest green accent
         title.setAlignment(Qt.AlignCenter)
-        layout.addWidget(title, 0, 1, Qt.AlignCenter)
+        center_layout.addWidget(title)
 
+        info_btn = QPushButton("About MBUTY (i)")
+        info_btn.setFixedWidth(120)  # Optional: keeps the button a neat size
+        info_btn.clicked.connect(self.show_about_dialog)
+        
+        # Wrap the button in a horizontal layout to center it perfectly under the title
+        btn_wrapper = QHBoxLayout()
+        btn_wrapper.addStretch()
+        btn_wrapper.addWidget(info_btn)
+        btn_wrapper.addStretch()
+        center_layout.addLayout(btn_wrapper)
+
+        layout.addWidget(center_box, 0, 1, Qt.AlignCenter)
+
+        # Right Logo & Theme Toggle Container
         right_logo_path = os.path.join(current_path, "GUI", "logos", "MBUTYlogo.png")
         right_logo = QLabel()
         pix2 = QPixmap(right_logo_path)
@@ -164,7 +186,6 @@ class MBUTYMainWindow(QMainWindow):
         else:
             print(f"Right logo not found: {right_logo_path}")
 
-        # Theme toggle - sits next to the right logo, same row
         theme_btn = QToolButton()
         theme_btn.setText("\u263d")  # crescent moon
         theme_btn.setToolTip("Toggle light/dark mode")
@@ -378,25 +399,25 @@ class MBUTYMainWindow(QMainWindow):
         
         # Stretch in the middle pushes everything else left and the new button right
         layout.addStretch(1)
-
-        self.slow_control_button = QPushButton("Open Slow Control Manager")
+        
+        self.slow_control_button = QPushButton("Slow Control Manager")
         self.slow_control_button.clicked.connect(self.open_slow_control_manager)
         layout.addWidget(self.slow_control_button)
 
         return row
     
     def open_slow_control_manager(self):
-        # try:
-        from GUI.gui_config import open_slow_control_manager as launch_slow_control
-        launch_slow_control(self.theme_manager.mode)
-        # except ImportError as e:
-        #     print(f"Could not load slow control manager: {e}")
-        #     QMessageBox.information(
-        #         self,
-        #         "Slow Control Manager",
-        #         "Opening Slow Control Manager (fallback mode)...",
-        #     )
-
+        try:
+            from GUI.gui_config import slow_control_manager 
+            
+            current_mode = getattr(self.theme_manager, 'mode', 'dark')
+            # print(f"Pushing theme mode to Slow Control: {current_mode}")
+            
+            # Now current_mode will properly map to theme_mode!
+            slow_control_manager(current_mode)
+        except ImportError as e:
+            print(f"Could not load slow control manager: {e}")
+            
     # ------------------------------------------------------------------
     # Stop handling
     # ------------------------------------------------------------------
@@ -709,8 +730,8 @@ class MBUTYMainWindow(QMainWindow):
     # Lifecycle
     # ------------------------------------------------------------------
     def show_about_dialog(self):
-        version = "8.0 (August 19, 2026)"
-        author = "Francesco Piscitelli, Sheila Monera Cabarique"
+        version = "9.0 (September 30, 2026)"
+        author = "Francesco Piscitelli, Sheila Monera Cabarique, Dorothea Pfeiffer"
         about_text = (
             f"MBUTY GUI Analysis Suite\n"
             f"Multi-detector Buffer User Toolkit for analYsis\n"
@@ -722,7 +743,8 @@ class MBUTYMainWindow(QMainWindow):
             f"--------------------------\n"
             f"Description: Utility Tool for Analysis. Supports readers for these data formats: "
             f"VMM, BM, R5560 and SKADI. Supports detectors (instruments) MB (TBL, ESTIA, FREIA), MG (TREX), Gd-GEM (NMX),"
-            f"He3 tubes (TBL, CSPEC, BIFROST, MIRACLES and VESPA), SONDE (SKADI)."
+            f"He3 tubes (TBL, CSPEC, BIFROST, MIRACLES and VESPA), SONDE (SKADI). And Beam Monitors (generic, I-BM and RMM front panel I/O)\n"
+            f"\nFrom Version 9.0 integrates also VMM slow control and ring bring up."
         )
         QMessageBox.information(self, "About MBUTY", about_text)
 

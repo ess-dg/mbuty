@@ -16,8 +16,8 @@ from qtpy.QtGui import QFont, QIcon, QPixmap, QPainter, QColor
 # --------------------------------------------------------------------------
 # Fonts
 # --------------------------------------------------------------------------
-FONT_FAMILY      = "Segoe UI"      # falls back to system default if missing
-FONT_FAMILY_MONO = "Consolas"      # falls back similarly; used for console/log widgets
+FONT_FAMILY      = "Arial"      # falls back to system default if missing
+FONT_FAMILY_MONO = "Arial"      # falls back similarly; used for console/log widgets
 
 FONT_SIZE_BASE    = 12       # body text, entries, buttons
 FONT_SIZE_LABEL   = 12       # field labels

@@ -173,34 +173,32 @@ def open_config_creator_standalone(theme_mode="dark"):
     except Exception as e:
         QMessageBox.critical(None, "Error", f"Failed to launch Config Creator:\n{e}")
   
+   
+     
+def slow_control_manager(theme_mode="dark"):
+    """
+    Launches VMMslowCtrl_GUI.py from the slow_control_VMM directory as a 
+    completely separate, standalone Python process, passing the current 
+    theme mode as a command-line argument.
+    """
+    from qtpy.QtWidgets import QMessageBox
+    import sys, os, subprocess
+    
+    python_executable = sys.executable
+    slow_control_gui_path = os.path.join(currentPath, 'slow_control_VMM', 'VMMslowCtrl_GUI.py')
+
+    # Verify that the script exists before trying to run it
+    if not os.path.exists(slow_control_gui_path):
+        QMessageBox.critical(None, "Error", f"Slow Control Manager script not found at:\n{slow_control_gui_path}")
+        return
+
+    try:
+        # print(f"Launching with theme mode: {theme_mode}")
+        subprocess.Popen([python_executable, slow_control_gui_path, str(theme_mode)])
+    except Exception as e:
+        print(f"Failed to launch: {e}")
         
-def open_slow_control_manager(self, theme_mode="dark"):
-        """
-        Launches VMMslowCtrl_GUI.py from the slow_control_VMM directory as a 
-        completely separate, standalone Python process, passing the current 
-        theme mode as a command-line argument.
-        """
-        from qtpy.QtWidgets import QMessageBox
-        import sys
-        import os
-
-        python_executable = sys.executable
-        slow_control_gui_path = os.path.join(currentPath, 'slow_control_VMM', 'VMMslowCtrl_GUI.py')
-
-        # Verify that the script exists before trying to run it
-        if not os.path.exists(slow_control_gui_path):
-            QMessageBox.critical(self, "Error", f"Slow Control Manager script not found at:\n{slow_control_gui_path}")
-            return
-
-        try:
-            subprocess.Popen([python_executable, slow_control_gui_path, theme_mode])
-        except FileNotFoundError:
-            QMessageBox.critical(self, "Error", "Python executable not found. Make sure Python is installed and in system PATH.")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to launch Slow Control Manager:\n{e}")
-            
-            
-            
+ 
 # Define configuration structure
 config = {
     "static": {

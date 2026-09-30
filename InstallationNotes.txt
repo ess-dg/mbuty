@@ -1,7 +1,7 @@
 
 INSTALLATION NOTES and PACKAGES 
 
-MBUTY 8.0
+MBUTY 9.0
 
 Multi-detector Buffer User Toolkit for analYsis
 
@@ -11,6 +11,8 @@ What is in this version:
 Supports CAEN R5560, SKADI and VMM readouts.
 Plots and analysis for VMM MG (TREX) and MB (ESTIA, FREIA, TBL) detectors and for He3 tubes (TBL, MIRACLES, CSPEC, BIFROST  and VESPA) for NMX (VMM) and SKADI. 
 Beam Monitors are also included, both generic and IBMs. And front-panel lemo of RMM as a BM.
+ 
+From verison 9.0 ring bring up (see note 5), IOC manger (see note 6) and VMM slow controls are also included as a sub-GUI. 
  
 --------------------------------------------------
 --------------------------------------------------
@@ -99,6 +101,28 @@ If remote computer doe into have rsync installed, here is how to install:
 
 This is needed when pcap-sync method is used to transfer data from one computer to another. 
 
+_______
+NOTE 5:
+If interested in running slow control. Only VMM slow control is supoported, 
+but IOC manager and ring bring up (RBU) is generic and can be used for all detectors. 
+
+For RBU the slow control driver must be isntalled beforehand from:
+
+https://gitlab.esss.lu.se/detectorgroup/software/slow-control/slow_control_driver
+
+Once cloned with git clone ... 
+it is installed as: 
+
+>> pip install -e /some_path/slow_control_driver
+
+in the folder where the RBU runs, an example folder is also avaialble in the slow control driver. 
+
+MBUTY needs to point to the run folder. 
+_______
+NOTE 6:
+The IOC manager allows to start, stop, status an IOC service like ioc-ESTIA-DtCmn_SC-IOC-002.service. 
+It is needed if the slow control clashes with epics and canot be both up at the same time. 
+
 --------------------------------------------------
 --------------------------------------------------
 PACKAGES
@@ -170,19 +194,4 @@ self.rev = False
 For changing default values in the GUI when it opens -> change values in GUI/gui_config.py
 
 -----
-
-This is probably obsolete now, and it works as is. Kept here just in case. 
-
-MBUTY checks your packages isntalled and prompt a measage if they are not found. 
-
-For some OS you need to change the method:
-In /lib/libParameters.py -> class checkPackageInstallation -> function init
-
-# self.installed = {pkg.key for pkg in pkg_resources.working_set}
-self.installed = {dist.name for dist in importlib.metadata.distributions()}
-
-And import
-# import pkg_resources
-import importlib.metadata
-
 --------------------------------------------------

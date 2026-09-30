@@ -52,7 +52,7 @@ class MBUTYOrchestrator():
  
         user_name = os.environ.get('USER', os.environ.get('USERNAME', 'User'))
         print('----------------------------------------------------------------------')
-        print(f'{INFO}Ciao {user_name}! Welcome to MBUTY 8.0 {RESET}')
+        print(f'{INFO}Ciao {user_name}! Welcome to MBUTY 9.0 {RESET}')
         print('----------------------------------------------------------------------')
         plt.close('all')
         

@@ -6,9 +6,9 @@ Mbuty is for reading / recording / analyzing the VMM3A, CAEN R5560 and SKADI dat
 
 --------------------------------------------------
 
-Supports CAEN R5560, SKADI and VMM readouts.
-Plots and analysis for VMM MG (TREX) and MB (ESTIA, FREIA, TBL) detectors and for He3 tubes (TBL, MIRACLES, CSPEC, BIFROST  and VESPA) for NMX (VMM) and SKADI. 
-Beam Monitors are also included, both generic and IBMs.
+Supports VMM, CAEN R5560, SKADI and Beam Monitors readouts.
+Plots and analysis for VMM MG (TREX) and MB (ESTIA, FREIA, TBL) detectors and for He3 tubes (TBL, MIRACLES, CSPEC, BIFROST and VESPA) for NMX (VMM) and SKADI. 
+Beam Monitors are also included (generic, I-BM and RMM front panle I/O).
 
 --------------------------------------------------
 

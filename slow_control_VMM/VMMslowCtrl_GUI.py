@@ -22,6 +22,9 @@ if project_root not in sys.path:
 from GUI.gui_utils import create_gui_widget, setup_dynamic_file_options
 from lib.IOC_manager_lib import manage_IOC_service
 
+# Determine theme mode from command-line arguments (default to "dark")
+theme_mode = sys.argv[1] if len(sys.argv) > 1 else "dark"
+
 try:
     from libVMM.VMM_configurator import VMMSlowCtrl
 except ImportError:
@@ -33,7 +36,8 @@ except ImportError:
             self.addr_file = addr_file
             self.cfg_path = cfg_path
             self.cfg_file = cfg_file
-            print(f"[BACKEND MOCK] Initialized VMMSlowCtrl with:\n"
+            print(f"------- BACKEND MOCKUP -------\n"
+                  f"[BACKEND MOCK] Initialized VMMSlowCtrl with:\n"
                   f"  RBU:  {os.path.join(rbu_path, rbu_file)}\n"
                   f"  ADDR: {os.path.join(addr_path, addr_file)}\n"
                   f"  CFG:  {os.path.join(cfg_path, cfg_file)}")
@@ -120,7 +124,7 @@ except ImportError:
 
 ui_config = {
     "section_1": {
-        "subtitle.sec1": {"type": "subheading", "label": "1. Ring bring up cfg"},
+        "subtitle.sec1": {"type": "subheading", "label": "Ring bring up cfg"},
         "rbu_path": {
             "label": "RBU cfg directory",
             "type": "filePath",
@@ -143,7 +147,7 @@ ui_config = {
         },
     },
     "section_2": {
-        "subtitle.sec2": {"type": "subheading", "label": "2. Address Map file"},
+        "subtitle.sec2": {"type": "subheading", "label": "Address Map file"},
         "addr_path": {
             "label": "Address map file directory",
             "type": "filePath",
@@ -160,9 +164,9 @@ ui_config = {
         },
     },
     "section_3": {
-        "subtitle.sec3": {"type": "subheading", "label": "3. VMM config"},
+        "subtitle.sec3": {"type": "subheading", "label": "VMM config"},
         "cfg_path": {
-            "label": "VMM cfg Directory",
+            "label": "VMM cfg directory",
             "type": "filePath",
             "default": os.path.join(current_dir, "config_VMM"),
             "info": "VMM config files json."
@@ -176,7 +180,7 @@ ui_config = {
         },
     },
     "section_4": {
-        "subtitle.sec4": {"type": "subheading", "label": "4. IOC service"},
+        "subtitle.sec4": {"type": "subheading", "label": "IOC service"},
         "ioc_service": {
             "label": "IOC service",
             "type": "entry",
@@ -189,7 +193,7 @@ ui_config = {
         },
     },
     "section_5": {
-        "subtitle.sec5": {"type": "subheading", "label": "5. Ring Bring Up"},
+        "subtitle.sec5": {"type": "subheading", "label": "Ring Bring Up"},
         "action_ring_bring_up": {
             "type": "button_pair",
             "label1": "ring bring up",
@@ -199,7 +203,7 @@ ui_config = {
         },
     },
     "section_6": {
-        "subtitle.sec6": {"type": "subheading", "label": "6. VMM Controls"},
+        "subtitle.sec6": {"type": "subheading", "label": "VMM Controls"},
         "btn_toggle_power": {
             "label": "Acq ON/OFF",
             "type": "toggle_button",
@@ -333,7 +337,7 @@ class ConfigCreatorWidget(QWidget):
         self.params_grid.setColumnStretch(1, 4)
         self.params_grid.setColumnStretch(2, 1)
 
-        title_label = QLabel("VMM slow control")
+        title_label = QLabel("Slow Control")
         title_label.setFont(theme.base_font(size=theme.FONT_SIZE_HEADER + 4, bold=True))
         title_label.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
         self.params_grid.addWidget(title_label, 0, 0, 1, 2, alignment=Qt.AlignHCenter)
@@ -400,7 +404,7 @@ class ConfigCreatorWidget(QWidget):
         self.splitter.addWidget(self.params_container)
         self.splitter.addWidget(self.terminal_frame)
 
-        self.splitter.setSizes([500, 500])
+        self.splitter.setSizes([600, 600])
 
         for task in self.after_widgets_created_tasks:
             task()
@@ -882,19 +886,37 @@ class RBUWorker(QObject):
             except Exception:
                 self.process.kill()
             
-            
 
+    
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
+    import sys as _sys
+    from qtpy.QtWidgets import QApplication
+    
+    app = QApplication(_sys.argv)
+    
+    # Read theme mode from command-line arguments if provided
+    # theme_mode = "dark"
+    if len(_sys.argv) > 1:
+        theme_mode = _sys.argv[1]
+    else:
+        theme_mode = 'dark'
+        
+    # print(f"DEBUG sys.argv received: {_sys.argv}")    
 
-    mode = "dark"
-    if len(sys.argv) > 1:
-        mode = sys.argv[1]
+    # Initialize theme manager safely
+    try:
+        from GUI import theme
+        if hasattr(theme, "ThemeManager"):
+            theme_manager = theme.ThemeManager(app, mode=theme_mode)
+        else:
+            theme_manager = theme.ThemeMock(app, mode=theme_mode)
+    except ImportError:
+        # Fallback if the GUI module isn't found locally
+        theme_manager = None # Or instantiate your fallback mock class here
 
-    theme_manager = theme.ThemeManager(app, mode=mode) if hasattr(theme, "ThemeManager") else theme(app, mode=mode)
-
-    window = MainWindow(theme_manager=theme_manager)
-    window.setWindowTitle("VMM Slow Control GUI")
-    window.resize(1600, 1200)
-    window.show()
-    sys.exit(app.exec_())
+    main_win = MainWindow(theme_manager=theme_manager)
+    main_win.resize(1200, 800)
+    main_win.show()
+    
+    # Use _sys instead of sys to match your import alias
+    _sys.exit(app.exec_())
