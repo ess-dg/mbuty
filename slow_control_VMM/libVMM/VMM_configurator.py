@@ -482,75 +482,78 @@ class VMMSlowCtrl():
     
     def __init__(self, rbu_path, rbu_file, addr_path, addr_file, cfg_path, cfg_file):
         
-        # self.parameters = parameters
+        self.debug = False
         
-        # cfg_path  = self.parameters.slowCtrl.cfg_path
-        # addr_path = self.parameters.slowCtrl.addr_path
-        # rbu_path  = self.parameters.slowCtrl.rbu_path
-        
-        # cfg_file  = self.parameters.slowCtrl.cfg_file
-        # addr_file = self.parameters.slowCtrl.addr_file
-        # rbu_file  = self.parameters.slowCtrl.rbu_file
-        
-        # Create RMM instance as normal, topology defined in cfg_ring
-        rmm = ReadoutMasterModule(cfg_json=os.path.join(rbu_path, rbu_file))
-        
-        # Use this to create a generic interface to all FEN userspace
-        self.fen_portal = FrontEndGenericPortal(RMMRegs=rmm.RMMRegs, regmap=os.path.join(addr_path, addr_file))
+        if self.debug is False:
+            # Create RMM instance as normal, topology defined in cfg_ring
+            rmm = ReadoutMasterModule(cfg_json=os.path.join(rbu_path, rbu_file))
+            
+            # Use this to create a generic interface to all FEN userspace
+            self.fen_portal = FrontEndGenericPortal(RMMRegs=rmm.RMMRegs, regmap=os.path.join(addr_path, addr_file))
         
         # VMM config 
         self.cfg = loadConfig(os.path.join(cfg_path, cfg_file))
+        
+        # print(cfg_file)
         
     def acq_on(self):  
         
         print('Acquisition started.')
         
-        acqOnOff_global(self.fen_portal, self.cfg, on=False)
-        configDetector(self.fen_portal, self.cfg)
-        acqOnOff_global(self.fen_portal, self.cfg, on=True)
+        
+        
+        if self.debug is False:
+            acqOnOff_global(self.fen_portal, self.cfg, on=False)
+            configDetector(self.fen_portal, self.cfg)
+            acqOnOff_global(self.fen_portal, self.cfg, on=True)
         
     def acq_off(self):  
         
         print('Acquisition stopped.')
         
-        acqOnOff_global(self.fen_portal, self.cfg, on=False)
+        if self.debug is False:
+            acqOnOff_global(self.fen_portal, self.cfg, on=False)
         
     def warm_init(self, ring, fen): 
         
         print(f"Execute warm init: ring {ring} , fen {fen}")
         
-        acqOnOff_global(self.fen_portal, self.cfg, on=False)
-        resetFec(self.fen_portal, ring, fen)      
+        if self.debug is False:
+            acqOnOff_global(self.fen_portal, self.cfg, on=False)
+            resetFec(self.fen_portal, ring, fen)      
 
     def warm_init_glob(self): 
         
         print('Execute global warm init')
         
-        acqOnOff_global(self.fen_portal, self.cfg, on=False)
-        resetFec_global(self.fen_portal, self.cfg)
+        if self.debug is False:
+            acqOnOff_global(self.fen_portal, self.cfg, on=False)
+            resetFec_global(self.fen_portal, self.cfg)
         
     def hard_reset(self, ring, fen, hybrid): 
         
         print(f"Execute hard reset: ring {ring} , fen {fen}, hyb {hybrid}")
         
-        acqOnOff_global(self.fen_portal, self.cfg, on=False)
-        for vmm in [0,1]:
-            hardReset(self.fen_portal, ring, fen, hybrid, vmm, self.cfg)
-            time.sleep(0.2)
-       
-        time.sleep(0.5)
-        # hard reset includes warm init 
-        resetFec_global(self.fen_portal, self.cfg)
+        if self.debug is False:
+            acqOnOff_global(self.fen_portal, self.cfg, on=False)
+            for vmm in [0,1]:
+                hardReset(self.fen_portal, ring, fen, hybrid, vmm, self.cfg)
+                time.sleep(0.2)
+           
+            time.sleep(0.5)
+            # hard reset includes warm init 
+            resetFec_global(self.fen_portal, self.cfg)
         
     def hard_reset_glob(self): 
         
         print(f"Execute global hard reset")
         
-        acqOnOff_global(self.fen_portal, self.cfg, on=False)
-        hardReset_global(self.fen_portal,self.cfg)
-        time.sleep(1)
-        # hard reset includes warm init 
-        resetFec_global(self.fen_portal, self.cfg)
+        if self.debug is False:
+            acqOnOff_global(self.fen_portal, self.cfg, on=False)
+            hardReset_global(self.fen_portal,self.cfg)
+            time.sleep(1)
+            # hard reset includes warm init 
+            resetFec_global(self.fen_portal, self.cfg)
 
 ###############################################################################
 ###############################################################################
