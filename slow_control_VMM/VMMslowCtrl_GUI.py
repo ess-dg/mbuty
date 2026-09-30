@@ -410,6 +410,124 @@ class ConfigCreatorWidget(QWidget):
     def _build_section(self, config_dict, start_row=0):
         current_row = start_row
         for key, item in config_dict.items():
+            item_type = item.get("type")
+
+            # Handle custom widget types natively to avoid create_gui_widget warnings
+            if item_type == "toggle_button":
+                btn = QPushButton(f"{item.get('label', 'Toggle')} (OFF)")
+                btn.setCheckable(True)
+                btn.setChecked(item.get("default", False))
+                btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+                def _on_toggle(checked, b=btn, l=item.get('label', 'Toggle')):
+                    b.setText(f"{l} (ON)" if checked else f"{l} (OFF)")
+
+                btn.toggled.connect(_on_toggle)
+                self.params_grid.addWidget(btn, current_row, 0, 1, 3)
+                self.widgets[key] = btn
+
+                self.params_grid.setRowMinimumHeight(current_row + 1, 25)
+                current_row += 2
+                continue
+
+            elif item_type == "single_button":
+                container = QWidget()
+                h_layout = QHBoxLayout(container)
+                h_layout.setContentsMargins(0, 0, 0, 0)
+                h_layout.setSpacing(8)
+
+                btn = QPushButton(item.get("label", "Action"))
+                btn.setFixedWidth(item.get("button_width", 160))
+                h_layout.addWidget(btn)
+                h_layout.addStretch(1)
+
+                self.params_grid.addWidget(container, current_row, 0, 1, 3)
+                self.widgets[item.get("button_key", key)] = btn
+                current_row += 1
+                continue
+
+            elif item_type == "button_row":
+                container = QWidget()
+                h_layout = QHBoxLayout(container)
+                h_layout.setContentsMargins(0, 0, 0, 0)
+                h_layout.setSpacing(8)
+
+                buttons_dict = {}
+                for label in item.get("buttons", []):
+                    b = QPushButton(label)
+                    b.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+                    h_layout.addWidget(b)
+                    buttons_dict[label] = b
+
+                self.params_grid.addWidget(container, current_row, 0, 1, 3)
+                self.widgets[item.get("key", key)] = buttons_dict
+
+                current_row += 1
+                continue
+
+            elif item_type == "button_pair":
+                container = QWidget()
+                h_layout = QHBoxLayout(container)
+                h_layout.setContentsMargins(0, 0, 0, 0)
+                h_layout.setSpacing(8)
+
+                label1 = item.get("label1", "Button 1")
+                label2 = item.get("label2", "Button 2")
+
+                if item.get("is_toggle_1", False):
+                    btn1 = QPushButton(f"{label1} (OFF)")
+                    btn1.setCheckable(True)
+                    btn1.setChecked(item.get("default_1", False))
+                    def _on_toggle_1(checked, b=btn1, l=label1):
+                        b.setText(f"{l} (ON)" if checked else f"{l} (OFF)")
+                    btn1.toggled.connect(_on_toggle_1)
+                else:
+                    btn1 = QPushButton(label1)
+
+                btn2 = QPushButton(label2)
+                btn1.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+                btn2.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+                h_layout.addWidget(btn1)
+                h_layout.addWidget(btn2)
+
+                self.params_grid.addWidget(container, current_row, 0, 1, 3)
+                self.widgets[item.get("key1", "btn_action_2")] = btn1
+                self.widgets[item.get("key2", "btn_action_4")] = btn2
+
+                self.params_grid.setRowMinimumHeight(current_row + 1, 25)
+                current_row += 2
+                continue
+
+            elif item_type == "action_with_fields":
+                container = QWidget()
+                h_layout = QHBoxLayout(container)
+                h_layout.setContentsMargins(0, 0, 0, 0)
+                h_layout.setSpacing(8)
+
+                btn = QPushButton(item.get("label", "Action"))
+                btn.setFixedWidth(item.get("button_width", 160))
+                h_layout.addWidget(btn)
+
+                fields_dict = {}
+                for field_info in item.get("fields", []):
+                    f_key = field_info["key"]
+                    f_label = QLabel(field_info.get("label", f_key) + ":")
+                    f_entry = QLineEdit(field_info.get("default", "0"))
+                    f_entry.setFixedWidth(50)
+                    h_layout.addWidget(f_label)
+                    h_layout.addWidget(f_entry)
+                    fields_dict[f_key] = f_entry
+
+                h_layout.addStretch(1)
+
+                self.params_grid.addWidget(container, current_row, 0, 1, 3)
+                self.widgets[item.get("button_key")] = btn
+                self.widgets[item.get("fields_key")] = fields_dict
+                current_row += 1
+                continue
+
+            # Fall back to create_gui_widget for standard types (entry, filePath, dropdown, subheadings)
             res = create_gui_widget(
                 parent_frame=self.scroll_content,
                 key=key,
@@ -418,131 +536,13 @@ class ConfigCreatorWidget(QWidget):
             )
 
             if not res or res[0] is None:
-                item_type = item.get("type")
-
-                if item_type == "toggle_button":
-                    btn = QPushButton(f"{item.get('label', 'Toggle')} (OFF)")
-                    btn.setCheckable(True)
-                    btn.setChecked(item.get("default", False))
-                    btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-
-                    def _on_toggle(checked, b=btn, l=item.get('label', 'Toggle')):
-                        b.setText(f"{l} (ON)" if checked else f"{l} (OFF)")
-
-                    btn.toggled.connect(_on_toggle)
-                    self.params_grid.addWidget(btn, current_row, 0, 1, 3)
-                    self.widgets[key] = btn
-
-                    self.params_grid.setRowMinimumHeight(current_row + 1, 25)
-                    current_row += 2
-                    continue
-
-                elif item_type == "single_button":
-                    container = QWidget()
-                    h_layout = QHBoxLayout(container)
-                    h_layout.setContentsMargins(0, 0, 0, 0)
-                    h_layout.setSpacing(8)
-
-                    btn = QPushButton(item.get("label", "Action"))
-                    btn.setFixedWidth(item.get("button_width", 160))
-                    h_layout.addWidget(btn)
-                    h_layout.addStretch(1)
-
-                    self.params_grid.addWidget(container, current_row, 0, 1, 3)
-                    self.widgets[item.get("button_key", key)] = btn
-                    current_row += 1
-                    continue
-
-                elif item_type == "button_row":
-                    container = QWidget()
-                    h_layout = QHBoxLayout(container)
-                    h_layout.setContentsMargins(0, 0, 0, 0)
-                    h_layout.setSpacing(8)
-
-                    buttons_dict = {}
-                    for label in item.get("buttons", []):
-                        b = QPushButton(label)
-                        b.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-                        h_layout.addWidget(b)
-                        buttons_dict[label] = b
-
-                    self.params_grid.addWidget(container, current_row, 0, 1, 3)
-                    self.widgets[item.get("key", key)] = buttons_dict
-
-                    current_row += 1
-                    continue
-
-                elif item_type == "button_pair":
-                    container = QWidget()
-                    h_layout = QHBoxLayout(container)
-                    h_layout.setContentsMargins(0, 0, 0, 0)
-                    h_layout.setSpacing(8)
-
-                    label1 = item.get("label1", "Button 1")
-                    label2 = item.get("label2", "Button 2")
-
-                    if item.get("is_toggle_1", False):
-                        btn1 = QPushButton(f"{label1} (OFF)")
-                        btn1.setCheckable(True)
-                        btn1.setChecked(item.get("default_1", False))
-                        def _on_toggle_1(checked, b=btn1, l=label1):
-                            b.setText(f"{l} (ON)" if checked else f"{l} (OFF)")
-                        btn1.toggled.connect(_on_toggle_1)
-                    else:
-                        btn1 = QPushButton(label1)
-
-                    btn2 = QPushButton(label2)
-                    btn1.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-                    btn2.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-
-                    h_layout.addWidget(btn1)
-                    h_layout.addWidget(btn2)
-
-                    self.params_grid.addWidget(container, current_row, 0, 1, 3)
-                    self.widgets[item.get("key1", "btn_action_2")] = btn1
-                    self.widgets[item.get("key2", "btn_action_4")] = btn2
-
-                    self.params_grid.setRowMinimumHeight(current_row + 1, 25)
-                    current_row += 2
-                    continue
-
-                elif item_type == "action_with_fields":
-                    container = QWidget()
-                    h_layout = QHBoxLayout(container)
-                    h_layout.setContentsMargins(0, 0, 0, 0)
-                    h_layout.setSpacing(8)
-
-                    btn = QPushButton(item.get("label", "Action"))
-                    btn.setFixedWidth(item.get("button_width", 160))
-                    h_layout.addWidget(btn)
-
-                    fields_dict = {}
-                    for field_info in item.get("fields", []):
-                        f_key = field_info["key"]
-                        f_label = QLabel(field_info.get("label", f_key) + ":")
-                        f_entry = QLineEdit(field_info.get("default", "0"))
-                        f_entry.setFixedWidth(50)
-                        h_layout.addWidget(f_label)
-                        h_layout.addWidget(f_entry)
-                        fields_dict[f_key] = f_entry
-
-                    h_layout.addStretch(1)
-
-                    self.params_grid.addWidget(container, current_row, 0, 1, 3)
-                    self.widgets[item.get("button_key")] = btn
-                    self.widgets[item.get("fields_key")] = fields_dict
-                    current_row += 1
-                    continue
-
-                else:
-                    current_row += 1
-                    continue
+                current_row += 1
+                continue
 
             widget_instance = res[0]
             next_row = res[2]
             self.widgets[key] = widget_instance
 
-            # Explicitly handle 'entry', 'filePath', and 'dropdown' to align across columns 1 and 2
             if item.get("type") in ["entry", "filePath", "dropdown"]:
                 self.params_grid.removeWidget(widget_instance)
                 self.params_grid.addWidget(widget_instance, current_row, 1, 1, 2)
@@ -569,7 +569,6 @@ class ConfigCreatorWidget(QWidget):
             current_row = next_row
 
         return current_row
-
     def _add_divider(self, row):
         self.params_grid.setRowMinimumHeight(row, 12)
         divider = QFrame()
