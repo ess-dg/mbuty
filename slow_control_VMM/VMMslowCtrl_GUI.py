@@ -728,7 +728,7 @@ class MainWindow(QMainWindow):
             print(f"[ERROR] Failed to execute IOC action {action}: {e}")
 
     def handle_ring_bring_up(self):
-        rbu_path = self.config_widget.get_value_from_widget("rbu_path")
+        rbu_path     = self.config_widget.get_value_from_widget("rbu_path")
         rbu_run_file = self.config_widget.get_value_from_widget("rbu_run_file")
 
         if not rbu_path or not rbu_run_file:
@@ -736,6 +736,8 @@ class MainWindow(QMainWindow):
             return
 
         script_path = os.path.join(rbu_path, rbu_run_file)
+        
+        print(script_path)
         if not os.path.isfile(script_path):
             QMessageBox.critical(self, "File Not Found", f"The RBU run script does not exist:\n{script_path}")
             return
@@ -823,7 +825,6 @@ class RBUWorker(QObject):
 
     def run(self):
         
-        # print('dfasdfawxfwefxwefwefewf')
         try:
             print(f"[ACTION] Executing RBU script: {self.script_path}")
             process = subprocess.Popen(
