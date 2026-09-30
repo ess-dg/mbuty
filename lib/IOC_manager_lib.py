@@ -29,29 +29,34 @@ if _workspace not in sys.path:
 DEFAULT_IOC = "ioc-ESTIA-DtCmn_SC-IOC-002.service"
 
 
+def manage_IOC_service(action: str, ioc_name: str) -> bool:
+    """Executes the systemctl command with sudo privileges. 
+    Returns True if successful, False otherwise without crashing.
+    """
+    # Ensure service name ends with .service if omitted
+    if not ioc_name.endswith(".service"):
+        ioc_name += ".service"
+
+    command = ["sudo", "systemctl", action, ioc_name]
+    print(f"Executing: {' '.join(command)}")
+
+    try:
+        subprocess.run(command, check=True)
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing command: {e}", file=sys.stderr)
+        # Removed sys.exit() to prevent crashing
+        return False
+    except FileNotFoundError:
+        print("Error: 'sudo' or 'systemctl' command not found.", file=sys.stderr)
+        # Removed sys.exit() to prevent crashing
+        return False
+
+
+
 # def manage_IOC_service(action: str, ioc_name: str) -> None:
-#     """Executes the systemctl command with sudo privileges."""
-#     # Ensure service name ends with .service if omitted
-#     if not ioc_name.endswith(".service"):
-#         ioc_name += ".service"
-
-#     command = ["sudo", "systemctl", action, ioc_name]
-#     print(f"Executing: {' '.join(command)}")
-
-#     try:
-#         subprocess.run(command, check=True)
-#     except subprocess.CalledProcessError as e:
-#         print(f"Error executing command: {e}", file=sys.stderr)
-#         sys.exit(e.returncode)
-#     except FileNotFoundError:
-#         print("Error: 'sudo' or 'systemctl' command not found.", file=sys.stderr)
-#         sys.exit(1)
-
-
-
-def manage_IOC_service(action: str, ioc_name: str) -> None:
     
-    print(f"I am doing this action {action} on this service {ioc_name}")
+#     print(f"I am doing this action {action} on this service {ioc_name}")
     
     
     
