@@ -59,4 +59,6 @@ if __name__ == "__main__":
     sc = VMMSlowCtrl(parameters)
     
     sc.acq_on()
+    
+    sc.hard_reset( 0, 0, 2)
 

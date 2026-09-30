@@ -507,12 +507,26 @@ class VMMSlowCtrl():
         
     def acq_off(self):  
         acqOnOff_global(self.fen_portal, self.cfg, on=False)
+        
+    def warm_init(self, ring, fen): 
+        acqOnOff_global(self.fen_portal, self.cfg, on=False)
+        resetFec(self.fen_portal, ring, fen)      
 
-    def warm_init(self): 
+    def warm_init_glob(self): 
         acqOnOff_global(self.fen_portal, self.cfg, on=False)
         resetFec_global(self.fen_portal, self.cfg)
         
-    def hard_reset(self): 
+    def hard_reset(self, ring, fen, hybrid): 
+        acqOnOff_global(self.fen_portal, self.cfg, on=False)
+        for vmm in [0,1]:
+            hardReset(self.fen_portal, ring, fen, hybrid, vmm, self.cfg)
+            time.sleep(0.2)
+       
+        time.sleep(0.5)
+        # hard reset includes warm init 
+        resetFec_global(self.fen_portal, self.cfg)
+        
+    def hard_reset_glob(self): 
         acqOnOff_global(self.fen_portal, self.cfg, on=False)
         hardReset_global(self.fen_portal,self.cfg)
         time.sleep(1)
