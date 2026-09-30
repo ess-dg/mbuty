@@ -60,5 +60,5 @@ if __name__ == "__main__":
     
     sc.acq_on()
     
-    sc.hard_reset( 0, 0, 2)
+    # sc.hard_reset( 0, 0, 2)
 

@@ -62,8 +62,6 @@ class MBUTYOrchestrator():
         self.parameters.validate()
         self.parameters.set_acqMode()
         
-        # self.VMMSlowCtrl()
-        
         config_path = os.path.join(
             self.parameters.fileManagement.configFilePath,
             self.parameters.fileManagement.configFileName
