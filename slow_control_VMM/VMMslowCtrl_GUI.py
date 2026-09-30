@@ -824,15 +824,19 @@ class RBUWorker(QObject):
         self.script_path = script_path
 
     def run(self):
-        
         try:
             print(f"[ACTION] Executing RBU script: {self.script_path}")
+            
+            # Extract the directory where the script lives (e.g., /home/essdaq/detg_git/slow_control_driver/freia)
+            script_dir = os.path.dirname(self.script_path)
+            
             process = subprocess.Popen(
                 ["bash", self.script_path],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
-                bufsize=1
+                bufsize=1,
+                cwd=script_dir  # <-- This tells bash to run inside the script's directory!
             )
             
             # Stream output line by line into the terminal console
@@ -843,8 +847,6 @@ class RBUWorker(QObject):
             self.finished.emit(process.returncode)
         except Exception as e:
             self.error.emit(str(e))
-            
-            
             
             
 
