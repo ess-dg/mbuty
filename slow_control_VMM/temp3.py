@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+Created on Wed Sep 30 15:32:05 2026
+
+@author: francescopiscitelli
+"""
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
 Created on 30/09/2026
 
 @author: francescopiscitelli
@@ -191,11 +199,10 @@ ui_config = {
     "section_5": {
         "subtitle.sec5": {"type": "subheading", "label": "5. Ring Bring Up"},
         "action_ring_bring_up": {
-            "type": "button_pair",
-            "label1": "ring bring up",
-            "key1": "btn_ring_bring_up",
-            "label2": "abort",
-            "key2": "btn_rbu_abort"
+            "type": "single_button",
+            "label": "ring bring up",
+            "button_key": "btn_ring_bring_up",
+            "button_width": 160
         },
     },
     "section_6": {
@@ -659,11 +666,6 @@ class MainWindow(QMainWindow):
         btn_rbu = self.config_widget.widgets.get("btn_ring_bring_up")
         if btn_rbu:
             btn_rbu.clicked.connect(self.handle_ring_bring_up)
-            
-        btn_rbu_abort = self.config_widget.widgets.get("btn_rbu_abort")
-        if btn_rbu_abort:
-            btn_rbu_abort.clicked.connect(self.handle_rbu_abort)
-            btn_rbu_abort.setEnabled(False)  # Disabled by default until RBU starts    
 
         btn_g_warm = self.config_widget.widgets.get("btn_action_2")
         if btn_g_warm:
@@ -742,15 +744,16 @@ class MainWindow(QMainWindow):
             return
 
         script_path = os.path.join(rbu_path, rbu_run_file)
+        
+        print(script_path)
         if not os.path.isfile(script_path):
             QMessageBox.critical(self, "File Not Found", f"The RBU run script does not exist:\n{script_path}")
             return
 
-        # Toggle buttons state
+        # Disable button during execution
         btn_rbu = self.config_widget.widgets.get("btn_ring_bring_up")
-        btn_abort = self.config_widget.widgets.get("btn_rbu_abort")
-        if btn_rbu: btn_rbu.setEnabled(False)
-        if btn_abort: btn_abort.setEnabled(True)
+        if btn_rbu:
+            btn_rbu.setEnabled(False)
 
         self.rbu_thread = QThread()
         self.rbu_worker = RBUWorker(script_path)
@@ -766,28 +769,19 @@ class MainWindow(QMainWindow):
 
         self.rbu_thread.start()
 
-    def handle_rbu_abort(self):
-        if hasattr(self, 'rbu_worker') and self.rbu_worker:
-            self.rbu_worker.abort()
-
     def on_rbu_finished(self, returncode):
         btn_rbu = self.config_widget.widgets.get("btn_ring_bring_up")
-        btn_abort = self.config_widget.widgets.get("btn_rbu_abort")
-        if btn_rbu: btn_rbu.setEnabled(True)
-        if btn_abort: btn_abort.setEnabled(False)
-
+        if btn_rbu:
+            btn_rbu.setEnabled(True)
         if returncode == 0:
             print(f"[ACTION] RBU script finished successfully.\n")
-        elif returncode == -999:
-            print(f"[ACTION] RBU script execution aborted by user.\n")
         else:
             print(f"[ERROR] RBU script exited with return code {returncode}.\n")
 
     def on_rbu_error(self, err_msg):
         btn_rbu = self.config_widget.widgets.get("btn_ring_bring_up")
-        btn_abort = self.config_widget.widgets.get("btn_rbu_abort")
-        if btn_rbu: btn_rbu.setEnabled(True)
-        if btn_abort: btn_abort.setEnabled(False)
+        if btn_rbu:
+            btn_rbu.setEnabled(True)
         QMessageBox.critical(self, "Execution Error", f"Failed to execute RBU script:\n{err_msg}")
 
     def handle_global_warm_init(self):
@@ -835,17 +829,15 @@ class RBUWorker(QObject):
     def __init__(self, script_path):
         super().__init__()
         self.script_path = script_path
-        self.process = None
-        self._is_aborted = False
 
     def run(self):
         try:
             print(f"[ACTION] Executing RBU script: {self.script_path}")
             script_dir = os.path.dirname(self.script_path)
             
-            self.process = subprocess.Popen(
+            process = subprocess.Popen(
                 ["bash", self.script_path],
-                stdin=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL,  # Prevents the process from hanging waiting for terminal input
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
@@ -853,35 +845,19 @@ class RBUWorker(QObject):
                 cwd=script_dir
             )
             
+            # Read stdout line by line, but handle cases where subprocess 
+            # or background child processes keep stdout descriptors open.
             while True:
-                if self._is_aborted:
-                    break
-                line = self.process.stdout.readline()
-                if not line and self.process.poll() is not None:
+                line = process.stdout.readline()
+                if not line and process.poll() is not None:
                     break
                 if line:
                     print(line, end="")
 
-            if self._is_aborted:
-                returncode = -999  # Custom code for aborted tasks
-            else:
-                returncode = self.process.wait()
-                
+            returncode = process.wait()
             self.finished.emit(returncode)
         except Exception as e:
-            if not self._is_aborted:
-                self.error.emit(str(e))
-
-    def abort(self):
-        self._is_aborted = True
-        if self.process and self.process.poll() is None:
-            print("[ACTION] Aborting RBU script process...")
-            try:
-                # Terminate process group or process tree if needed, or simple terminate
-                self.process.terminate()
-                self.process.wait(timeout=2)
-            except Exception:
-                self.process.kill()
+            self.error.emit(str(e))
             
             
 
