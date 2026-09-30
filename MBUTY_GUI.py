@@ -234,6 +234,8 @@ class MBUTYMainWindow(QMainWindow):
         from GUI.gui_config import open_config_creator_standalone
         config["static"]["makeConfigFileButton"]["command"] = lambda: open_config_creator_standalone(self.theme_manager.mode)
         
+        
+        
         for section_name, section_items in config.items():
             if section_name == "static":
                 continue
@@ -373,8 +375,27 @@ class MBUTYMainWindow(QMainWindow):
         buttons_layout.addWidget(self.exit_plotting_button)
 
         layout.addWidget(self.buttons_row)
+        
+        # Stretch in the middle pushes everything else left and the new button right
         layout.addStretch(1)
+
+        self.slow_control_button = QPushButton("Open Slow Control Manager")
+        self.slow_control_button.clicked.connect(self.open_slow_control_manager)
+        layout.addWidget(self.slow_control_button)
+
         return row
+    
+    def open_slow_control_manager(self):
+        # try:
+        from GUI.gui_config import open_slow_control_manager as launch_slow_control
+        launch_slow_control(self.theme_manager.mode)
+        # except ImportError as e:
+        #     print(f"Could not load slow control manager: {e}")
+        #     QMessageBox.information(
+        #         self,
+        #         "Slow Control Manager",
+        #         "Opening Slow Control Manager (fallback mode)...",
+        #     )
 
     # ------------------------------------------------------------------
     # Stop handling
