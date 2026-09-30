@@ -9,7 +9,53 @@ Created on 30/09/2026
 import sys
 import os
 
-from qtpy.QtCore import Qt, QObject, Signal
+# Compute project root directory once
+current_dir  = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(current_dir, '..'))
+
+# Ensure project root is at the top of sys.path
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+# Top-level imports
+from GUI.gui_utils import create_gui_widget, setup_dynamic_file_options
+
+
+try:
+    from libVMM.VMM_configurator import VMMSlowCtrl
+except ImportError:
+    class VMMSlowCtrl:
+        def __init__(self, rbu_path, rbu_file, addr_path, addr_file, cfg_path, cfg_file):
+            self.rbu_path = rbu_path
+            self.rbu_file = rbu_file
+            self.addr_path = addr_path
+            self.addr_file = addr_file
+            self.cfg_path = cfg_path
+            self.cfg_file = cfg_file
+            print(f"[BACKEND MOCK] Initialized VMMSlowCtrl with:\n"
+                  f"  RBU:  {os.path.join(rbu_path, rbu_file)}\n"
+                  f"  ADDR: {os.path.join(addr_path, addr_file)}\n"
+                  f"  CFG:  {os.path.join(cfg_path, cfg_file)}")
+
+        def acq_on(self):
+            print("[BACKEND] Acquisition ON")
+
+        def acq_off(self):
+            print("[BACKEND] Acquisition OFF")
+
+        def warm_init(self, ring, fen):
+            print(f"[BACKEND] Warm init on Ring {ring}, FEN {fen}")
+
+        def warm_init_glob(self):
+            print("[BACKEND] Global warm init executed")
+
+        def hard_reset(self, ring, fen, hybrid):
+            print(f"[BACKEND] Hard reset on Ring {ring}, FEN {fen}, Hybrid {hybrid}")
+
+        def hard_reset_glob(self):
+            print("[BACKEND] Global hard reset executed")
+
+from qtpy.QtCore import Qt, QObject, Signal, QThread
 from qtpy.QtWidgets import (
     QApplication,
     QWidget,
@@ -28,10 +74,9 @@ from qtpy.QtWidgets import (
     QFrame,
     QSizePolicy,
     QComboBox,
+    QMainWindow, 
+    QMessageBox,
 )
-
-# Project imports
-from GUI.gui_utils import create_gui_widget, setup_dynamic_file_options
 
 try:
     from GUI import theme
@@ -67,7 +112,6 @@ except ImportError:
 
     theme = ThemeMock
 
-currentPath = os.path.abspath(os.path.dirname(__file__))
 
 ui_config = {
     "section_1": {
@@ -91,7 +135,7 @@ ui_config = {
         "addr_path": {
             "label": "Address map file directory",
             "type": "filePath",
-            "default": os.path.join(currentPath, "sys_regs_map"),
+            "default": os.path.join(current_dir, "sys_regs_map"),
             "info": "Directory address map file."
         },
         "addr_file": {
@@ -108,7 +152,7 @@ ui_config = {
         "cfg_path": {
             "label": "VMM cfg Directory",
             "type": "filePath",
-            "default": os.path.join(currentPath, "config_VMM"),
+            "default": os.path.join(current_dir, "config_VMM"),
             "info": "VMM config files json."
         },
         "cfg_file": {
@@ -159,6 +203,51 @@ ui_config = {
     }
 }
 
+def handle_warm_init(self):
+        if not self.slow_ctrl:
+            self.init_slow_ctrl()
+            if not self.slow_ctrl:
+                QMessageBox.critical(self, "Hardware Error", "VMMSlowCtrl backend is not initialized.")
+                return
+
+        fields = self.config_widget.widgets.get("fields_warm_init", {})
+        try:
+            ring_text = fields.get("ring").text().strip() if "ring" in fields else "0"
+            fen_text = fields.get("fen").text().strip() if "fen" in fields else "0"
+            
+            ring = int(ring_text)
+            fen = int(fen_text)
+            
+            self.slow_ctrl.warm_init(ring, fen)
+            print(f"[ACTION] Warm init executed on Ring {ring}, FEN {fen}.\n")
+        except ValueError:
+            err_msg = "Ring and FEN fields must contain valid integers."
+            print(f"[ERROR] {err_msg}")
+            QMessageBox.warning(self, "Input Validation Error", err_msg)
+
+def handle_hard_reset(self):
+        if not self.slow_ctrl:
+            self.init_slow_ctrl()
+            if not self.slow_ctrl:
+                QMessageBox.critical(self, "Hardware Error", "VMMSlowCtrl backend is not initialized.")
+                return
+
+        fields = self.config_widget.widgets.get("fields_hard_reset", {})
+        try:
+            ring_text = fields.get("ring").text().strip() if "ring" in fields else "0"
+            fen_text = fields.get("fen").text().strip() if "fen" in fields else "0"
+            hybrid_text = fields.get("hybrid").text().strip() if "hybrid" in fields else "0"
+            
+            ring = int(ring_text)
+            fen = int(fen_text)
+            hybrid = int(hybrid_text)
+            
+            self.slow_ctrl.hard_reset(ring, fen, hybrid)
+            print(f"[ACTION] Hard reset executed on Ring {ring}, FEN {fen}, Hybrid {hybrid}.\n")
+        except ValueError:
+            err_msg = "Ring, FEN, and Hybrid fields must contain valid integers."
+            print(f"[ERROR] {err_msg}")
+            QMessageBox.warning(self, "Input Validation Error", err_msg)
 
 class StreamOutput(QObject):
     messageWritten = Signal(str)
@@ -168,6 +257,26 @@ class StreamOutput(QObject):
 
     def flush(self):
         pass
+
+
+class AcquisitionWorker(QObject):
+    finished = Signal(bool)  # Emits True if turned ON, False if turned OFF
+    error = Signal(str)
+
+    def __init__(self, slow_ctrl, target_state):
+        super().__init__()
+        self.slow_ctrl = slow_ctrl
+        self.target_state = target_state  # True = ON, False = OFF
+
+    def run(self):
+        try:
+            if self.target_state:
+                self.slow_ctrl.acq_on()
+            else:
+                self.slow_ctrl.acq_off()
+            self.finished.emit(self.target_state)
+        except Exception as e:
+            self.error.emit(str(e))
 
 
 class ConfigCreatorWidget(QWidget):
@@ -181,6 +290,39 @@ class ConfigCreatorWidget(QWidget):
         self._build_ui()
         self._setup_terminal_capture()
         self._apply_terminal_theme()
+
+    def get_value_from_widget(self, key):
+        """Extract path string or current selected dropdown filename from self.widgets."""
+        widget = self.widgets.get(key)
+        if widget is None:
+            return ""
+
+        # Direct line edit or custom path widget containing a QLineEdit
+        if isinstance(widget, QLineEdit):
+            return widget.text()
+        line_edit = widget.findChild(QLineEdit)
+        if line_edit:
+            return line_edit.text()
+
+        # Dropdown / ComboBox widget
+        if isinstance(widget, QComboBox):
+            return widget.currentText()
+        combo = widget.findChild(QComboBox)
+        if combo:
+            return combo.currentText()
+
+        return ""
+
+    def get_config_paths(self):
+        """Retrieve all 6 path and file parameters set in the GUI."""
+        rbu_path  = self.get_value_from_widget("rbu_path")
+        rbu_file  = self.get_value_from_widget("rbu_file")
+        addr_path = self.get_value_from_widget("addr_path")
+        addr_file = self.get_value_from_widget("addr_file")
+        cfg_path  = self.get_value_from_widget("cfg_path")
+        cfg_file  = self.get_value_from_widget("cfg_file")
+
+        return rbu_path, rbu_file, addr_path, addr_file, cfg_path, cfg_file
 
     def _build_ui(self):
         main_layout = QHBoxLayout(self)
@@ -201,9 +343,9 @@ class ConfigCreatorWidget(QWidget):
         self.params_grid.setHorizontalSpacing(12)
         self.params_grid.setVerticalSpacing(getattr(theme, "ROW_SPACING", 10))
 
-        self.params_grid.setColumnStretch(0, 1)  # Label column
-        self.params_grid.setColumnStretch(1, 4)  # Widget column / Control inputs
-        self.params_grid.setColumnStretch(2, 1)  # Action / Extra column
+        self.params_grid.setColumnStretch(0, 1)
+        self.params_grid.setColumnStretch(1, 4)
+        self.params_grid.setColumnStretch(2, 1)
 
         title_label = QLabel("VMM slow control")
         title_label.setFont(theme.base_font(size=theme.FONT_SIZE_HEADER + 4, bold=True))
@@ -247,29 +389,6 @@ class ConfigCreatorWidget(QWidget):
 
         current_row = self._build_section(ui_config["section_4"], start_row=current_row)
 
-        if "btn_toggle_power" in self.widgets:
-            btn_toggle = self.widgets["btn_toggle_power"]
-            if hasattr(btn_toggle, "toggled"):
-                btn_toggle.toggled.connect(
-                    lambda checked: print(f"[ACTION] Acq ON/OFF state changed to: {'ON' if checked else 'OFF'}\n")
-                )
-
-        if "btn_action_2" in self.widgets:
-            self.widgets["btn_action_2"].clicked.connect(
-                lambda: print("[ACTION] Executed Global Warm Init\n")
-            )
-
-        if "btn_action_3" in self.widgets:
-            self.widgets["btn_action_3"].clicked.connect(self._on_warm_init_clicked)
-
-        if "btn_action_4" in self.widgets:
-            self.widgets["btn_action_4"].clicked.connect(
-                lambda: print("[ACTION] Executed Global Hard Reset\n")
-            )
-
-        if "btn_action_5" in self.widgets:
-            self.widgets["btn_action_5"].clicked.connect(self._on_hard_reset_clicked)
-
         scroll.setWidget(self.scroll_content)
         params_layout.addWidget(scroll)
 
@@ -305,7 +424,6 @@ class ConfigCreatorWidget(QWidget):
                 row=current_row
             )
 
-            # --- Custom handling for widget types not in GUI.gui_utils ---
             if not res or res[0] is None:
                 item_type = item.get("type")
                 
@@ -322,7 +440,6 @@ class ConfigCreatorWidget(QWidget):
                     self.params_grid.addWidget(btn, current_row, 0, 1, 3)
                     self.widgets[key] = btn
                     
-                    # --- ADD VERTICAL SPACE BELOW TOGGLE BUTTON ---
                     self.params_grid.setRowMinimumHeight(current_row + 1, 25)
                     current_row += 2
                     continue
@@ -379,18 +496,14 @@ class ConfigCreatorWidget(QWidget):
                     current_row += 1
                     continue
 
-            # --- Standard GUI.gui_utils widget processing ---
             widget_instance = res[0]
             next_row = res[2]
             self.widgets[key] = widget_instance
 
-            # Ensure filePath and dropdown widgets expand horizontally across the grid space
             if item.get("type") in ["filePath", "dropdown"]:
-                # Re-bind grid placement so the control area spans columns 1 to 2 fully (columns 1..3)
                 self.params_grid.removeWidget(widget_instance)
                 self.params_grid.addWidget(widget_instance, current_row, 1, 1, 2)
 
-                # Set expansion policies on the parent widget and internal components (QLineEdit / QComboBox)
                 if hasattr(widget_instance, "setSizePolicy"):
                     widget_instance.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
                 
@@ -458,18 +571,140 @@ class ConfigCreatorWidget(QWidget):
         self.terminal_text_widget.insertPlainText(text)
         self.terminal_text_widget.moveCursor(self.terminal_text_widget.textCursor().End)
 
-    def _on_warm_init_clicked(self):
-        field_dict = self.widgets.get("fields_warm_init", {})
-        ring_val = field_dict.get("ring").text() if isinstance(field_dict, dict) and "ring" in field_dict else "0"
-        fen_val = field_dict.get("fen").text() if isinstance(field_dict, dict) and "fen" in field_dict else "0"
-        print(f"[ACTION] Warm Init Executed -> Ring: {ring_val}, FEN: {fen_val}\n")
 
-    def _on_hard_reset_clicked(self):
-        field_dict = self.widgets.get("fields_hard_reset", {})
-        ring_val = field_dict.get("ring").text() if isinstance(field_dict, dict) and "ring" in field_dict else "0"
-        fen_val = field_dict.get("fen").text() if isinstance(field_dict, dict) and "fen" in field_dict else "0"
-        hybrid_val = field_dict.get("hybrid").text() if isinstance(field_dict, dict) and "hybrid" in field_dict else "0"
-        print(f"[ACTION] Hard Reset Executed -> Ring: {ring_val}, FEN: {fen_val}, Hybrid: {hybrid_val}\n")
+class MainWindow(QMainWindow):
+    def __init__(self, theme_manager=None):
+        super().__init__()
+        self.theme_manager = theme_manager
+
+        # Set up central widget layout
+        self.config_widget = ConfigCreatorWidget(theme_manager=self.theme_manager)
+        self.setCentralWidget(self.config_widget)
+
+        # Initialize backend instance with GUI values
+        self.slow_ctrl = None
+        self.init_slow_ctrl()
+
+        self.is_acq_running = False
+
+        # Connect GUI Buttons to backend methods
+        self._connect_signals()
+
+    def init_slow_ctrl(self):
+        """Instantiates VMMSlowCtrl using current values from the GUI."""
+        rbu_p, rbu_f, addr_p, addr_f, cfg_p, cfg_f = self.config_widget.get_config_paths()
+
+        try:
+            self.slow_ctrl = VMMSlowCtrl(
+                rbu_path=rbu_p,
+                rbu_file=rbu_f,
+                addr_path=addr_p,
+                addr_file=addr_f,
+                cfg_path=cfg_p,
+                cfg_file=cfg_f,
+            )
+            print("[INFO] VMMSlowCtrl initialized successfully from GUI settings.")
+        except Exception as e:
+            print(f"[ERROR] Failed to initialize VMMSlowCtrl: {e}")
+            self.slow_ctrl = None
+
+    def _connect_signals(self):
+        # 1. Acquisition Toggle Button
+        self.btn_toggle_power = self.config_widget.widgets.get("btn_toggle_power")
+        if self.btn_toggle_power:
+            self.btn_toggle_power.clicked.connect(self.handle_power_toggle)
+
+        # 2. Global Warm Init (btn_action_2)
+        btn_g_warm = self.config_widget.widgets.get("btn_action_2")
+        if btn_g_warm:
+            btn_g_warm.clicked.connect(self.handle_global_warm_init)
+
+        # 3. Global Hard Reset (btn_action_4)
+        btn_g_hard = self.config_widget.widgets.get("btn_action_4")
+        if btn_g_hard:
+            btn_g_hard.clicked.connect(self.handle_global_hard_reset)
+
+        # 4. Specific Warm Init (btn_action_3)
+        btn_warm = self.config_widget.widgets.get("btn_action_3")
+        if btn_warm:
+            btn_warm.clicked.connect(self.handle_warm_init)
+
+        # 5. Specific Hard Reset (btn_action_5)
+        btn_hard = self.config_widget.widgets.get("btn_action_5")
+        if btn_hard:
+            btn_hard.clicked.connect(self.handle_hard_reset)
+
+    def handle_power_toggle(self):
+        if self.slow_ctrl is None:
+            self.init_slow_ctrl()
+            if self.slow_ctrl is None:
+                QMessageBox.critical(self, "Hardware Error", "VMMSlowCtrl backend is not initialized.")
+                return
+
+        self.btn_toggle_power.setEnabled(False)
+        target_state = not self.is_acq_running
+
+        self.thread = QThread()
+        self.worker = AcquisitionWorker(self.slow_ctrl, target_state)
+        self.worker.moveToThread(self.thread)
+
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.on_acq_toggle_finished)
+        self.worker.error.connect(self.on_acq_toggle_error)
+
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+
+        self.thread.start()
+
+    def on_acq_toggle_finished(self, state_is_on):
+        self.is_acq_running = state_is_on
+        self.btn_toggle_power.setEnabled(True)
+
+        if state_is_on:
+            self.btn_toggle_power.setText("Stop Acquisition (ON)")
+            self.btn_toggle_power.setStyleSheet("background-color: darkred; color: white; font-weight: bold;")
+            print("[ACTION] Acquisition started successfully.\n")
+        else:
+            self.btn_toggle_power.setText("Start Acquisition (OFF)")
+            self.btn_toggle_power.setStyleSheet("background-color: darkgreen; color: white; font-weight: bold;")
+            print("[ACTION] Acquisition stopped successfully.\n")
+
+    def on_acq_toggle_error(self, err_msg):
+        self.btn_toggle_power.setEnabled(True)
+        QMessageBox.critical(self, "Acquisition Error", f"Failed to toggle acquisition:\n{err_msg}")
+
+    def handle_global_warm_init(self):
+        if self.slow_ctrl:
+            self.slow_ctrl.warm_init_glob()
+
+    def handle_global_hard_reset(self):
+        if self.slow_ctrl:
+            self.slow_ctrl.hard_reset_glob()
+
+    def handle_warm_init(self):
+        if not self.slow_ctrl:
+            return
+        fields = self.config_widget.widgets.get("fields_warm_init", {})
+        try:
+            ring = int(fields.get("ring").text()) if "ring" in fields else 0
+            fen  = int(fields.get("fen").text()) if "fen" in fields else 0
+            self.slow_ctrl.warm_init(ring, fen)
+        except ValueError:
+            print("[ERROR] Ring and FEN must be integers.")
+
+    def handle_hard_reset(self):
+        if not self.slow_ctrl:
+            return
+        fields = self.config_widget.widgets.get("fields_hard_reset", {})
+        try:
+            ring   = int(fields.get("ring").text()) if "ring" in fields else 0
+            fen    = int(fields.get("fen").text()) if "fen" in fields else 0
+            hybrid = int(fields.get("hybrid").text()) if "hybrid" in fields else 0
+            self.slow_ctrl.hard_reset(ring, fen, hybrid)
+        except ValueError:
+            print("[ERROR] Ring, FEN, and Hybrid must be integers.")
 
 
 if __name__ == "__main__":
@@ -481,9 +716,8 @@ if __name__ == "__main__":
 
     theme_manager = theme.ThemeManager(app, mode=mode) if hasattr(theme, "ThemeManager") else theme(app, mode=mode)
 
-    window = ConfigCreatorWidget(theme_manager=theme_manager)
-    window.setWindowTitle("VMM slow control")
-
+    window = MainWindow(theme_manager=theme_manager)
+    window.setWindowTitle("VMM Slow Control GUI")
     window.resize(1600, 800)
     window.show()
     sys.exit(app.exec_())

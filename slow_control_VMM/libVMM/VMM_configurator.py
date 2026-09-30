@@ -473,23 +473,24 @@ def configDetector(fen_portal, cfg):
 # if essrmmdirver is not installed with pip -e 
 sys.path.insert(0, '/home/essdaq/detg_git/slow_control_driver')
     
+
 from essrmmdriverlib.ReadoutMasterModule import ReadoutMasterModule
 from essrmmdriverlib.frontend.FrontEndGenericPortal import FrontEndGenericPortal
 
 
 class VMMSlowCtrl():
     
-    def __init__(self, parameters):
+    def __init__(self, rbu_path, rbu_file, addr_path, addr_file, cfg_path, cfg_file):
         
-        self.parameters = parameters
+        # self.parameters = parameters
         
-        cfg_path  = self.parameters.slowCtrl.cfg_path
-        addr_path = self.parameters.slowCtrl.addr_path
-        rbu_path  = self.parameters.slowCtrl.rbu_path
+        # cfg_path  = self.parameters.slowCtrl.cfg_path
+        # addr_path = self.parameters.slowCtrl.addr_path
+        # rbu_path  = self.parameters.slowCtrl.rbu_path
         
-        cfg_file  = self.parameters.slowCtrl.cfg_file
-        addr_file = self.parameters.slowCtrl.addr_file
-        rbu_file  = self.parameters.slowCtrl.rbu_file
+        # cfg_file  = self.parameters.slowCtrl.cfg_file
+        # addr_file = self.parameters.slowCtrl.addr_file
+        # rbu_file  = self.parameters.slowCtrl.rbu_file
         
         # Create RMM instance as normal, topology defined in cfg_ring
         rmm = ReadoutMasterModule(cfg_json=os.path.join(rbu_path, rbu_file))
@@ -501,22 +502,37 @@ class VMMSlowCtrl():
         self.cfg = loadConfig(os.path.join(cfg_path, cfg_file))
         
     def acq_on(self):  
+        
+        print('Acquisition started.')
+        
         acqOnOff_global(self.fen_portal, self.cfg, on=False)
         configDetector(self.fen_portal, self.cfg)
         acqOnOff_global(self.fen_portal, self.cfg, on=True)
         
     def acq_off(self):  
+        
+        print('Acquisition stopped.')
+        
         acqOnOff_global(self.fen_portal, self.cfg, on=False)
         
     def warm_init(self, ring, fen): 
+        
+        print(f"Execute warm init: ring {ring} , fen {fen}")
+        
         acqOnOff_global(self.fen_portal, self.cfg, on=False)
         resetFec(self.fen_portal, ring, fen)      
 
     def warm_init_glob(self): 
+        
+        print('Execute global warm init')
+        
         acqOnOff_global(self.fen_portal, self.cfg, on=False)
         resetFec_global(self.fen_portal, self.cfg)
         
     def hard_reset(self, ring, fen, hybrid): 
+        
+        print(f"Execute hard reset: ring {ring} , fen {fen}, hyb {hybrid}")
+        
         acqOnOff_global(self.fen_portal, self.cfg, on=False)
         for vmm in [0,1]:
             hardReset(self.fen_portal, ring, fen, hybrid, vmm, self.cfg)
@@ -527,6 +543,9 @@ class VMMSlowCtrl():
         resetFec_global(self.fen_portal, self.cfg)
         
     def hard_reset_glob(self): 
+        
+        print(f"Execute global hard reset")
+        
         acqOnOff_global(self.fen_portal, self.cfg, on=False)
         hardReset_global(self.fen_portal,self.cfg)
         time.sleep(1)
