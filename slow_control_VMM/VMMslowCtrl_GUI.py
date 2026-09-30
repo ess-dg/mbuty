@@ -830,6 +830,7 @@ class RBUWorker(QObject):
             
             process = subprocess.Popen(
                 ["bash", self.script_path],
+                stdin=subprocess.DEVNULL,  # Prevents the process from hanging waiting for terminal input
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
