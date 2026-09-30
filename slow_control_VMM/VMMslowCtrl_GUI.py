@@ -405,7 +405,6 @@ class ConfigCreatorWidget(QWidget):
             task()
         self.after_widgets_created_tasks.clear()
 
-
     def _build_section(self, config_dict, start_row=0):
         current_row = start_row
         for key, item in config_dict.items():
@@ -541,7 +540,6 @@ class ConfigCreatorWidget(QWidget):
             next_row = res[2]
             self.widgets[key] = widget_instance
 
-            # Explicitly handle 'entry', 'filePath', and 'dropdown' to align across columns 1 and 2
             if item.get("type") in ["entry", "filePath", "dropdown"]:
                 self.params_grid.removeWidget(widget_instance)
                 self.params_grid.addWidget(widget_instance, current_row, 1, 1, 2)
@@ -742,7 +740,6 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "File Not Found", f"The RBU run script does not exist:\n{script_path}")
             return
 
-        # Disable button during execution
         btn_rbu = self.config_widget.widgets.get("btn_ring_bring_up")
         if btn_rbu:
             btn_rbu.setEnabled(False)
@@ -812,9 +809,8 @@ class MainWindow(QMainWindow):
             self.slow_ctrl.hard_reset(ring, fen, hybrid)
         except ValueError:
             print("[ERROR] Ring, FEN, and Hybrid must be integers.")
-            
-            
-            
+
+
 class RBUWorker(QObject):
     finished = Signal(int)
     error = Signal(str)
@@ -830,7 +826,7 @@ class RBUWorker(QObject):
             
             process = subprocess.Popen(
                 ["bash", self.script_path],
-                stdin=subprocess.DEVNULL,  # Prevents the process from hanging waiting for terminal input
+                stdin=subprocess.DEVNULL,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
@@ -838,8 +834,6 @@ class RBUWorker(QObject):
                 cwd=script_dir
             )
             
-            # Read stdout line by line, but handle cases where subprocess 
-            # or background child processes keep stdout descriptors open.
             while True:
                 line = process.stdout.readline()
                 if not line and process.poll() is not None:
@@ -851,8 +845,7 @@ class RBUWorker(QObject):
             self.finished.emit(returncode)
         except Exception as e:
             self.error.emit(str(e))
-            
-            
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
@@ -864,7 +857,5 @@ if __name__ == "__main__":
     theme_manager = theme.ThemeManager(app, mode=mode) if hasattr(theme, "ThemeManager") else theme(app, mode=mode)
 
     window = MainWindow(theme_manager=theme_manager)
-    window.setWindowTitle("VMM Slow Control GUI")
-    window.resize(1600, 1000)
     window.show()
     sys.exit(app.exec_())
