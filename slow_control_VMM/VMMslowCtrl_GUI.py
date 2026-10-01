@@ -209,6 +209,10 @@ ui_config = {
             "type": "toggle_button",
             "default": False
         },
+        "btn_force_off": {
+            "type": "button",
+            "label": "Force Acq OFF",
+            } , 
         "btn_global_actions": {
             "type": "button_pair",
             "label1": "global warm init",
@@ -434,7 +438,7 @@ class ConfigCreatorWidget(QWidget):
                 current_row += 2
                 continue
 
-            elif item_type == "single_button":
+            elif item_type == "button":
                 container = QWidget()
                 h_layout = QHBoxLayout(container)
                 h_layout.setContentsMargins(0, 0, 0, 0)
@@ -683,6 +687,36 @@ class MainWindow(QMainWindow):
         btn_hard = self.config_widget.widgets.get("btn_action_5")
         if btn_hard:
             btn_hard.clicked.connect(self.handle_hard_reset)
+            
+        btn_off = self.config_widget.widgets.get("btn_force_off")
+        if btn_hard:
+            btn_off.clicked.connect(self.handle_force_acq_off)
+
+    def handle_force_acq_off(self):
+        self.init_slow_ctrl()
+        if self.slow_ctrl is None:
+            QMessageBox.critical(self, "Hardware Error", "VMMSlowCtrl backend could not be initialized.")
+            return
+
+        # Disable the button (or specific control) while forcing off
+        self.btn_toggle_power.setEnabled(False)
+        target_state = False  # Hardcoded to turn acquisition OFF
+
+        self.thread = QThread()
+        self.worker = AcquisitionWorker(self.slow_ctrl, target_state)
+        self.worker.moveToThread(self.thread)
+
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.on_acq_toggle_finished)
+        self.worker.error.connect(self.on_acq_toggle_error)
+
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+
+        self.thread.start()
+        
+
 
     def handle_power_toggle(self):
         self.init_slow_ctrl()
