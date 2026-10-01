@@ -388,7 +388,7 @@ class ConfigCreatorWidget(QWidget):
         scroll.setWidget(self.scroll_content)
         params_layout.addWidget(scroll)
 
-        self.terminal_frame = QGroupBox("Terminal Output & Logs")
+        self.terminal_frame = QGroupBox("Terminal Output Logs")
         terminal_layout = QVBoxLayout(self.terminal_frame)
 
         self.terminal_text_widget = QPlainTextEdit()
