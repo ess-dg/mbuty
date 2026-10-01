@@ -160,7 +160,7 @@ class MBUTYMainWindow(QMainWindow):
         center_layout.addWidget(title)
 
         info_btn = QPushButton("About MBUTY (i)")
-        info_btn.setFixedWidth(180)  # Optional: keeps the button a neat size
+        info_btn.setFixedWidth(200)  # Optional: keeps the button a neat size
         info_btn.clicked.connect(self.show_about_dialog)
         
         # Wrap the button in a horizontal layout to center it perfectly under the title
