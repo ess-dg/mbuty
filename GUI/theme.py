@@ -64,8 +64,24 @@ BORDER_RADIUS = 6
 #     "disabled":      "#BFB9A8",
 # }
 
+# LIGHT = {
+#     "bg":            "#C0C0C0",   # Signature Windows 95 Silver / Light Grey
+#     "surface":       "#FFFFFF",   # Pure white for text inputs & drop-down fields
+#     "surface_alt":   "#DFDFDF",   # Lighter grey for active panel headers / raised sections
+#     "border":        "#808080",   # Classic shadow grey (pair with black/white for 3D bevels)
+#     "text":          "#000000",   # Pure black text
+#     "text_secondary":"#808080",   # Medium grey for secondary text & disabled items
+#     "accent":        "#000080",   # Windows 95 Title Bar Dark Navy Blue
+#     "accent_hover":  "#0000A0",   # Slightly brighter navy on hover/focus
+#     "accent_text":   "#FFFFFF",   # High-contrast white text over primary accents
+#     "error":         "#A80000",   # Win95 System Error Red
+#     "error_bg":      "#FFC0C0",   # Soft red alert fill
+#     "success":       "#008000",   # Classic system green
+#     "disabled":      "#808080",   # Standard disabled grey
+# }
+
 LIGHT = {
-    "bg":            "#D4D0C8",   # Classic Win 3.1 light grey (replaces cream)
+    "bg":            "#D4D0C8",   # Classic Win 3.1 light grey 
     "surface":       "#FFFFFF",   # Pure white for text inputs / active areas
     "surface_alt":   "#808080",   # Solid mid-grey for header bars / section titles
     "border":        "#404040",   # Dark charcoal for sharp, retro bevels and borders
