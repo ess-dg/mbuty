@@ -7,15 +7,15 @@
     "topology": [
         {
             "ID": 11,
-            "ring": 1,
+            "ring": 0,
             "fen": 0,
-            "tube": 2
+            "tube": 11
         },
         {
-            "ID": 12,
+            "ID": 13,
             "ring": 1,
             "fen": 0,
-            "tube": 2
+            "tube": 1
         }
     ],
     "positionBins": 256,

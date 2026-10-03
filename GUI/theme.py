@@ -48,21 +48,38 @@ BORDER_RADIUS = 6
 # --------------------------------------------------------------------------
 # Palettes
 # --------------------------------------------------------------------------
+# LIGHT = {
+#     "bg":            "#FAF5E9",   # cream
+#     "surface":       "#FFFFFF",   # cards / input backgrounds
+#     "surface_alt":   "#F1EAD8",   # header bars, expandable-section headers
+#     "border":        "#D9D0BA",
+#     "text":          "#2A2620",
+#     "text_secondary":"#6B6558",
+#     "accent":        "#3D6E64",   # muted teal
+#     "accent_hover":  "#335A52",
+#     "accent_text":   "#FFFFFF",
+#     "error":         "#B3413A",
+#     "error_bg":      "#F8DEDC",
+#     "success":       "#3D7A4F",
+#     "disabled":      "#BFB9A8",
+# }
+
 LIGHT = {
-    "bg":            "#FAF5E9",   # cream
-    "surface":       "#FFFFFF",   # cards / input backgrounds
-    "surface_alt":   "#F1EAD8",   # header bars, expandable-section headers
-    "border":        "#D9D0BA",
-    "text":          "#2A2620",
-    "text_secondary":"#6B6558",
-    "accent":        "#3D6E64",   # muted teal
-    "accent_hover":  "#335A52",
-    "accent_text":   "#FFFFFF",
-    "error":         "#B3413A",
-    "error_bg":      "#F8DEDC",
-    "success":       "#3D7A4F",
-    "disabled":      "#BFB9A8",
+    "bg":            "#D4D0C8",   # Classic Win 3.1 light grey (replaces cream)
+    "surface":       "#FFFFFF",   # Pure white for text inputs / active areas
+    "surface_alt":   "#808080",   # Solid mid-grey for header bars / section titles
+    "border":        "#404040",   # Dark charcoal for sharp, retro bevels and borders
+    "text":          "#000000",   # Pure black text for high contrast
+    "text_secondary":"#404040",   # Dark grey secondary text
+    "accent":        "#008080",   # Windows 3.11 Classic Teal (or #000080 for Classic Navy)
+    "accent_hover":  "#005A5A",   # Darker teal on hover
+    "accent_text":   "#FFFFFF",   # Crisp white text on primary buttons
+    "error":         "#800000",   # Classic dark red / maroon
+    "error_bg":      "#FFD8D8",   # Light red tint background
+    "success":       "#008000",   # Classic solid green
+    "disabled":      "#808080",   # Medium grey for disabled elements
 }
+
 
 DARK = {
     "bg":            "#141824",   # dark navy
