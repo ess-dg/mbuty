@@ -174,25 +174,26 @@ class MultiSelectDropDown(QWidget):
         self._popup.toggled.connect(self._on_item_toggled)
         self._popup.destroyed.connect(self._on_popup_destroyed)
 
-        ###
-
-        pos = self.field.mapToGlobal(QPoint(0, self.field.height()))
-        self._popup.setMinimumWidth(self.field.width())
-        self._popup.move(pos)
-        self._popup.show()
-        
-        # in case you want the full pop up of file name length comment above and uncomment below 
-        
-        # # Calculate width needed for the longest list item (plus padding for scrollbar/checkbox)
-        # content_width = self._popup._list.sizeHintForColumn(0) + 30
-        # popup_width = max(self.field.width(), content_width)
+        ### ### ### ### ### ### ### ### ### ###
 
         # pos = self.field.mapToGlobal(QPoint(0, self.field.height()))
-        # self._popup.setMinimumWidth(popup_width)
+        # self._popup.setMinimumWidth(self.field.width())
         # self._popup.move(pos)
         # self._popup.show()
+        
+        ### ### ### ### ### ### ### ### ###
+        # in case you want the full pop up of file name length comment above and uncomment below 
+        ### ### ### ### ### ### ### ### ###
+        
+        # Calculate width needed for the longest list item (plus padding for scrollbar/checkbox)
+        content_width = self._popup._list.sizeHintForColumn(0) + 30
+        popup_width = max(self.field.width(), content_width)
+        pos = self.field.mapToGlobal(QPoint(0, self.field.height()))
+        self._popup.setMinimumWidth(popup_width)
+        self._popup.move(pos)
+        self._popup.show()
 
-        ###
+        ### ### ### ### ### ### ### ### ###
         
     def _on_popup_destroyed(self):
         self._popup = None

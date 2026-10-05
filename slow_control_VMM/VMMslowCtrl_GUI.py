@@ -398,6 +398,12 @@ class ConfigCreatorWidget(QWidget):
         self.terminal_text_widget = QPlainTextEdit()
         self.terminal_text_widget.setReadOnly(True)
         self.terminal_text_widget.setFont(theme.mono_font(size=theme.FONT_SIZE_CONSOLE))
+        
+        # Apply dark background immediately upon creation
+        self.terminal_text_widget.setStyleSheet(
+            "background-color: #121212; color: #00ff66; border: 1px solid #333;"
+        )
+        
         terminal_layout.addWidget(self.terminal_text_widget)
 
         clear_btn = QPushButton("Clear Output")
@@ -597,16 +603,22 @@ class ConfigCreatorWidget(QWidget):
             self.theme_manager.toggle()
             self._apply_terminal_theme()
 
+    # def _apply_terminal_theme(self):
+    #     current_mode = getattr(self.theme_manager, "mode", "dark")
+    #     if current_mode == "dark":
+    #         self.terminal_text_widget.setStyleSheet(
+    #             "background-color: #121212; color: #00ff66; border: 1px solid #333;"
+    #         )
+    #     else:
+    #         self.terminal_text_widget.setStyleSheet(
+    #             "background-color: #f5f5f5; color: #006600; border: 1px solid #ccc;"
+    #         )
+    
     def _apply_terminal_theme(self):
-        current_mode = getattr(self.theme_manager, "mode", "dark")
-        if current_mode == "dark":
-            self.terminal_text_widget.setStyleSheet(
-                "background-color: #121212; color: #00ff66; border: 1px solid #333;"
-            )
-        else:
-            self.terminal_text_widget.setStyleSheet(
-                "background-color: #f5f5f5; color: #006600; border: 1px solid #ccc;"
-            )
+        # Force dark background for terminal log widget
+        self.terminal_text_widget.setStyleSheet(
+            "background-color: #121212; color: #00ff66; border: 1px solid #333;"
+        )
 
     def _setup_terminal_capture(self):
         self.stdout_stream = StreamOutput()
@@ -636,6 +648,8 @@ class MainWindow(QMainWindow):
         self.is_acq_running = False
 
         self._connect_signals()
+        
+        self.setWindowTitle("MBUTY - Slow Control")
 
     def init_slow_ctrl(self):
         rbu_p, rbu_f, addr_p, addr_f, cfg_p, cfg_f = self.config_widget.get_config_paths()
@@ -814,7 +828,7 @@ class MainWindow(QMainWindow):
         if btn_abort: btn_abort.setEnabled(False)
 
         if returncode == 0:
-            print(f"[ACTION] RBU script finished successfully.\n")
+            print(f"[ACTION] RBU script finished.\n")
         elif returncode == -999:
             print(f"[ACTION] RBU script execution aborted by user.\n")
         else:

@@ -155,7 +155,7 @@ class MBUTYMainWindow(QMainWindow):
         user_name = os.environ.get("USER", os.environ.get("USERNAME", "User"))
         title = QLabel(f"Ciao {user_name}! Welcome to MBUTY 9.0")
         title.setProperty("role", "header")
-        title.setStyleSheet("color: #228B22;")  # forest green accent
+        title.setStyleSheet("color: #009FDF;")  # ESS light blue
         title.setAlignment(Qt.AlignCenter)
         center_layout.addWidget(title)
 
