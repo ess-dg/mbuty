@@ -58,7 +58,7 @@ ui_config = {
             "info": "Select the JSON configuration file to edit."
         },
         "editFileButton": {
-            "label": "Load & Edit File",
+            "label": "Load and Edit File",
             "type": "button",
             "command": None
         },
