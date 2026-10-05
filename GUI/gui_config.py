@@ -365,7 +365,12 @@ config = {
             "default": "0,1,2,65,68-73",
             "inputValidation": "fileNumbers",
             "info": "Used when openMode is 'sequence' to indicate file serial numbers of files to be opened. Accepts comma separated lists and ranges e.g 5-10,15,17 ",  
-            "dependsOn": ("parameters.fileManagement.openMode", "sequence"),
+            "dependsOn": {
+                "and": [
+                    ("parameters.acqMode", ["off", "pcap-sync"]),
+                    ("parameters.fileManagement.openMode", "sequence")
+                ]
+            },
         },
         "parameters.fileManagement.pathToTshark": {
             "label": "Path to Tshark",
