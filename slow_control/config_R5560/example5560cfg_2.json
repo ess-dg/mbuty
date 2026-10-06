@@ -1,0 +1,28 @@
+{
+  "deployment": "R5560 registers config",
+  "version": "example",
+  "registers": {
+    "SCI_REG_RESET_CORE": 0,
+    "SCI_REG_RUN_EN": 1,
+    "SCI_REG_ESS_MODE": 1,
+    "SCI_REG_T0SW": 0,
+    "SCI_REG_VETOSW": 0,
+    "SCI_REG_EXTTRG_EN": 0,
+    "SCI_REG_PCFG_RAWOFS": 0,
+    "SCI_REG_PCFG_POL": 1,
+    "SCI_REG_PCFG_TRG_SOURCE": 0,
+    "SCI_REG_PCFG_TRG_MODE": 2,
+    "SCI_REG_PCFG_THRS": 3000,
+    "SCI_REG_PCFG_HIST": 500,
+    "SCI_REG_PCFG_TRG_HOLD": 25,
+    "SCI_REG_PCFG_TRG_W": 10,
+    "SCI_REG_PCFG_GATE_W": 100,
+    "SCI_REG_PCFG_FLT_CFG": 8038,
+    "SCI_REG_PCFG_C11": 15305,
+    "SCI_REG_PCFG_C12": 31670,
+    "SCI_REG_PCFG_C21": 15440,
+    "SCI_REG_PCFG_C22": 31798,
+    "SCI_REG_PCFG_CPZ": 256,
+    "SCI_REG_PCFG_PRB_SEL": 2
+  }
+}

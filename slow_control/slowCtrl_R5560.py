@@ -47,4 +47,7 @@ if __name__ == "__main__":
     rbu_file  = 'cfg.json'
     
     sc = R5560SlowCtrl(rbu_path, rbu_file, addr_path, addr_file, reg_cfg_path, reg_cfg_file)
+    
     sc.configureR5560()
+    
+    sc.changeThreshold(4000)

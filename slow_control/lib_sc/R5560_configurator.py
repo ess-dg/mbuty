@@ -14,6 +14,8 @@ import time
 import sys
 import re
 
+from lib.colors import WARN, RESET, ERR, INFO
+
 ###############################################################################
 
 
@@ -67,16 +69,6 @@ def parse_topology(cfg):
 
 ###############################################################################
 
-
-def loadRegisters(cfg):
-    """Loads register dictionary from file path or returns dictionary directly."""
-    if isinstance(cfg, dict):
-        return cfg
-
-    with open(cfg, "r") as f:
-        registers = json.load(f)
-    return registers
-
 # def configFEN(fen_portal, ring=0, fen=0): OLD FROM DORO
         
     # fen_portal.identify(ring, fen)    
@@ -111,16 +103,47 @@ def loadRegisters(cfg):
     
     # dat=fen_portal.userRegRead(ring, fen, "SCI_REG_PCFG_THRS")
     # print(f"Threshold is set to {dat:#08x}, expected {0x00001770:#08x}")
+ 
+def loadRegisters(cfg):
+    """Loads register dictionary from file path or returns dictionary directly."""
+    if isinstance(cfg, dict):
+        return cfg
+
+    with open(cfg, "r") as f:
+        registers = json.load(f)
+    return registers
     
-    
-def configFEN(fen_portal, registers, ring=0, fen=0):
+def change_threshold(fen_portal, threshold=3000, ring=0, fen=0):
+    """Changes the threshold register for a specific FEN, resets core, and verifies readback."""
+    # Convert threshold decimal to 32-bit hex string (e.g. 3000 -> '0x00000bb8')
+    threshold_hex = f"{int(threshold):#010x}"
+
+    # Write threshold register
+    fen_portal.userRegWrite(ring, fen, "SCI_REG_PCFG_THRS", threshold_hex)
+
+    # Perform core reset sequence
+    _core_reset(fen_portal, ring=ring, fen=fen)
+
+    # Readback threshold to verify
+    _readback_threshold(
+        fen_portal, expected_threshold=threshold, ring=ring, fen=fen
+    )
+           
+ 
+def reg_dict_from_registers(registers):
     # Extract dictionary if full config object is passed
     reg_dict = (
         registers.get("registers", registers)
         if isinstance(registers, dict)
         else registers
     )
-
+    return reg_dict
+    
+ 
+def configFEN(fen_portal, registers, ring=0, fen=0):
+    
+    reg_dict = reg_dict_from_registers(registers)
+    
     # 1. Identify device
     fen_portal.identify(ring, fen)
 
@@ -131,36 +154,63 @@ def configFEN(fen_portal, registers, ring=0, fen=0):
             fen_portal.userRegWrite(ring, fen, reg_name, hex_val)
 
     # 3. Perform the core reset sequence and enable run in hex
+    _core_reset(fen_portal, ring=ring, fen=fen)
+    
+    # 4. Optional readback verification if threshold exists in reg_dict
+    if "SCI_REG_PCFG_THRS" in reg_dict:
+        _readback_threshold(
+            fen_portal,
+            expected_threshold=reg_dict["SCI_REG_PCFG_THRS"],
+            ring=ring,
+            fen=fen,
+        )
+
+def _readback_threshold(fen_portal, expected_threshold=3000, ring=0, fen=0):
+    # Readback verification
+    dat = fen_portal.userRegRead(ring, fen, "SCI_REG_PCFG_THRS")
+
+    # Normalize readback data to integer for formatted print
+    dat_int = int(dat, 16) if isinstance(dat, str) else int(dat)
+    expected_int = int(expected_threshold)
+
+    print(
+        f"  ---> [Ring {ring}, FEN {fen}] Threshold set to {dat_int:#010x} ({dat_int}), "
+        f"expected {expected_int:#010x} ({expected_int})"
+    )
+
+def _core_reset(fen_portal, ring=0, fen = 0):
+    # 3. Perform the core reset sequence and enable run in hex
     fen_portal.userRegWrite(ring, fen, "SCI_REG_RESET_CORE", f"{1:#010x}")
     fen_portal.userRegWrite(ring, fen, "SCI_REG_RESET_CORE", f"{0:#010x}")
     fen_portal.userRegWrite(ring, fen, "SCI_REG_RUN_EN", f"{1:#010x}")
-
-    # 4. Readback verification
-    if "SCI_REG_PCFG_THRS" in reg_dict:
-        expected_val = reg_dict["SCI_REG_PCFG_THRS"]
-        dat = fen_portal.userRegRead(ring, fen, "SCI_REG_PCFG_THRS")
-
-        # Normalize readback data to integer for formatted print
-        dat_int = int(dat, 16) if isinstance(dat, str) else int(dat)
-        expected_int = int(expected_val)
-
-        print(
-            f"  ---> [Ring {ring}, FEN {fen}] Threshold set to {dat_int:#010x} ({dat_int}), "
-            f"expected {expected_int:#010x} ({expected_int})"
-        )
-
     
 ###############################################################################################
 
 
-def configAllFEN(fen_portal, cfg, registers):
+def change_threshold_globally(fen_portal, topology, threshold=3000):
+    """Parses topology and updates threshold across all FEN nodes on all rings."""
+    topology_summary = parse_topology(topology)
+
+    for ring_info in topology_summary["rings"]:
+        ring = ring_info["ring"]
+        num_nodes = ring_info["nodes"]
+
+        for fen in range(num_nodes):
+            print(
+                f" ---> Updating threshold ({threshold}) on ring {ring} and fen {fen} ..."
+            )
+            change_threshold(fen_portal, threshold=threshold, ring=ring, fen=fen)
+            print("\n")
+    
+
+def configAllFEN(fen_portal, topology, registers):
     """Parses topology and configures all FEN nodes across all rings."""
     # 1. Load register definitions using loadRegisters if a file path string is passed
     if isinstance(registers, str):
         registers = loadRegisters(registers)
 
     # 2. Extract topology configuration
-    topology_summary = parse_topology(cfg)
+    topology_summary = parse_topology(topology)
 
     # 3. Iterate through every ring and node
     for ring_info in topology_summary["rings"]:
@@ -187,39 +237,78 @@ try:
 except ImportError:
     pass
 
-class R5560SlowCtrl():
+
+class R5560SlowCtrl:
+
+    def __init__(
+        self,
+        rbu_path,
+        rbu_file,
+        addr_path,
+        addr_file,
+        cfg_path,
+        cfg_file,
+        debug=False,
+    ):
+        self.debug = debug
+        self.fen_portal = None
+
+        if not self.debug:
+            try:
+                rmm = ReadoutMasterModule(
+                    cfg_json=os.path.join(rbu_path, rbu_file)
+                )
+                self.fen_portal = FrontEndGenericPortal(
+                    RMMRegs=rmm.RMMRegs,
+                    regmap=os.path.join(addr_path, addr_file),
+                )
+            except Exception as err:
+                print(
+                    f"[WARN] Hardware connection to RMM failed. Switching R5560 to debug mode: {err}"
+                )
+                self.debug = True
+
+        # Load configs safely
+        reg_file_full = os.path.join(cfg_path, cfg_file)
+        rbu_file_full = os.path.join(rbu_path, rbu_file)
+
+        self.cfg_registers = (
+            loadRegisters(reg_file_full)
+            if os.path.exists(reg_file_full)
+            else None
+        )
+        self.topology = (
+            loadConfig(rbu_file_full) if os.path.exists(rbu_file_full) else None
+        )
+
+        print(f" ---> backend slow control R5560 initialized with config {cfg_file}")
+
+    def configureR5560(self):
+        print("\n----------------------------------------------------------------------")
+        print("Configuring R5560 digitiser registers ...\n")
+
+        if not self.debug and self.fen_portal:
+            configAllFEN(self.fen_portal, self.topology, self.cfg_registers)
+        else:
+            print("\n")
+            print("Debug mode active: skipping hardware write.")
     
-    def __init__(self, rbu_path, rbu_file, addr_path, addr_file, reg_cfg_path, reg_cfg_file):
-        
-        self.debug = False
-        
-        if self.debug is False:
-            # Create RMM instance as normal, topology defined in cfg_ring
-            rmm = ReadoutMasterModule(cfg_json=os.path.join(rbu_path, rbu_file))
-            
-            # Use this to create a generic interface to all FEN userspace
-            self.fen_portal = FrontEndGenericPortal(RMMRegs=rmm.RMMRegs, regmap=os.path.join(addr_path, addr_file))
-        
-        # load registers
-        self.registers = loadRegisters(os.path.join(reg_cfg_path, reg_cfg_file))
-        
-        # load cfg 
-        self.cfg       = loadConfig(os.path.join(rbu_path, rbu_file))
- 
-        
-    def configureR5560(self):  
-        
-        print(f"\n")
-        print(f"\n----------------------------------------------------------------------")
-        print('Configuring R5560 digitiser registers ...')
-        print(f"\n")
-        
-        if self.debug is False:
-            configAllFEN(self.fen_portal, self.cfg, self.registers)
+    def changeThreshold(self, threshold=3000):
+        print("\n----------------------------------------------------------------------")
+        print(f"Changing threshold ({threshold}) on all R5560 digitisers ...\n")
+
+        # Keep internal config state in sync if registers are loaded
+        if self.cfg_registers:
+            reg_dict = reg_dict_from_registers(self.cfg_registers)
+            reg_dict["SCI_REG_PCFG_THRS"] = int(threshold)
+
+        if not self.debug and self.fen_portal:
+            change_threshold_globally(
+                self.fen_portal, self.topology, threshold=threshold
+            )
         else:
             print("Debug mode active: skipping hardware write.")
-           
-
+            
 ###############################################################################################
 ###############################################################################################
 ###############################################################################################

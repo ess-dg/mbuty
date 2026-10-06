@@ -9,6 +9,7 @@ import json
 import os
 import time
 import sys
+from lib.colors import WARN, RESET, ERR, INFO
 
 ###############################################################################
 
@@ -470,89 +471,102 @@ def configDetector(fen_portal, cfg):
 ###############################################################################
 
 
-# if essrmmdirver is not installed with pip -e 
-sys.path.insert(0, '/home/essdaq/detg_git/slow_control_driver')
-    
+# if essrmmdriver is not installed with pip -e
+sys.path.insert(0, "/home/essdaq/detg_git/slow_control_driver")
 
-from essrmmdriverlib.ReadoutMasterModule import ReadoutMasterModule
-from essrmmdriverlib.frontend.FrontEndGenericPortal import FrontEndGenericPortal
+try:
+    from essrmmdriverlib.frontend.FrontEndGenericPortal import (
+        FrontEndGenericPortal,
+    )
+    from essrmmdriverlib.ReadoutMasterModule import ReadoutMasterModule
+except ImportError:
+    pass
 
 
-class VMMSlowCtrl():
-    
-    def __init__(self, rbu_path, rbu_file, addr_path, addr_file, cfg_path, cfg_file):
+class VMMSlowCtrl:
+
+    def __init__(
+        self,
+        rbu_path,
+        rbu_file,
+        addr_path,
+        addr_file,
+        cfg_path,
+        cfg_file,
+        debug=False,
+    ):
+        self.debug = debug
+        self.fen_portal = None
+
+        if not self.debug:
+            try:
+                rmm = ReadoutMasterModule(
+                    cfg_json=os.path.join(rbu_path, rbu_file)
+                )
+                self.fen_portal = FrontEndGenericPortal(
+                    RMMRegs=rmm.RMMRegs,
+                    regmap=os.path.join(addr_path, addr_file),
+                )
+            except Exception as err:
+                print(
+                    f"[WARN] Hardware connection to RMM failed. Switching VMM to debug mode: {err}"
+                )
+                self.debug = True
+
+        # VMM config
+        cfg_full = os.path.join(cfg_path, cfg_file)
+        self.cfg = loadConfig(cfg_full) if os.path.exists(cfg_full) else None
         
-        self.debug = False
-        
-        if self.debug is False:
-            # Create RMM instance as normal, topology defined in cfg_ring
-            rmm = ReadoutMasterModule(cfg_json=os.path.join(rbu_path, rbu_file))
-            
-            # Use this to create a generic interface to all FEN userspace
-            self.fen_portal = FrontEndGenericPortal(RMMRegs=rmm.RMMRegs, regmap=os.path.join(addr_path, addr_file))
-        
-        # VMM config 
-        self.cfg = loadConfig(os.path.join(cfg_path, cfg_file))
-        
-        # print(cfg_file)
-        
-    def acq_on(self):  
-        
-        print('Acquisition started.')
-        
-        
-        
-        if self.debug is False:
+        print(f" ---> backend slow control VMM initialized with config {cfg_file}")
+
+    def acq_on(self):
+        print("\n")
+        print("Acquisition started.")
+        if not self.debug and self.fen_portal:
             acqOnOff_global(self.fen_portal, self.cfg, on=False)
             configDetector(self.fen_portal, self.cfg)
             acqOnOff_global(self.fen_portal, self.cfg, on=True)
-        
-    def acq_off(self):  
-        
-        print('Acquisition stopped.')
-        
-        if self.debug is False:
-            acqOnOff_global(self.fen_portal, self.cfg, on=False)
-        
-    def warm_init(self, ring, fen): 
-        
-        print(f"Execute warm init: ring {ring} , fen {fen}")
-        
-        if self.debug is False:
-            acqOnOff_global(self.fen_portal, self.cfg, on=False)
-            resetFec(self.fen_portal, ring, fen)      
 
-    def warm_init_glob(self): 
+    def acq_off(self):
+        print("\n")
+        print("Acquisition stopped.")
         
-        print('Execute global warm init')
-        
-        if self.debug is False:
+        if not self.debug and self.fen_portal:
+            acqOnOff_global(self.fen_portal, self.cfg, on=False)
+
+    def warm_init(self, ring, fen):
+        print("\n")
+        print(f"Execute warm init: ring {ring}, fen {fen}")
+        if not self.debug and self.fen_portal:
+            acqOnOff_global(self.fen_portal, self.cfg, on=False)
+            resetFec(self.fen_portal, ring, fen)
+
+    def warm_init_glob(self):
+        print("\n")
+        print("Execute global warm init")
+        if not self.debug and self.fen_portal:
             acqOnOff_global(self.fen_portal, self.cfg, on=False)
             resetFec_global(self.fen_portal, self.cfg)
-        
-    def hard_reset(self, ring, fen, hybrid): 
-        
-        print(f"Execute hard reset: ring {ring} , fen {fen}, hyb {hybrid}")
-        
-        if self.debug is False:
+
+    def hard_reset(self, ring, fen, hybrid):
+        print("\n")
+        print(f"Execute hard reset: ring {ring}, fen {fen}, hyb {hybrid}")
+        if not self.debug and self.fen_portal:
             acqOnOff_global(self.fen_portal, self.cfg, on=False)
-            for vmm in [0,1]:
+            for vmm in [0, 1]:
                 hardReset(self.fen_portal, ring, fen, hybrid, vmm, self.cfg)
                 time.sleep(0.2)
-           
+
             time.sleep(0.5)
-            # hard reset includes warm init 
             resetFec_global(self.fen_portal, self.cfg)
-        
-    def hard_reset_glob(self): 
-        
-        print(f"Execute global hard reset")
-        
-        if self.debug is False:
+
+    def hard_reset_glob(self):
+        print("\n")
+        print("Execute global hard reset")
+        if not self.debug and self.fen_portal:
             acqOnOff_global(self.fen_portal, self.cfg, on=False)
-            hardReset_global(self.fen_portal,self.cfg)
+            hardReset_global(self.fen_portal, self.cfg)
             time.sleep(1)
-            # hard reset includes warm init 
             resetFec_global(self.fen_portal, self.cfg)
 
 ###############################################################################
