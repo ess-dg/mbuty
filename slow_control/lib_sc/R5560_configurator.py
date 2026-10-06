@@ -225,12 +225,12 @@ if __name__ == "__main__":
     result = parse_topology(
         os.path.join(sc_dir, "rbu_cfg/MIRACLES_2rings", "cfg.json")
     )
-    print(result)
-    
+    # print(result)
+    # 
     
     reg = loadRegisters(os.path.join(sc_dir, "config_R5560", "example5560cfg.json"))
     
-    print(reg)
+    # print(reg)
     
     
     

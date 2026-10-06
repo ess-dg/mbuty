@@ -76,36 +76,55 @@ Categories=Application;Development;
 """
     with open(desktop_path, "w") as f: f.write(content)
     make_executable(desktop_path)
-    print(f"Linux: Shortcut created with Terminal=false.")
-    print(f"FINAL STEP: You MUST right-click the file on the Desktop and select 'Allow Launching'.")
+    
+    # 2. Mark as trusted using GIO (Linux/GNOME specific)
+    try:
+        subprocess.run(
+            ["gio", "set", desktop_path, "metadata::trusted", "true"],
+            check=True,
+        )
+        print(f"Linux: Marked shortcut as trusted via 'gio'.")
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        print(
+            f"Linux Warning: Could not mark as trusted with gio ({e}). Manual 'Allow Launching' may still be required."
+        )
+
+    print(f"Linux: Shortcut created successfully with Terminal=false at {desktop_path}")
+    
+    # print(f"Linux: Shortcut created with Terminal=false.")
+    # print(f"FINAL STEP: You MUST right-click the file on the Desktop and select 'Allow Launching'.")
 
 def create_macos_shortcut():
     app_path = os.path.expanduser(f"~/Desktop/{APP_NAME}.app")
-    
+
     # 1. Get the absolute path to the current python3 executable
     try:
-        python_path = subprocess.check_output(["which", "python3"]).decode().strip()
-    except:
-        python_path = "python3" # Fallback
+        python_path = (
+            subprocess.check_output(["which", "python3"]).decode().strip()
+        )
+    except Exception:
+        python_path = "python3"  # Fallback
 
-    # 2. Build the AppleScript. 
+    # 2. Build the AppleScript.
     # We 'cd' into the directory so your script's relative paths work.
     applescript = (
-        f'do shell script "cd \'{BASE_DIR}\' && '
-        f'{python_path} \'{SCRIPT_PATH}\' > /dev/null 2>&1 &"'
+        f"do shell script \"cd '{BASE_DIR}' && "
+        f"{python_path} '{SCRIPT_PATH}' > /dev/null 2>&1 &\""
     )
-    
+
     try:
         # Clear old version if it exists
         if os.path.exists(app_path):
             subprocess.run(["rm", "-rf", app_path])
-            
+
         # Create the .app bundle
-        subprocess.run(["osacompile", "-o", app_path, "-e", applescript], check=True)
-        
+        subprocess.run(
+            ["osacompile", "-o", app_path, "-e", applescript], check=True
+        )
+
         # 3. Apply the Icon (Using the AppKit bridge)
         if os.path.exists(ICON_PATH3):
-            icon_cmd = f'''
+            icon_cmd = f"""
 try:
     from AppKit import NSWorkspace, NSImage
     ws = NSWorkspace.sharedWorkspace()
@@ -113,14 +132,13 @@ try:
     ws.setIcon_forFile_options_(img, "{app_path}", 0)
 except Exception as e:
     print(e)
-'''
-
+"""
             subprocess.run(["python3", "-c", icon_cmd], check=False)
             # Force Finder to refresh the icon
             subprocess.run(["touch", app_path])
 
         print(f"macOS: Created silent .app bundle at {app_path}")
-        
+
     except Exception as e:
         print(f"macOS Error: {e}")
 
