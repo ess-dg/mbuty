@@ -65,18 +65,11 @@ def parse_topology(cfg):
 
 
 def loadRegisters(cfg):
-    
+    """Loads register dictionary from file path or returns dictionary directly."""
+    if isinstance(cfg, dict):
+        return cfg
     with open(cfg, "r") as f:
         registers = json.load(f)
-        
-    # Access metadata
-    # print(f"Deployment: {registers['deployment']}")
-    # print(f"Version: {registers['version']}\n")
-    
-    # # Loop through registers directly key-value style:
-    # for reg_name, value in registers["registers"].items():
-    #     print(f"Writing {value} to {reg_name}")
-
     return registers
 
 # def configFEN(fen_portal, ring=0, fen=0): OLD FROM DORO
@@ -142,9 +135,10 @@ def configFEN(fen_portal, registers, ring=0, fen=0):
         expected_val = reg_dict["SCI_REG_PCFG_THRS"]
         dat = fen_portal.userRegRead(ring, fen, "SCI_REG_PCFG_THRS")
 
-        # Format both values as 8-digit hex strings for comparison
+        # Normalize readback data to integer for formatted print
+        dat_int = int(dat, 16) if isinstance(dat, str) else int(dat)
         print(
-            f"Threshold is set to {dat:#010x}, expected {expected_val:#010x}"
+            f"  [Ring {ring}, FEN {fen}] Threshold set to {dat_int:#010x}, expected {expected_val:#010x}"
         )
 
     
@@ -173,16 +167,46 @@ def configAllFEN(fen_portal, cfg, registers):
 ###############################################################################################
 
 
+# if essrmmdriver is not installed with pip -e
+sys.path.insert(0, "/home/essdaq/detg_git/slow_control_driver")
 
-# if essrmmdirver is not installed with pip -e 
-sys.path.insert(0, '/home/essdaq/detg_git/slow_control_driver')
+try:
+    from essrmmdriverlib.frontend.FrontEndGenericPortal import (
+        FrontEndGenericPortal,
+    )
+    from essrmmdriverlib.ReadoutMasterModule import ReadoutMasterModule
+except ImportError:
+    pass
+
+class R5560SlowCtrl():
     
-
-# from essrmmdriverlib.ReadoutMasterModule import ReadoutMasterModule
-# from essrmmdriverlib.frontend.FrontEndGenericPortal import FrontEndGenericPortal
-
-
-
+    def __init__(self, rbu_path, rbu_file, addr_path, addr_file, reg_cfg_path, reg_cfg_file):
+        
+        self.debug = False
+        
+        if self.debug is False:
+            # Create RMM instance as normal, topology defined in cfg_ring
+            rmm = ReadoutMasterModule(cfg_json=os.path.join(rbu_path, rbu_file))
+            
+            # Use this to create a generic interface to all FEN userspace
+            self.fen_portal = FrontEndGenericPortal(RMMRegs=rmm.RMMRegs, regmap=os.path.join(addr_path, addr_file))
+        
+        # load registers
+        self.registers = loadRegisters(os.path.join(reg_cfg_path, reg_cfg_file))
+        
+        # load cfg 
+        self.cfg       = loadConfig(os.path.join(rbu_path, rbu_file))
+ 
+        
+    def configureR5560(self):  
+        
+        print('Configuration sent to R5560 digitisers ...')
+        
+        if self.debug is False:
+            configAllFEN(self.fen_portal, self.cfg, self.registers)
+        else:
+            print("Debug mode active: skipping hardware write.")
+           
 
 ###############################################################################################
 ###############################################################################################
