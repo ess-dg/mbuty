@@ -1,0 +1,2226 @@
+{
+  "timestamp": "2026-08-11T11:43:41.845129",
+  "total_readings": 130,
+  "readings_by_type": {
+    "threshold_dac": {
+      "count": 2,
+      "readings": [
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": null,
+          "dac_setting": 300,
+          "adc_mv": 255.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 0,
+            "sm5_sm0": 2,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": null
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": null,
+          "dac_setting": 300,
+          "adc_mv": 277.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 0,
+            "sm5_sm0": 2,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": null
+          }
+        }
+      ]
+    },
+    "threshold": {
+      "count": 128,
+      "readings": [
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 0,
+          "dac_setting": null,
+          "adc_mv": 258.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 0,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 1,
+          "dac_setting": null,
+          "adc_mv": 251.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 1,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 2,
+          "dac_setting": null,
+          "adc_mv": 257.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 2,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 3,
+          "dac_setting": null,
+          "adc_mv": 249.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 3,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 4,
+          "dac_setting": null,
+          "adc_mv": 255.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 4,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 5,
+          "dac_setting": null,
+          "adc_mv": 257.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 5,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 6,
+          "dac_setting": null,
+          "adc_mv": 254.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 6,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 7,
+          "dac_setting": null,
+          "adc_mv": 254.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 7,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 8,
+          "dac_setting": null,
+          "adc_mv": 254.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 8,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 9,
+          "dac_setting": null,
+          "adc_mv": 256.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 9,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 10,
+          "dac_setting": null,
+          "adc_mv": 256.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 10,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 11,
+          "dac_setting": null,
+          "adc_mv": 256.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 11,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 12,
+          "dac_setting": null,
+          "adc_mv": 252.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 12,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 13,
+          "dac_setting": null,
+          "adc_mv": 252.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 13,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 14,
+          "dac_setting": null,
+          "adc_mv": 251.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 14,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 15,
+          "dac_setting": null,
+          "adc_mv": 251.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 15,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 16,
+          "dac_setting": null,
+          "adc_mv": 256.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 16,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 17,
+          "dac_setting": null,
+          "adc_mv": 251.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 17,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 18,
+          "dac_setting": null,
+          "adc_mv": 253.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 18,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 19,
+          "dac_setting": null,
+          "adc_mv": 258.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 19,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 20,
+          "dac_setting": null,
+          "adc_mv": 255.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 20,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 21,
+          "dac_setting": null,
+          "adc_mv": 253.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 21,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 22,
+          "dac_setting": null,
+          "adc_mv": 257.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 22,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 23,
+          "dac_setting": null,
+          "adc_mv": 252.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 23,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 24,
+          "dac_setting": null,
+          "adc_mv": 252.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 24,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 25,
+          "dac_setting": null,
+          "adc_mv": 257.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 25,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 26,
+          "dac_setting": null,
+          "adc_mv": 252.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 26,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 27,
+          "dac_setting": null,
+          "adc_mv": 250.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 27,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 28,
+          "dac_setting": null,
+          "adc_mv": 256.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 28,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 29,
+          "dac_setting": null,
+          "adc_mv": 253.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 29,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 30,
+          "dac_setting": null,
+          "adc_mv": 255.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 30,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 31,
+          "dac_setting": null,
+          "adc_mv": 258.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 31,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 32,
+          "dac_setting": null,
+          "adc_mv": 253.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 32,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 33,
+          "dac_setting": null,
+          "adc_mv": 252.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 33,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 34,
+          "dac_setting": null,
+          "adc_mv": 256.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 34,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 35,
+          "dac_setting": null,
+          "adc_mv": 254.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 35,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 36,
+          "dac_setting": null,
+          "adc_mv": 259.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 36,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 37,
+          "dac_setting": null,
+          "adc_mv": 252.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 37,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 38,
+          "dac_setting": null,
+          "adc_mv": 250.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 38,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 39,
+          "dac_setting": null,
+          "adc_mv": 255.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 39,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 40,
+          "dac_setting": null,
+          "adc_mv": 254.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 40,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 41,
+          "dac_setting": null,
+          "adc_mv": 256.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 41,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 42,
+          "dac_setting": null,
+          "adc_mv": 252.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 42,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 43,
+          "dac_setting": null,
+          "adc_mv": 259.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 43,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 44,
+          "dac_setting": null,
+          "adc_mv": 258.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 44,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 45,
+          "dac_setting": null,
+          "adc_mv": 256.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 45,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 46,
+          "dac_setting": null,
+          "adc_mv": 258.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 46,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 47,
+          "dac_setting": null,
+          "adc_mv": 253.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 47,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 48,
+          "dac_setting": null,
+          "adc_mv": 261.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 48,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 49,
+          "dac_setting": null,
+          "adc_mv": 257.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 49,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 50,
+          "dac_setting": null,
+          "adc_mv": 254.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 50,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 51,
+          "dac_setting": null,
+          "adc_mv": 259.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 51,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 52,
+          "dac_setting": null,
+          "adc_mv": 259.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 52,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 53,
+          "dac_setting": null,
+          "adc_mv": 254.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 53,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 54,
+          "dac_setting": null,
+          "adc_mv": 252.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 54,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 55,
+          "dac_setting": null,
+          "adc_mv": 260.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 55,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 56,
+          "dac_setting": null,
+          "adc_mv": 253.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 56,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 57,
+          "dac_setting": null,
+          "adc_mv": 255.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 57,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 58,
+          "dac_setting": null,
+          "adc_mv": 252.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 58,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 59,
+          "dac_setting": null,
+          "adc_mv": 259.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 59,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 60,
+          "dac_setting": null,
+          "adc_mv": 252.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 60,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 61,
+          "dac_setting": null,
+          "adc_mv": 253.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 61,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 62,
+          "dac_setting": null,
+          "adc_mv": 257.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 62,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 2,
+          "channel": 63,
+          "dac_setting": null,
+          "adc_mv": 260.0,
+          "address": "0x200001a8",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 63,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 0,
+          "dac_setting": null,
+          "adc_mv": 275.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 0,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 1,
+          "dac_setting": null,
+          "adc_mv": 282.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 1,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 2,
+          "dac_setting": null,
+          "adc_mv": 271.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 2,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 3,
+          "dac_setting": null,
+          "adc_mv": 272.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 3,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 4,
+          "dac_setting": null,
+          "adc_mv": 275.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 4,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 5,
+          "dac_setting": null,
+          "adc_mv": 275.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 5,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 6,
+          "dac_setting": null,
+          "adc_mv": 271.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 6,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 7,
+          "dac_setting": null,
+          "adc_mv": 273.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 7,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 8,
+          "dac_setting": null,
+          "adc_mv": 280.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 8,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 9,
+          "dac_setting": null,
+          "adc_mv": 275.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 9,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 10,
+          "dac_setting": null,
+          "adc_mv": 279.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 10,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 11,
+          "dac_setting": null,
+          "adc_mv": 269.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 11,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 12,
+          "dac_setting": null,
+          "adc_mv": 275.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 12,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 13,
+          "dac_setting": null,
+          "adc_mv": 274.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 13,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 14,
+          "dac_setting": null,
+          "adc_mv": 277.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 14,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 15,
+          "dac_setting": null,
+          "adc_mv": 275.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 15,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 16,
+          "dac_setting": null,
+          "adc_mv": 278.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 16,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 17,
+          "dac_setting": null,
+          "adc_mv": 274.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 17,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 18,
+          "dac_setting": null,
+          "adc_mv": 280.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 18,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 19,
+          "dac_setting": null,
+          "adc_mv": 272.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 19,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 20,
+          "dac_setting": null,
+          "adc_mv": 273.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 20,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 21,
+          "dac_setting": null,
+          "adc_mv": 276.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 21,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 22,
+          "dac_setting": null,
+          "adc_mv": 276.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 22,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 23,
+          "dac_setting": null,
+          "adc_mv": 271.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 23,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 24,
+          "dac_setting": null,
+          "adc_mv": 278.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 24,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 25,
+          "dac_setting": null,
+          "adc_mv": 281.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 25,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 26,
+          "dac_setting": null,
+          "adc_mv": 271.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 26,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 27,
+          "dac_setting": null,
+          "adc_mv": 276.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 27,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 28,
+          "dac_setting": null,
+          "adc_mv": 277.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 28,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 29,
+          "dac_setting": null,
+          "adc_mv": 275.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 29,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 30,
+          "dac_setting": null,
+          "adc_mv": 279.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 30,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 31,
+          "dac_setting": null,
+          "adc_mv": 276.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 31,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 32,
+          "dac_setting": null,
+          "adc_mv": 271.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 32,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 33,
+          "dac_setting": null,
+          "adc_mv": 281.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 33,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 34,
+          "dac_setting": null,
+          "adc_mv": 277.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 34,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 35,
+          "dac_setting": null,
+          "adc_mv": 274.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 35,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 36,
+          "dac_setting": null,
+          "adc_mv": 278.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 36,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 37,
+          "dac_setting": null,
+          "adc_mv": 266.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 37,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 38,
+          "dac_setting": null,
+          "adc_mv": 271.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 38,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 39,
+          "dac_setting": null,
+          "adc_mv": 274.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 39,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 40,
+          "dac_setting": null,
+          "adc_mv": 276.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 40,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 41,
+          "dac_setting": null,
+          "adc_mv": 270.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 41,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 42,
+          "dac_setting": null,
+          "adc_mv": 272.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 42,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 43,
+          "dac_setting": null,
+          "adc_mv": 278.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 43,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 44,
+          "dac_setting": null,
+          "adc_mv": 274.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 44,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 45,
+          "dac_setting": null,
+          "adc_mv": 273.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 45,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 46,
+          "dac_setting": null,
+          "adc_mv": 267.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 46,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 47,
+          "dac_setting": null,
+          "adc_mv": 283.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 47,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 48,
+          "dac_setting": null,
+          "adc_mv": 276.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 48,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 49,
+          "dac_setting": null,
+          "adc_mv": 269.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 49,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 50,
+          "dac_setting": null,
+          "adc_mv": 277.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 50,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 51,
+          "dac_setting": null,
+          "adc_mv": 278.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 51,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 52,
+          "dac_setting": null,
+          "adc_mv": 276.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 52,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 53,
+          "dac_setting": null,
+          "adc_mv": 281.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 53,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 54,
+          "dac_setting": null,
+          "adc_mv": 278.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 54,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 55,
+          "dac_setting": null,
+          "adc_mv": 277.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 55,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 56,
+          "dac_setting": null,
+          "adc_mv": 281.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 56,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 57,
+          "dac_setting": null,
+          "adc_mv": 271.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 57,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 58,
+          "dac_setting": null,
+          "adc_mv": 277.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 58,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 59,
+          "dac_setting": null,
+          "adc_mv": 277.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 59,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 60,
+          "dac_setting": null,
+          "adc_mv": 273.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 60,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 61,
+          "dac_setting": null,
+          "adc_mv": 278.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 61,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 62,
+          "dac_setting": null,
+          "adc_mv": 275.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 62,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        },
+        {
+          "ring": 2,
+          "fen": 0,
+          "vmm": 3,
+          "channel": 63,
+          "dac_setting": null,
+          "adc_mv": 275.0,
+          "address": "0x200001ac",
+          "registers": {
+            "scmx": 1,
+            "sm5_sm0": 63,
+            "sdt": 300,
+            "sdp10": 300,
+            "polarity_sp": 0,
+            "smx": 1
+          }
+        }
+      ]
+    }
+  }
+}

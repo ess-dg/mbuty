@@ -177,7 +177,7 @@ def open_config_creator_standalone(theme_mode="dark"):
      
 def slow_control_manager(theme_mode="dark"):
     """
-    Launches VMMslowCtrl_GUI.py from the slow_control_VMM directory as a 
+    Launches slowCtrl_GUI.py from the slow_control directory as a 
     completely separate, standalone Python process, passing the current 
     theme mode as a command-line argument.
     """
@@ -185,7 +185,7 @@ def slow_control_manager(theme_mode="dark"):
     import sys, os, subprocess
     
     python_executable = sys.executable
-    slow_control_gui_path = os.path.join(currentPath, 'slow_control_VMM', 'VMMslowCtrl_GUI.py')
+    slow_control_gui_path = os.path.join(currentPath, 'slow_control', 'SlowCTRL_GUI.py')
 
     # Verify that the script exists before trying to run it
     if not os.path.exists(slow_control_gui_path):

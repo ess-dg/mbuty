@@ -1,0 +1,153 @@
+{
+    "deployment" : "Example usage of slow_control_driver",
+    "version" : "Example",
+    "topology" : {
+        // This example defines a topology of a single node on Ring 10
+	"0" : {
+            // if only using driver for RMM/ring bringup, don't need to specify frontend type
+            "frontend" : "generic",
+            // number of nodes in this ring
+            "nodes" : 1
+        },
+
+	 "1" : {
+            // if only using driver for RMM/ring bringup, don't need to specify frontend type
+            "frontend" : "generic",
+            // number of nodes in this ring
+            "nodes" : 1
+        },
+	"2" : {
+            // if only using driver for RMM/ring bringup, don't need to specify frontend type
+            "frontend" : "generic",
+            // number of nodes in this ring
+            "nodes" : 1
+        },
+        "3" : {
+            // if only using driver for RMM/ring bringup, don't need to specify frontend type
+            "frontend" : "generic",
+            // number of nodes in this ring
+            "nodes" : 1
+        },
+                // This example defines a topology of a single node on Ring 10
+	"4" : {
+            // if only using driver for RMM/ring bringup, don't need to specify frontend type
+            "frontend" : "generic",
+            // number of nodes in this ring
+            "nodes" : 1
+        },
+
+	 "5" : {
+            // if only using driver for RMM/ring bringup, don't need to specify frontend type
+            "frontend" : "generic",
+            // number of nodes in this ring
+            "nodes" : 1
+        },
+	"6" : {
+            // if only using driver for RMM/ring bringup, don't need to specify frontend type
+            "frontend" : "generic",
+            // number of nodes in this ring
+            "nodes" : 1
+        },
+                // This example defines a topology of a single node on Ring 10
+	"7" : {
+            // if only using driver for RMM/ring bringup, don't need to specify frontend type
+            "frontend" : "generic",
+            // number of nodes in this ring
+            "nodes" : 1
+        },
+
+	 "8" : {
+            // if only using driver for RMM/ring bringup, don't need to specify frontend type
+            "frontend" : "generic",
+            // number of nodes in this ring
+            "nodes" : 1
+        },
+	"9" : {
+            // if only using driver for RMM/ring bringup, don't need to specify frontend type
+            "frontend" : "generic",
+            // number of nodes in this ring
+            "nodes" : 1
+        },
+	"11" : {
+            // if only using driver for RMM/ring bringup, don't need to specify frontend type
+            "frontend" : "generic",
+            // number of nodes in this ring
+            "nodes" : 1
+        }
+    },
+    "side_channels" : {
+        // LEMO_IN_1
+        "0" : {
+            "enabled" : false,
+            // Mock data for ring header
+            "fibre" : 24,
+            "node" : 0,
+            // options: "ess_beam_monitor", "minimal"
+            "data_format" : "ess_beam_monitor",
+            // Mock data for packet (type options: "ttl", "ngem", "i-bm", "gem", "lnd", "mm")
+            "type" : "ttl",
+            "channel" : 0x0,
+            "x_position" : 0,
+            "y_position" : 0
+        },
+        // LEMO_IN_2
+        "1" : {
+            "enabled" : false,
+               // Mock data for ring header
+            "fibre" : 24,
+            "node" : 1,
+               // options: "ess_beam_monitor", "minimal"
+            "data_format" : "ess_beam_monitor",
+            // Mock data for packet (type options: "ttl", "ngem", "i-bm", "gem", "lnd", "mm")
+               "type" : "ttl",
+            "channel" : 0x0,
+            "x_position" : 0,
+            "y_position" : 0
+        }
+    },
+    "output_queues" :{    
+        // Default Values to be used for all output queues if no specific config supplied
+        "default": {
+            "enabled"   : true,
+            // choose which destination packets from this output queue will be sent to (see udp_core "lut" for indexes)
+            "destination_lut_index" : 0,
+            // Assigned per instrument/config - see ICD
+            "readout_type" : 0x4C,
+            // If enabled, the Packet Generator replaces real data from ring with generated LOKI-style packets
+            "pkt_gen_enable" : false,
+            "pkt_gen_idles" : 0xfffff,
+            "pkt_gen_length" : 6,
+        },
+        // Specific Output Queue configurations go here
+        "11": {
+        	"enabled"   : true,
+            "destination_lut_index" : 1,
+        	"readout_type" : 0x10,
+        	"pkt_gen_enable" : false,
+        	"pkt_gen_idles" : 100,
+        },	
+
+        // Side Channel Output Queue (No packet generator present)
+        "side_ch": {
+        "enabled"   : false,
+        "destination_lut_index" : 0,
+        "readout_type" : 0x60,
+        },
+    },
+    "udp_core" : {
+        // Source MAC/IP/UDP port for all Bulk Data packets
+        "src_mac" : "04:3F:72:f2:f1:23",
+        "src_ip" : "10.110.200.1",
+        "src_port" : 9000,
+        // Custom ARP timeouts
+        "arp_refresh_timeout" : 60.0,
+        "arp_reply_timeout" : 2.0,
+        // Destination Lookup Table (Output queues index into this table)
+        // Should be filled by all EFUs connected to the 100G bulk data fibre
+        "lut" : {
+            // "dst_mac" can also be provided here if we don't want to use ARP
+            "0": { "dst_ip" : "10.110.6.32", "dst_port" : 9001},
+            "1": { "dst_ip" : "10.110.6.32", "dst_port" : 9010},
+        }
+    }
+}
