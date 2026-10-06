@@ -43,7 +43,7 @@ if __name__ == "__main__":
     addr_path = os.path.join(mbuty_dir,'slow_control','sys_regs_map')
     addr_file = 'r5560_001_regs_addrmap.txt'
     
-    rbu_path  = '/home/essdaq/detg_git/slow_control_driver/freia/'
+    rbu_path  = '/home/essdaq/detg_git/slow_control_driver/miracles/'
     rbu_file  = 'cfg.json'
     
     sc = R5560SlowCtrl(rbu_path, rbu_file, addr_path, addr_file, reg_cfg_path, reg_cfg_file)
