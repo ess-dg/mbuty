@@ -142,8 +142,11 @@ def configFEN(fen_portal, registers, ring=0, fen=0):
 
         # Normalize readback data to integer for formatted print
         dat_int = int(dat, 16) if isinstance(dat, str) else int(dat)
+        expected_int = int(expected_val)
+
         print(
-            f"  [Ring {ring}, FEN {fen}] Threshold set to {dat_int:#010x}, expected {expected_val:#010x}"
+            f"  [Ring {ring}, FEN {fen}] Threshold set to {dat_int:#010x} ({dat_int}), "
+            f"expected {expected_int:#010x} ({expected_int})"
         )
 
     
