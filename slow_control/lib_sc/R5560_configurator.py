@@ -145,7 +145,7 @@ def configFEN(fen_portal, registers, ring=0, fen=0):
         expected_int = int(expected_val)
 
         print(
-            f"  [Ring {ring}, FEN {fen}] Threshold set to {dat_int:#010x} ({dat_int}), "
+            f"  ---> [Ring {ring}, FEN {fen}] Threshold set to {dat_int:#010x} ({dat_int}), "
             f"expected {expected_int:#010x} ({expected_int})"
         )
 
@@ -169,8 +169,9 @@ def configAllFEN(fen_portal, cfg, registers):
 
         # Loop from 0 to (num_nodes - 1)
         for fen in range(num_nodes):
-            print(f"Configuring ring {ring} and fen {fen}...")
+            print(f" ---> Configuring ring {ring} and fen {fen} ...")
             configFEN(fen_portal, registers, ring=ring, fen=fen)
+            print(f"\n")
 
 ###############################################################################################
 
@@ -208,7 +209,10 @@ class R5560SlowCtrl():
         
     def configureR5560(self):  
         
-        print('Configuration sent to R5560 digitisers ...')
+        print(f"\n")
+        print(f"\n----------------------------------------------------------------------")
+        print('Configuring R5560 digitiser registers ...')
+        print(f"\n")
         
         if self.debug is False:
             configAllFEN(self.fen_portal, self.cfg, self.registers)
