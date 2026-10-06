@@ -32,6 +32,10 @@ def sanitize_jsonc(json_str: str) -> str:
 
 
 def loadConfig(cfg):
+    """Loads JSON/JSONC configuration from file path or returns dictionary directly."""
+    if isinstance(cfg, dict):
+        return cfg
+
     with open(cfg, "r") as f:
         content = f.read()
     clean_content = sanitize_jsonc(content)
@@ -68,6 +72,7 @@ def loadRegisters(cfg):
     """Loads register dictionary from file path or returns dictionary directly."""
     if isinstance(cfg, dict):
         return cfg
+
     with open(cfg, "r") as f:
         registers = json.load(f)
     return registers
