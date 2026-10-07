@@ -460,7 +460,7 @@ def checkConfigNames(cfg):
                 fillGlobalRegisters2(vmm)
                 fillChannelRegisters(vmm)
 
-    print("JSON config check passed.")
+    print("json config file check passed")
 
 ###############################################################################
 
@@ -479,18 +479,18 @@ def configDetector(fen_portal, cfg):
             hybrid = the_hybrid["hybrid"]
 
             try:
-                print(f"  Configuring hybrid {hybrid}")
+                print(f"\tConfiguring hybrid {hybrid}")
                 configHybrid(fen_portal, ring, fen, hybrid, cfg)
             except:
-                print(f"  Configuring hybrid {hybrid} failed.")
+                print(f"\tConfiguring hybrid {hybrid} failed.")
 
             for vmm_index in [0, 1]:
                 try:
-                    print(f"\tConfiguring VMM {vmm_index}")
+                    print(f"\t\tConfiguring VMM {vmm_index}")
                     configVmm(fen_portal, ring, fen, hybrid, vmm_index, cfg, reset=False)
                     channel_mask = channel_mask | (1 << (hybrid * 2 + vmm_index))
                 except:
-                     print(f"\tConfiguring VMM {vmm_index} failed.")
+                     print(f"\t\tConfiguring VMM {vmm_index} failed.")
                      
         try:             
             configAssister(fen_portal, ring, fen, cfg, channel_mask)
@@ -528,10 +528,12 @@ class VMMSlowCtrl(BaseSlowCtrl):
     # Call base class constructor
         super().__init__(rbu_path,rbu_file,addr_path,addr_file,cfg_path,cfg_file,debug=debug)
 
-     
+        
         # VMM config
         cfg_full = os.path.join(cfg_path, cfg_file)
         self.cfg = loadConfig(cfg_full) if os.path.exists(cfg_full) else None
+        
+        checkConfigNames(self.cfg)
         
         print(f" ---> backend slow control VMM initialized with config {cfg_file}")
 
