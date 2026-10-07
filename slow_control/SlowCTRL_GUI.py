@@ -850,6 +850,13 @@ class ConfigCreatorWidget(QWidget):
         for dep_widget in self.dependencies[key]:
             dep_widget.setEnabled(is_enabled)
             
+    def _log_address_map_warning(self, section_name):
+        """Appends a highlighted warning message to the terminal console output."""
+        msg = f"\n[NOTICE] {section_name} activated: Ensure you load and use the correct Address Map file.\n"
+        if hasattr(self, "terminal_text_widget"):
+            self.terminal_text_widget.appendPlainText(msg)
+    
+    
     def _setup_mutually_exclusive_sections(self):
         btn_sec3 = self.widgets.get("enable_sec3")
         btn_sec4 = self.widgets.get("enable_sec4")
@@ -858,25 +865,35 @@ class ConfigCreatorWidget(QWidget):
             return
     
         def on_sec3_toggled(checked):
-            if checked and btn_sec4.isChecked():
-                btn_sec4.blockSignals(True)
-                btn_sec4.setChecked(False)
-                btn_sec4.blockSignals(False)
-                self.update_dependencies("enable_sec4", False)
+            if checked:
+                if btn_sec4.isChecked():
+                    btn_sec4.blockSignals(True)
+                    btn_sec4.setChecked(False)
+                    btn_sec4.blockSignals(False)
+                    self.update_dependencies("enable_sec4", False)
+    
+                self._log_address_map_warning("VMM slow control")
+    
+            self.update_dependencies("enable_sec3", checked)
     
         def on_sec4_toggled(checked):
-            if checked and btn_sec3.isChecked():
-                btn_sec3.blockSignals(True)
-                btn_sec3.setChecked(False)
-                btn_sec3.blockSignals(False)
-                self.update_dependencies("enable_sec3", False)
+            if checked:
+                if btn_sec3.isChecked():
+                    btn_sec3.blockSignals(True)
+                    btn_sec3.setChecked(False)
+                    btn_sec3.blockSignals(False)
+                    self.update_dependencies("enable_sec3", False)
+    
+                self._log_address_map_warning("R5560 slow control")
+    
+            self.update_dependencies("enable_sec4", checked)
     
         btn_sec3.toggled.connect(on_sec3_toggled)
         btn_sec4.toggled.connect(on_sec4_toggled)
     
         # Initial state sync
         self.update_dependencies("enable_sec3", btn_sec3.isChecked())
-        self.update_dependencies("enable_sec4", btn_sec4.isChecked())         
+        self.update_dependencies("enable_sec4", btn_sec4.isChecked())      
 
 ###############################################################################
 ###############################################################################
