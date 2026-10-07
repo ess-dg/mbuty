@@ -50,4 +50,4 @@ if __name__ == "__main__":
     
     sc.configureR5560()
     
-    sc.changeThreshold(4000)
+    # sc.changeThreshold(4000)

@@ -310,9 +310,9 @@ def configVmm(fen_portal, ring, fen, hybrid, vmm_index, cfg, reset=False):
     idx = hybrid * 2 + vmm_index
     s_vmm = f"{idx:02d}" if idx < 10 else str(idx)
 
-    bank2 = fillGlobalRegisters2(vmm)
+    bank2    = fillGlobalRegisters2(vmm)
     channels = fillChannelRegisters(vmm)
-    bank1 = fillGlobalRegisters(vmm, reset=reset)
+    bank1    = fillGlobalRegisters(vmm, reset=reset)
 
     for i, word in enumerate(bank2):
         fen_portal.userRegWrite(ring, fen, f"vmm_global_bank2_sp{i}{s_vmm}", int(word, 2))
@@ -368,10 +368,14 @@ def configAssister(fen_portal, ring, fen, cfg, mask):
 
 # WARM INIT
 def resetFec(fen_portal, ring, fen):  # this is warm init
-    print(f"Resetting ring {ring}, fen {fen}")
-    fen_portal.userRegWrite(ring, fen, "sc_app_reset_assister", 0)
-    fen_portal.userRegWrite(ring, fen, "sc_app_reset_assister", 1)
-    fen_portal.userRegWrite(ring, fen, "sc_app_reset_assister", 0)
+    
+    try:
+        print(f"Resetting ring {ring}, fen {fen}")
+        fen_portal.userRegWrite(ring, fen, "sc_app_reset_assister", 0)
+        fen_portal.userRegWrite(ring, fen, "sc_app_reset_assister", 1)
+        fen_portal.userRegWrite(ring, fen, "sc_app_reset_assister", 0)
+    except:
+        print(f"Resetting ring {ring}, fen {fen} failed.")
 
 
 # WARM INIT GLOBAL
@@ -384,11 +388,14 @@ def resetFec_global(fen_portal, cfg):
 
 # VMM Hard reset
 def hardReset(fen_portal, ring, fen, hybrid, vmm_index, cfg):
-    print(f"Hard resetting ring {ring}, fen {fen}, hybrid {hybrid}, vmm {vmm_index}")
-    configVmm(fen_portal, ring, fen, hybrid, vmm_index, cfg, reset=True)
-    time.sleep(0.1)
-    configVmm(fen_portal, ring, fen, hybrid, vmm_index, cfg, reset=False)
-
+    try:
+        print(f"Hard resetting ring {ring}, fen {fen}, hybrid {hybrid}, vmm {vmm_index}")
+        configVmm(fen_portal, ring, fen, hybrid, vmm_index, cfg, reset=True)
+        time.sleep(0.1)
+        configVmm(fen_portal, ring, fen, hybrid, vmm_index, cfg, reset=False)
+     except:   
+         print(f"Hard resetting ring {ring}, fen {fen}, hybrid {hybrid}, vmm {vmm_index} failed.")
+         
 # VMM Hard reset global
 def hardReset_global(fen_portal, cfg):
     print(f"Hard resetting ALL but really ALL!")
@@ -405,15 +412,24 @@ def acqOnOff(fen_portal, ring, fen, on=True):
 # 	checkConfigNames(cfg)
 
     if on:
-        print(f"Starting acquisition on ring {ring}, fen {fen}")
-        fen_portal.userRegWrite(ring, fen, "app_acq_enable", 1)
+        try:
+            print(f"Starting acquisition on ring {ring}, fen {fen}")
+            fen_portal.userRegWrite(ring, fen, "app_acq_enable", 1)
+        except:
+            print(f"Starting acquisition on ring {ring}, fen {fen} failed.")
     else:
-        print(f"Stopping acquisition on ring {ring}, fen {fen}")
-        fen_portal.userRegWrite(ring, fen, "app_acq_enable", 0)
+        try:
+            print(f"Stopping acquisition on ring {ring}, fen {fen}")
+            fen_portal.userRegWrite(ring, fen, "app_acq_enable", 0)
+        except:
+            print(f"Stopping acquisition on ring {ring}, fen {fen} failed.")
 
-    fen_portal.userRegWrite(ring, fen, "sc_acq_on_off", 0)
-    fen_portal.userRegWrite(ring, fen, "sc_acq_on_off", 1)
-    fen_portal.userRegWrite(ring, fen, "sc_acq_on_off", 0)
+    try:
+        fen_portal.userRegWrite(ring, fen, "sc_acq_on_off", 0)
+        fen_portal.userRegWrite(ring, fen, "sc_acq_on_off", 1)
+        fen_portal.userRegWrite(ring, fen, "sc_acq_on_off", 0)
+    except:
+        pass
 
 
 def acqOnOff_global(fen_portal, cfg, on=True):
@@ -461,19 +477,41 @@ def configDetector(fen_portal, cfg):
 
         for the_hybrid in the_fen["hybrids"]:
             hybrid = the_hybrid["hybrid"]
-            print(f"  Configuring hybrid {hybrid}")
 
-            configHybrid(fen_portal, ring, fen, hybrid, cfg)
+            try:
+                print(f"  Configuring hybrid {hybrid}")
+                configHybrid(fen_portal, ring, fen, hybrid, cfg)
+            except:
+                print(f"  Configuring hybrid {hybrid} failed.")
 
             for vmm_index in [0, 1]:
-                print(f"\tConfiguring VMM {vmm_index}")
-
-                configVmm(fen_portal, ring, fen, hybrid, vmm_index, cfg, reset=False)
-                channel_mask = channel_mask | (1 << (hybrid * 2 + vmm_index))
-
-        configAssister(fen_portal, ring, fen, cfg, channel_mask)
+                try:
+                    print(f"\tConfiguring VMM {vmm_index}")
+    
+                    configVmm(fen_portal, ring, fen, hybrid, vmm_index, cfg, reset=False)
+                    channel_mask = channel_mask | (1 << (hybrid * 2 + vmm_index))
+                 except:
+                     print(f"\tConfiguring VMM {vmm_index} failed.")
+                     
+        try:             
+            configAssister(fen_portal, ring, fen, cfg, channel_mask)
+        except:
+            pass
 
     return cfg
+
+
+###############################################################################
+###############################################################################
+
+
+# def match_rbu_with_cfg():
+#     def __init__(self,rbu_path_and_rbu_file, cfg):
+        
+        
+        
+        
+    
 
 ###############################################################################
 ###############################################################################
