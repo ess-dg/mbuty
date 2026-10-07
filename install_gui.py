@@ -77,19 +77,20 @@ Categories=Application;Development;
     with open(desktop_path, "w") as f: f.write(content)
     make_executable(desktop_path)
     
-    # 2. Mark as trusted using GIO (Linux/GNOME specific)
+    # 2. Mark as trusted using GIO (GNOME specific)
     try:
         subprocess.run(
             ["gio", "set", desktop_path, "metadata::trusted", "true"],
             check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
-        print(f"Linux: Marked shortcut as trusted via 'gio'.")
-    except (subprocess.CalledProcessError, FileNotFoundError) as e:
-        print(
-            f"Linux Warning: Could not mark as trusted with gio ({e}). Manual 'Allow Launching' may still be required."
-        )
+        print("Linux: Marked shortcut as trusted via 'gio'.")
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        # Fallback for systems/desktop environments that don't support GIO metadata
+        pass
 
-    print(f"Linux: Shortcut created successfully with Terminal=false at {desktop_path}")
+    print(f"Linux: Shortcut created successfully at {desktop_path}")
     
     # print(f"Linux: Shortcut created with Terminal=false.")
     # print(f"FINAL STEP: You MUST right-click the file on the Desktop and select 'Allow Launching'.")
