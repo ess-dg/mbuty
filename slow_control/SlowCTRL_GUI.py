@@ -279,7 +279,7 @@ ui_config = {
             "type": "action_with_fields",
             "button_key": "btn_action_6",
             "fields_key": "fields_set_threshold_glob",
-            "label": "change threshold global",
+            "label": "change thres glob",
             "button_width": 160,
             "fields": [
                 {"key": "threshold", "label": "threshold", "default": "3000", "width": 80},
@@ -290,7 +290,7 @@ ui_config = {
             "type": "action_with_fields",
             "button_key": "btn_action_7",
             "fields_key": "fields_set_threshold_lcl",
-            "label": "change threshold lcl",
+            "label": "change thres lcl",
             "button_width": 160,
             "fields": [
                 {"key": "threshold", "label": "threshold", "default": "3000", "width": 80},
