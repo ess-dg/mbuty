@@ -14,6 +14,14 @@ import time
 import sys
 import re
 
+# =============================================================================
+# RUNTIME PATH BOOTSTRAP
+# =============================================================================
+_workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _workspace not in sys.path:
+    sys.path.insert(0, _workspace)
+
+
 from lib.colors import WARN, RESET, ERR, INFO
 
 ###############################################################################
@@ -113,7 +121,7 @@ def loadRegisters(cfg):
         registers = json.load(f)
     return registers
     
-def change_threshold(fen_portal, threshold=3000, ring=0, fen=0):
+def change_threshold_locally(fen_portal, threshold=3000, ring=0, fen=0):
     """Changes the threshold register for a specific FEN, resets core, and verifies readback."""
     # Convert threshold decimal to 32-bit hex string (e.g. 3000 -> '0x00000bb8')
     threshold_hex = f"{int(threshold):#010x}"
@@ -199,7 +207,7 @@ def change_threshold_globally(fen_portal, topology, threshold=3000):
             print(
                 f" ---> Updating threshold ({threshold}) on ring {ring} and fen {fen} ..."
             )
-            change_threshold(fen_portal, threshold=threshold, ring=ring, fen=fen)
+            change_threshold_locally(fen_portal, threshold=threshold, ring=ring, fen=fen)
             print("\n")
     
 
@@ -226,19 +234,9 @@ def configAllFEN(fen_portal, topology, registers):
 ###############################################################################################
 
 
-# if essrmmdriver is not installed with pip -e
-sys.path.insert(0, "/home/essdaq/detg_git/slow_control_driver")
+from lib_sc.base_configurator import BaseSlowCtrl
 
-try:
-    from essrmmdriverlib.frontend.FrontEndGenericPortal import (
-        FrontEndGenericPortal,
-    )
-    from essrmmdriverlib.ReadoutMasterModule import ReadoutMasterModule
-except ImportError:
-    pass
-
-
-class R5560SlowCtrl:
+class R5560SlowCtrl(BaseSlowCtrl):
 
     def __init__(
         self,
@@ -250,23 +248,9 @@ class R5560SlowCtrl:
         cfg_file,
         debug=False,
     ):
-        self.debug = debug
-        self.fen_portal = None
 
-        if not self.debug:
-            try:
-                rmm = ReadoutMasterModule(
-                    cfg_json=os.path.join(rbu_path, rbu_file)
-                )
-                self.fen_portal = FrontEndGenericPortal(
-                    RMMRegs=rmm.RMMRegs,
-                    regmap=os.path.join(addr_path, addr_file),
-                )
-            except Exception as err:
-                print(
-                    f"[WARN] Hardware connection to RMM failed. Switching R5560 to debug mode: {err}"
-                )
-                self.debug = True
+        # Call base class constructor
+        super().__init__(rbu_path,rbu_file,addr_path,addr_file,cfg_path,cfg_file,debug=debug)
 
         # Load configs safely
         reg_file_full = os.path.join(cfg_path, cfg_file)
@@ -285,17 +269,16 @@ class R5560SlowCtrl:
 
     def configureR5560(self):
         print("\n----------------------------------------------------------------------")
-        print("Configuring R5560 digitiser registers ...\n")
+        print("Configuring R5560 digitiser registers ...")
 
         if not self.debug and self.fen_portal:
             configAllFEN(self.fen_portal, self.topology, self.cfg_registers)
         else:
-            print("\n")
             print("Debug mode active: skipping hardware write.")
     
-    def changeThreshold(self, threshold=3000):
+    def changeThreshold_glob(self, threshold=3000):
         print("\n----------------------------------------------------------------------")
-        print(f"Changing threshold ({threshold}) on all R5560 digitisers ...\n")
+        print(f"Changing threshold ({threshold}) on all R5560 digitisers ...")
 
         # Keep internal config state in sync if registers are loaded
         if self.cfg_registers:
@@ -308,6 +291,22 @@ class R5560SlowCtrl:
             )
         else:
             print("Debug mode active: skipping hardware write.")
+            
+    def changeThreshold_lcl(self, threshold=3000, ring=0, fen=0):
+        print("\n----------------------------------------------------------------------")
+        print(f"Changing threshold ({threshold}) on R5560 digitiser at ring {ring}, fen {fen} ...")
+
+        # Keep internal config state in sync if registers are loaded
+        if self.cfg_registers:
+            reg_dict = reg_dict_from_registers(self.cfg_registers)
+            reg_dict["SCI_REG_PCFG_THRS"] = int(threshold)
+
+        if not self.debug and self.fen_portal:
+            change_threshold_locally(
+                self.fen_portal, threshold=threshold, ring=ring, fen=fen
+            )
+        else:
+            print("Debug mode active: skipping hardware write.")       
             
 ###############################################################################################
 ###############################################################################################

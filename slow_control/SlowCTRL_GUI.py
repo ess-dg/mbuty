@@ -5,16 +5,26 @@ Created on 30/09/2026
 
 @author: francescopiscitelli
 """
-
+###############################################################################
+###############################################################################
 import sys
 import os
 import subprocess
+import re
+###############################################################################
+###############################################################################
 
-###############################################################################
-###############################################################################
+# =============================================================================
+# RUNTIME PATH BOOTSTRAP
+# =============================================================================
+_workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _workspace not in sys.path:
+    sys.path.insert(0, _workspace)
+
+from lib.colors import WARN, RESET, ERR, INFO
 
 # Compute project root directory once
-current_dir = os.path.dirname(os.path.abspath(__file__))
+current_dir  = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(current_dir, '..'))
 
 # Ensure project root is at the top of sys.path
@@ -29,108 +39,8 @@ from lib.IOC_manager_lib import manage_IOC_service
 # Determine theme mode from command-line arguments (default to "dark")
 theme_mode = sys.argv[1] if len(sys.argv) > 1 else "dark"
 
-try:
-    from lib_sc.VMM_configurator import VMMSlowCtrl
-except ImportError:
-
-    class VMMSlowCtrl:
-
-        def __init__(
-            self,
-            rbu_path,
-            rbu_file,
-            addr_path,
-            addr_file,
-            cfg_path,
-            cfg_file,
-            debug=True,
-        ):
-            self.rbu_path = rbu_path
-            self.rbu_file = rbu_file
-            self.addr_path = addr_path
-            self.addr_file = addr_file
-            self.cfg_path = cfg_path
-            self.cfg_file = cfg_file
-            print(
-                f"------- BACKEND MOCKUP -------\n"
-                f"[BACKEND MOCK] Initialized VMMSlowCtrl with:\n"
-                f"  RBU:  {os.path.join(rbu_path, rbu_file)}\n"
-                f"  ADDR: {os.path.join(addr_path, addr_file)}\n"
-                f"  CFG:  {os.path.join(cfg_path, cfg_file)}"
-            )
-
-        def acq_on(self):
-            print("\n")
-            print("[BACKEND MOCK] Acquisition ON")
-            print(f"(with config {self.cfg_file}) ...")
-
-        def acq_off(self):
-            print("\n")
-            print("[BACKEND MOCK] Acquisition OFF")
-            print(f"(with config {self.cfg_file}) ...")
-
-        def warm_init(self, ring, fen):
-            print("\n")
-            print(f"[BACKEND MOCK] Warm init on Ring {ring}, FEN {fen}")
-
-        def warm_init_glob(self):
-            print("\n")
-            print("[BACKEND MOCK] Global warm init executed")
-
-        def hard_reset(self, ring, fen, hybrid):
-            print("\n")
-            print(
-                f"[BACKEND MOCK] Hard reset on Ring {ring}, FEN {fen}, Hybrid {hybrid}"
-            )
-
-        def hard_reset_glob(self):
-            print("\n")
-            print("[BACKEND MOCK] Global hard reset executed")
-
-
-
-try:
-    from lib_sc.R5560_configurator import R5560SlowCtrl
-except ImportError:
-
-    class R5560SlowCtrl:
-
-        def __init__(
-
-            self,
-            rbu_path,
-            rbu_file,
-            addr_path,
-            addr_file,
-            cfg_path,
-            cfg_file,
-            debug=True,
-        ):
-            self.rbu_path = rbu_path
-            self.rbu_file = rbu_file
-            self.addr_path = addr_path
-            self.addr_file = addr_file
-            self.cfg_path = cfg_path
-            self.cfg_file = cfg_file
-            print(
-                f"------- BACKEND MOCKUP -------\n"
-                f"[BACKEND MOCK] Initialized R5560SlowCtrl with:\n"
-                f"  RBU:     {os.path.join(rbu_path, rbu_file)}\n"
-                f"  ADDR:    {os.path.join(addr_path, addr_file)}\n"
-                f"  REG CFG: {os.path.join(cfg_path, cfg_file)}"
-            )
-            
-
-        def configureR5560(self):
-            print("\n")
-            print(f"Configuring R5560 digitiser registers ({self.cfg_file}) ...")
-            print(
-            "[BACKEND MOCK] Debug mode active: skipping hardware write (configAllFEN)."
-            )
-
-    
-###############################################################################
-###############################################################################
+from lib_sc.VMM_configurator import VMMSlowCtrl
+from lib_sc.R5560_configurator import R5560SlowCtrl
 
 from qtpy.QtCore import Qt, QObject, Signal, QThread
 from qtpy.QtWidgets import (
@@ -157,37 +67,9 @@ from qtpy.QtWidgets import (
 
 try:
     from GUI import theme
-except ImportError:
-    class ThemeMock:
-        ROW_SPACING = 10
-        FONT_SIZE_HEADER = 14
-        FONT_SIZE_BASE = 10
-        FONT_SIZE_CONSOLE = 9
-
-        def __init__(self, app, mode="dark"):
-            self.app = app
-            self.mode = mode
-
-        def toggle(self):
-            self.mode = "light" if self.mode == "dark" else "dark"
-            self.apply(self.mode)
-
-        def apply(self, mode):
-            self.mode = mode
-
-        @staticmethod
-        def base_font(size=10, bold=False):
-            from qtpy.QtGui import QFont
-            f = QFont("Arial", size)
-            f.setBold(bold)
-            return f
-
-        @staticmethod
-        def mono_font(size=9):
-            from qtpy.QtGui import QFont
-            return QFont("Monospace", size)
-
-    theme = ThemeMock
+except ImportError as e:
+    print(f"[ERROR] Failed to import GUI.theme: {e}")
+    theme = None
 
 ###############################################################################
 ###############################################################################
@@ -363,49 +245,33 @@ ui_config = {
         "button_width": 160,
     },
     
-    "action_set_threshold": {
+    "action_set_threshold_glob": {
         "type": "action_with_fields",
         "button_key": "btn_action_6",
-        "fields_key": "fields_set_threshold",
-        "label": "change threshold",
+        "fields_key": "fields_set_threshold_glob",
+        "label": "change threshold global",
         "button_width": 160,
         "fields": [
         {"key": "threshold", "label": "threshold", "default": "3000", "width":80},
         ],
     },
+    
+    "action_set_threshold_lcl": {
+        "type": "action_with_fields",
+        "button_key": "btn_action_7",
+        "fields_key": "fields_set_threshold_lcl",
+        "label": "change threshold lcl",
+        "button_width": 160,
+        "fields": [
+                {"key": "threshold", "label": "threshold", "default": "3000", "width": 80},
+                {"key": "ring", "label": "ring", "default": "0", "width": 50},
+                {"key": "fen", "label": "fen", "default": "0", "width": 50},
+                ],
+    },
+    
     },
 }
 
-###############################################################################
-###############################################################################
-
-class StreamOutput(QObject):
-    messageWritten = Signal(str)
-
-    def write(self, text):
-        self.messageWritten.emit(str(text))
-
-    def flush(self):
-        pass
-
-class AcquisitionWorker(QObject):
-    finished = Signal(bool)
-    error = Signal(str)
-
-    def __init__(self, slow_ctrl_VMM, target_state):
-        super().__init__()
-        self.slow_ctrl_VMM = slow_ctrl_VMM
-        self.target_state = target_state
-
-    def run(self):
-        try:
-            if self.target_state:
-                self.slow_ctrl_VMM.acq_on()
-            else:
-                self.slow_ctrl_VMM.acq_off()
-            self.finished.emit(self.target_state)
-        except Exception as e:
-            self.error.emit(str(e))
 
 ###############################################################################
 ###############################################################################
@@ -876,13 +742,12 @@ class ConfigCreatorWidget(QWidget):
         sys.stdout = self.stdout_stream
         sys.stderr = self.stdout_stream
 
-        print("[INFO] Terminal console successfully initialized.")
+        print(f"Terminal console successfully initialized.")
 
     def _append_terminal_message(self, text):
         self.terminal_text_widget.moveCursor(self.terminal_text_widget.textCursor().End)
         self.terminal_text_widget.insertPlainText(text)
         self.terminal_text_widget.moveCursor(self.terminal_text_widget.textCursor().End)
-
 
 ###############################################################################
 ###############################################################################
@@ -910,17 +775,17 @@ class MainWindow(QMainWindow):
         
         rbu_p, rbu_f, addr_p, addr_f, cfg_vmm_p, cfg_vmm_f, cfg_r5560_p, cfg_r5560_f = self.config_widget.get_config_paths()
 
-        print("\n----------------------------------------------------------------------")
-        print("Configuration Paths:")
-        print(f"  RBU Path:         {rbu_p}")
-        print(f"  RBU File:         {rbu_f}")
-        print(f"  Addr Path:        {addr_p}")
-        print(f"  Addr File:        {addr_f}")
-        print(f"  VMM Cfg Path:     {cfg_vmm_p}")
-        print(f"  VMM Cfg File:     {cfg_vmm_f}")
-        print(f"  R5560 Cfg Path:   {cfg_r5560_p}")
-        print(f"  R5560 Cfg File:   {cfg_r5560_f}")
-        print("----------------------------------------------------------------------\n")
+        # print("\n----------------------------------------------------------------------")
+        # print("Configuration Paths:")
+        # print(f"  RBU Path:         {rbu_p}")
+        # print(f"  RBU File:         {rbu_f}")
+        # print(f"  Addr Path:        {addr_p}")
+        # print(f"  Addr File:        {addr_f}")
+        # print(f"  VMM Cfg Path:     {cfg_vmm_p}")
+        # print(f"  VMM Cfg File:     {cfg_vmm_f}")
+        # print(f"  R5560 Cfg Path:   {cfg_r5560_p}")
+        # print(f"  R5560 Cfg File:   {cfg_r5560_f}")
+        # print("----------------------------------------------------------------------\n")
 
         try:
             self.slow_ctrl_VMM = VMMSlowCtrl(
@@ -972,7 +837,8 @@ class MainWindow(QMainWindow):
             "btn_action_5": self.handle_hard_reset,
             "btn_force_off": self.handle_force_acq_off,
             "btn_set_registers": self.handle_set_registers,
-            "btn_action_6": self.handle_change_threshold,
+            "btn_action_6": self.handle_change_threshold_glob,
+            "btn_action_7": self.handle_change_threshold_lcl,
         }
 
         for key, handler in action_bindings.items():
@@ -1009,7 +875,7 @@ class MainWindow(QMainWindow):
             )  
             
             
-    def handle_change_threshold(self):
+    def handle_change_threshold_glob(self):
         """Handler for updating the threshold on R5560 digitisers."""
         self.init_slow_ctrl()
         if not self.slow_ctrl_R5560:
@@ -1022,7 +888,7 @@ class MainWindow(QMainWindow):
 
         # Retrieve threshold value from the fields dictionary
         threshold_val = 3000  # Default fallback value
-        fields_dict = self.config_widget.widgets.get("fields_set_threshold")
+        fields_dict = self.config_widget.widgets.get("fields_set_threshold_glob")
 
         if isinstance(fields_dict, dict):
             # Extract values by calling .text() on QLineEdit widgets
@@ -1037,7 +903,7 @@ class MainWindow(QMainWindow):
                 threshold_val = 3000
 
         try:
-            self.slow_ctrl_R5560.changeThreshold(threshold=threshold_val)
+            self.slow_ctrl_R5560.changeThreshold_glob(threshold=threshold_val)
             print(f"[ACTION] Threshold changed to {threshold_val} successfully.\n")
         except Exception as e:
             print(f"[ERROR] Failed to change R5560 threshold: {e}")
@@ -1046,6 +912,58 @@ class MainWindow(QMainWindow):
                 "Configuration Error",
                 f"Failed to change R5560 threshold:\n{e}",
             )
+            
+    def handle_change_threshold_lcl(self):
+        """Handler for updating the threshold on specific ring and fen R5560 digitisers."""
+        self.init_slow_ctrl()
+        if not self.slow_ctrl_R5560:
+            QMessageBox.critical(
+                self,
+                "Hardware Error",
+                "R5560SlowCtrl backend could not be initialized.",
+            )
+            return
+
+        # Retrieve inputs from the UI fields dictionary
+        threshold_val = 3000
+        ring          = 0
+        fen           = 0
+
+        fields_dict = self.config_widget.widgets.get("fields_set_threshold_lcl")
+
+        if isinstance(fields_dict, dict):
+            # Parse threshold
+            try:
+                threshold_val = int(fields_dict["threshold"].text())
+            except (KeyError, ValueError):
+                print("[WARN] Invalid or missing threshold input. Using default 3000.")
+
+            # Parse ring
+            try:
+                ring = int(fields_dict["ring"].text())
+            except (KeyError, ValueError):
+                print("[WARN] Invalid or missing ring input. Using default 0.")
+
+            # Parse fen
+            try:
+                fen = int(fields_dict["fen"].text())
+            except (KeyError, ValueError):
+                print("[WARN] Invalid or missing fen input. Using default 0.")
+
+        try:
+            self.slow_ctrl_R5560.changeThreshold_lcl(
+                threshold=threshold_val, ring=ring, fen=fen
+            )
+            print(
+                f"[ACTION] Local threshold changed to {threshold_val} for Ring {ring}, FEN {fen}.\n"
+            )
+        except Exception as e:
+            print(f"[ERROR] Failed to change R5560 local threshold: {e}")
+            QMessageBox.critical(
+                self,
+                "Configuration Error",
+                f"Failed to change R5560 local threshold:\n{e}",
+            )   
 
     def handle_force_acq_off(self):
         self.init_slow_ctrl()
@@ -1202,7 +1120,7 @@ class MainWindow(QMainWindow):
         fields = self.config_widget.widgets.get("fields_warm_init", {})
         try:
             ring = int(fields.get("ring").text()) if "ring" in fields else 0
-            fen = int(fields.get("fen").text()) if "fen" in fields else 0
+            fen  = int(fields.get("fen").text()) if "fen" in fields else 0
             self.slow_ctrl_VMM.warm_init(ring, fen)
         except ValueError:
             print("[ERROR] Ring and FEN must be integers.")
@@ -1221,6 +1139,37 @@ class MainWindow(QMainWindow):
         except ValueError:
             print("[ERROR] Ring, FEN, and Hybrid must be integers.")
             
+###############################################################################
+###############################################################################
+
+class StreamOutput(QObject):
+    messageWritten = Signal(str)
+
+    def write(self, text):
+        self.messageWritten.emit(str(text))
+
+    def flush(self):
+        pass
+
+class AcquisitionWorker(QObject):
+    finished = Signal(bool)
+    error = Signal(str)
+
+    def __init__(self, slow_ctrl_VMM, target_state):
+        super().__init__()
+        self.slow_ctrl_VMM = slow_ctrl_VMM
+        self.target_state = target_state
+
+    def run(self):
+        try:
+            if self.target_state:
+                self.slow_ctrl_VMM.acq_on()
+            else:
+                self.slow_ctrl_VMM.acq_off()
+            self.finished.emit(self.target_state)
+        except Exception as e:
+            self.error.emit(str(e))
+
 
 ###############################################################################
 ###############################################################################

@@ -9,6 +9,15 @@ import json
 import os
 import time
 import sys
+
+# =============================================================================
+# RUNTIME PATH BOOTSTRAP
+# =============================================================================
+_workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _workspace not in sys.path:
+    sys.path.insert(0, _workspace)
+
+
 from lib.colors import WARN, RESET, ERR, INFO
 
 ###############################################################################
@@ -471,19 +480,9 @@ def configDetector(fen_portal, cfg):
 ###############################################################################
 
 
-# if essrmmdriver is not installed with pip -e
-sys.path.insert(0, "/home/essdaq/detg_git/slow_control_driver")
+from lib_sc.base_configurator import BaseSlowCtrl
 
-try:
-    from essrmmdriverlib.frontend.FrontEndGenericPortal import (
-        FrontEndGenericPortal,
-    )
-    from essrmmdriverlib.ReadoutMasterModule import ReadoutMasterModule
-except ImportError:
-    pass
-
-
-class VMMSlowCtrl:
+class VMMSlowCtrl(BaseSlowCtrl):
 
     def __init__(
         self,
@@ -495,24 +494,11 @@ class VMMSlowCtrl:
         cfg_file,
         debug=False,
     ):
-        self.debug = debug
-        self.fen_portal = None
+    
+    # Call base class constructor
+        super().__init__(rbu_path,rbu_file,addr_path,addr_file,cfg_path,cfg_file,debug=debug)
 
-        if not self.debug:
-            try:
-                rmm = ReadoutMasterModule(
-                    cfg_json=os.path.join(rbu_path, rbu_file)
-                )
-                self.fen_portal = FrontEndGenericPortal(
-                    RMMRegs=rmm.RMMRegs,
-                    regmap=os.path.join(addr_path, addr_file),
-                )
-            except Exception as err:
-                print(
-                    f"[WARN] Hardware connection to RMM failed. Switching VMM to debug mode: {err}"
-                )
-                self.debug = True
-
+     
         # VMM config
         cfg_full = os.path.join(cfg_path, cfg_file)
         self.cfg = loadConfig(cfg_full) if os.path.exists(cfg_full) else None
@@ -520,7 +506,7 @@ class VMMSlowCtrl:
         print(f" ---> backend slow control VMM initialized with config {cfg_file}")
 
     def acq_on(self):
-        print("\n")
+        print("\n----------------------------------------------------------------------")
         print("Acquisition started.")
         if not self.debug and self.fen_portal:
             acqOnOff_global(self.fen_portal, self.cfg, on=False)
@@ -528,28 +514,28 @@ class VMMSlowCtrl:
             acqOnOff_global(self.fen_portal, self.cfg, on=True)
 
     def acq_off(self):
-        print("\n")
+        print("\n----------------------------------------------------------------------")
         print("Acquisition stopped.")
         
         if not self.debug and self.fen_portal:
             acqOnOff_global(self.fen_portal, self.cfg, on=False)
 
     def warm_init(self, ring, fen):
-        print("\n")
+        print("\n----------------------------------------------------------------------")
         print(f"Execute warm init: ring {ring}, fen {fen}")
         if not self.debug and self.fen_portal:
             acqOnOff_global(self.fen_portal, self.cfg, on=False)
             resetFec(self.fen_portal, ring, fen)
 
     def warm_init_glob(self):
-        print("\n")
+        print("\n----------------------------------------------------------------------")
         print("Execute global warm init")
         if not self.debug and self.fen_portal:
             acqOnOff_global(self.fen_portal, self.cfg, on=False)
             resetFec_global(self.fen_portal, self.cfg)
 
     def hard_reset(self, ring, fen, hybrid):
-        print("\n")
+        print("\n----------------------------------------------------------------------")
         print(f"Execute hard reset: ring {ring}, fen {fen}, hyb {hybrid}")
         if not self.debug and self.fen_portal:
             acqOnOff_global(self.fen_portal, self.cfg, on=False)
@@ -561,7 +547,7 @@ class VMMSlowCtrl:
             resetFec_global(self.fen_portal, self.cfg)
 
     def hard_reset_glob(self):
-        print("\n")
+        print("\n----------------------------------------------------------------------")
         print("Execute global hard reset")
         if not self.debug and self.fen_portal:
             acqOnOff_global(self.fen_portal, self.cfg, on=False)
