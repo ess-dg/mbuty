@@ -409,9 +409,7 @@ def hardReset_global(fen_portal, cfg):
 ###############################################################################
 
 def acqOnOff(fen_portal, ring, fen, on=True):
-# 	cfg = asConfig(cfg_or_file)
 # 	checkConfigNames(cfg)
-
     if on:
         try:
             print(f"Starting acquisition on ring {ring}, fen {fen}")
