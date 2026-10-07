@@ -159,7 +159,7 @@ ui_config = {
     "section_3": {
         "enable_sec3": {
             "type": "toggle_button",
-            "label": "Activate",
+            "label": "Activate slow control VMM",
             "default": False,
         },
         "subtitle.sec3": {
@@ -214,7 +214,7 @@ ui_config = {
             "button_key": "btn_action_3",
             "fields_key": "fields_warm_init",
             "label": "warm init",
-            "button_width": 160,
+            "button_width": 200,
             "fields": [
                 {"key": "ring", "label": "ring", "default": "0", "width": 50},
                 {"key": "fen", "label": "fen", "default": "0", "width": 50},
@@ -226,7 +226,7 @@ ui_config = {
             "button_key": "btn_action_5",
             "fields_key": "fields_hard_reset",
             "label": "hard reset",
-            "button_width": 160,
+            "button_width": 200,
             "fields": [
                 {"key": "ring", "label": "ring", "default": "0", "width": 50},
                 {"key": "fen", "label": "fen", "default": "0", "width": 50},
@@ -241,7 +241,7 @@ ui_config = {
     "section_4": {
         "enable_sec4": {
             "type": "toggle_button",
-            "label": "Activate",
+            "label": "Activate slow control R5560",
             "default": False,
         },
         "subtitle.sec4": {
@@ -272,7 +272,7 @@ ui_config = {
             "type": "single_button",
             "label": "set all registers",
             "button_key": "btn_set_registers",
-            "button_width": 160,
+            "button_width": 200,
             "dependsOn": "enable_sec4",
         },
         "action_set_threshold_glob": {
@@ -280,7 +280,7 @@ ui_config = {
             "button_key": "btn_action_6",
             "fields_key": "fields_set_threshold_glob",
             "label": "change thres glob",
-            "button_width": 160,
+            "button_width": 200,
             "fields": [
                 {"key": "threshold", "label": "threshold", "default": "3000", "width": 80},
             ],
@@ -291,7 +291,7 @@ ui_config = {
             "button_key": "btn_action_7",
             "fields_key": "fields_set_threshold_lcl",
             "label": "change thres lcl",
-            "button_width": 160,
+            "button_width": 200,
             "fields": [
                 {"key": "threshold", "label": "threshold", "default": "3000", "width": 80},
                 {"key": "ring", "label": "ring", "default": "0", "width": 50},
@@ -651,7 +651,7 @@ class ConfigCreatorWidget(QWidget):
         h_layout.setSpacing(8)
 
         btn = QPushButton(item.get("label", "Action"))
-        btn.setFixedWidth(item.get("button_width", 160))
+        btn.setFixedWidth(item.get("button_width", 200))
         h_layout.addWidget(btn)
         h_layout.addStretch(1)
 
