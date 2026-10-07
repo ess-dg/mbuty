@@ -509,7 +509,7 @@ class ConfigCreatorWidget(QWidget):
         # Assemble Splitter
         self.splitter.addWidget(self.params_container)
         self.splitter.addWidget(self.terminal_frame)
-        self.splitter.setSizes([600, 600])
+        self.splitter.setSizes([800, 600])
 
         # Configure mutually exclusive toggles once ALL widgets are constructed
         self._setup_mutually_exclusive_sections()
@@ -1405,7 +1405,7 @@ if __name__ == "__main__":
         theme_manager = None # Or instantiate your fallback mock class here
 
     main_win = MainWindow(theme_manager=theme_manager)
-    main_win.resize(1200, 800)
+    main_win.resize(1400, 800)
     main_win.show()
     
     # Use _sys instead of sys to match your import alias
