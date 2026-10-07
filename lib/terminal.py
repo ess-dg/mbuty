@@ -355,10 +355,16 @@ def dumpToPcapng(interface='en0', destPath='./', fileName='temp',typeOfCapture='
                 # Construct full tshark token sequence safely 
                 # The filter flag '-f' and its argument 'udp' are intentionally kept at the end
                 tshark_bin = os.path.join(pathToTshark, 'tshark')
+                
+                
                 cmd = [tshark_bin, '-i', str(interface)] + commandDetails + ['-w', fileFullAndPath, '-f', 'udp']
                 
+                
+                # cmd = ['sudo', tshark_bin, '-i', str(interface)] + commandDetails + ['-w', fileFullAndPath, '-f', 'udp']
+                
+                
                 # Run process via subprocess instead of os.system
-                result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                 temp_status = result.returncode
                 
                 if delay > 0:

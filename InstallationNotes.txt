@@ -106,7 +106,7 @@ NOTE 5:
 If interested in running slow control. Only VMM slow control is supoported, 
 but IOC manager and ring bring up (RBU) is generic and can be used for all detectors. 
 
-For RBU the slow control driver must be isntalled beforehand from:
+For RBU the slow control driver must be installed beforehand from:
 
 https://gitlab.esss.lu.se/detectorgroup/software/slow-control/slow_control_driver
 
@@ -115,7 +115,7 @@ it is installed as:
 
 >> pip install -e /some_path/slow_control_driver
 
-in the folder where the RBU runs, an example folder is also avaialble in the slow control driver. 
+in the folder where the RBU runs, an example folder is also available in the slow control driver. 
 
 MBUTY needs to point to the run folder. 
 _______
@@ -178,8 +178,8 @@ In /lib/libTerminal.py -> class dumpToPcapngutil -> function dump
 
 Comment/uncomment 
 
-# command1 = 'sudo ' + os.path.join(self.pathToTshark,'tshark')+' -i '+str(self.interface) + ' -f "udp"'
-command1 = os.path.join(self.pathToTshark,'tshark')+' -i '+str(self.interface) + ' -f "udp"'
+cmd = [tshark_bin, '-i', str(interface)] + commandDetails + ['-w', fileFullAndPath, '-f', 'udp']
+# cmd = ['sudo', tshark_bin, '-i', str(interface)] + commandDetails + ['-w', fileFullAndPath, '-f', 'udp']
 
 -----
 The drop-down window to select the files in the GUI change the file display default:

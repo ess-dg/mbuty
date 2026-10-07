@@ -487,7 +487,6 @@ def configDetector(fen_portal, cfg):
             for vmm_index in [0, 1]:
                 try:
                     print(f"\tConfiguring VMM {vmm_index}")
-    
                     configVmm(fen_portal, ring, fen, hybrid, vmm_index, cfg, reset=False)
                     channel_mask = channel_mask | (1 << (hybrid * 2 + vmm_index))
                 except:
@@ -504,13 +503,6 @@ def configDetector(fen_portal, cfg):
 ###############################################################################
 ###############################################################################
 
-
-# def match_rbu_with_cfg():
-#     def __init__(self,rbu_path_and_rbu_file, cfg):
-        
-        
-        
-        
     
 
 ###############################################################################
