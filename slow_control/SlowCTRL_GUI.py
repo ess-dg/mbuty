@@ -51,6 +51,7 @@ from qtpy.QtWidgets import (
     QHBoxLayout,
     QGridLayout,
     QGroupBox,
+    QCheckBox,
     QLabel,
     QPushButton,
     QToolButton,
@@ -156,12 +157,22 @@ ui_config = {
     # SECTION 3: VMM Config & Controls (Foldable / Collapsible)
     # -------------------------------------------------------------------------
     "section_3": {
-        "subtitle.sec3": {"type": "subheading", "label": "VMM Config and Controls"},
+        "enable_sec3": {
+            "type": "toggle_button",
+            "label": "Activate",
+            "default": False,
+        },
+        "subtitle.sec3": {
+            "type": "subheading",
+            "label": "VMM Config and Controls",
+            "dependsOn": "enable_sec3",
+        },
         "cfg_VMM_path": {
             "label": "VMM cfg directory",
             "type": "filePath",
             "default": os.path.join(current_dir, "config_VMM"),
             "info": "VMM config files json.",
+            "dependsOn": "enable_sec3",
         },
         "cfg_VMM_file": {
             "label": "VMM cfg",
@@ -169,21 +180,26 @@ ui_config = {
             "optionsFromPath": "cfg_VMM_path",
             "fileTypeFilter": ".json",
             "default": "MB.FREIA.diagonalNoSymm.json",
+            "dependsOn": "enable_sec3",
         },
         "sep_4": {
             "type": "spacer",
+            "dependsOn": "enable_sec3",
         },
         "btn_toggle_power": {
             "label": "Acq ON/OFF",
             "type": "toggle_button",
             "default": False,
+            "dependsOn": "enable_sec3",
         },
         "sep_5": {
             "type": "spacer",
+            "dependsOn": "enable_sec3",
         },
         "btn_force_off": {
             "type": "button",
             "label": "Force Acq OFF",
+            "dependsOn": "enable_sec3",
         },
         "btn_global_actions": {
             "type": "button_pair",
@@ -191,6 +207,7 @@ ui_config = {
             "key1": "btn_action_2",
             "label2": "global hard reset",
             "key2": "btn_action_4",
+            "dependsOn": "enable_sec3",
         },
         "action_warm_init": {
             "type": "action_with_fields",
@@ -202,6 +219,7 @@ ui_config = {
                 {"key": "ring", "label": "ring", "default": "0", "width": 50},
                 {"key": "fen", "label": "fen", "default": "0", "width": 50},
             ],
+            "dependsOn": "enable_sec3",
         },
         "action_hard_reset": {
             "type": "action_with_fields",
@@ -213,62 +231,74 @@ ui_config = {
                 {"key": "ring", "label": "ring", "default": "0", "width": 50},
                 {"key": "fen", "label": "fen", "default": "0", "width": 50},
                 {"key": "hybrid", "label": "hybrid", "default": "0", "width": 50},
-                ],
+            ],
+            "dependsOn": "enable_sec3",
         },
     },
     # -------------------------------------------------------------------------
     # SECTION 4: R5560 Controls (Foldable / Collapsible)
     # -------------------------------------------------------------------------
     "section_4": {
-        "subtitle.sec4": {"type": "subheading", "label": "R5560 Config and Controls"},
-        
+        "enable_sec4": {
+            "type": "toggle_button",
+            "label": "Activate",
+            "default": False,
+        },
+        "subtitle.sec4": {
+            "type": "subheading",
+            "label": "R5560 Config and Controls",
+            "dependsOn": "enable_sec4",
+        },
         "cfg_r5560_path": {
-        "label": "R5560 cfg directory",
-        "type": "filePath",
-        "default": os.path.join(current_dir, "config_R5560"),
-        "info": "R5560 config files json.",
-    },
-    "cfg_R5560_file": {
-        "label": "R5560 cfg",
-        "type": "dropdown",
-        "optionsFromPath": "cfg_r5560_path",
-        "fileTypeFilter": ".json",
-        "default": "example5560cfg.json",
-    },
+            "label": "R5560 cfg directory",
+            "type": "filePath",
+            "default": os.path.join(current_dir, "config_R5560"),
+            "info": "R5560 config files json.",
+            "dependsOn": "enable_sec4",
+        },
+        "cfg_R5560_file": {
+            "label": "R5560 cfg",
+            "type": "dropdown",
+            "optionsFromPath": "cfg_r5560_path",
+            "fileTypeFilter": ".json",
+            "default": "example5560cfg.json",
+            "dependsOn": "enable_sec4",
+        },
         "sep_6": {
             "type": "spacer",
+            "dependsOn": "enable_sec4",
         },
-    "btn_set_registers": {
-        "type": "single_button",
-        "label": "set all registers",
-        "button_key": "btn_set_registers",
-        "button_width": 160,
-    },
-    
-    "action_set_threshold_glob": {
-        "type": "action_with_fields",
-        "button_key": "btn_action_6",
-        "fields_key": "fields_set_threshold_glob",
-        "label": "change threshold global",
-        "button_width": 160,
-        "fields": [
-        {"key": "threshold", "label": "threshold", "default": "3000", "width":80},
-        ],
-    },
-    
-    "action_set_threshold_lcl": {
-        "type": "action_with_fields",
-        "button_key": "btn_action_7",
-        "fields_key": "fields_set_threshold_lcl",
-        "label": "change threshold lcl",
-        "button_width": 160,
-        "fields": [
+        "btn_set_registers": {
+            "type": "single_button",
+            "label": "set all registers",
+            "button_key": "btn_set_registers",
+            "button_width": 160,
+            "dependsOn": "enable_sec4",
+        },
+        "action_set_threshold_glob": {
+            "type": "action_with_fields",
+            "button_key": "btn_action_6",
+            "fields_key": "fields_set_threshold_glob",
+            "label": "change threshold global",
+            "button_width": 160,
+            "fields": [
+                {"key": "threshold", "label": "threshold", "default": "3000", "width": 80},
+            ],
+            "dependsOn": "enable_sec4",
+        },
+        "action_set_threshold_lcl": {
+            "type": "action_with_fields",
+            "button_key": "btn_action_7",
+            "fields_key": "fields_set_threshold_lcl",
+            "label": "change threshold lcl",
+            "button_width": 160,
+            "fields": [
                 {"key": "threshold", "label": "threshold", "default": "3000", "width": 80},
                 {"key": "ring", "label": "ring", "default": "0", "width": 50},
                 {"key": "fen", "label": "fen", "default": "0", "width": 50},
-                ],
-    },
-    
+            ],
+            "dependsOn": "enable_sec4",
+        },
     },
 }
 
@@ -282,11 +312,65 @@ class ConfigCreatorWidget(QWidget):
         super().__init__(parent)
         self.theme_manager = theme_manager
         self.widgets = {}
+        self.dependencies = {}  # { parent_key: [dependent_widget_instances] }
         self.after_widgets_created_tasks = []
 
         self._build_ui()
+        self._setup_dependencies()  # Set up signal-slot connections for dependsOn
         self._setup_terminal_capture()
         self._apply_terminal_theme()
+
+    def _setup_dependencies(self):
+        """Connect parent toggle controls to enable/disable dependent widgets."""
+        for parent_key, dependent_widgets in self.dependencies.items():
+            parent_widget = self.widgets.get(parent_key)
+
+            if not parent_widget:
+                continue
+
+            # Target the underlying toggle control inside custom wrappers if needed
+            toggle_control = parent_widget
+            if isinstance(parent_widget, QWidget) and not isinstance(
+                parent_widget, (QPushButton, QCheckBox)
+            ):
+                btn = parent_widget.findChild(QPushButton)
+                cb = parent_widget.findChild(QCheckBox)
+                toggle_control = btn or cb or parent_widget
+
+            # Define handler function to toggle enabled state of all dependent widgets
+            def update_dependent_states(is_enabled, targets=dependent_widgets):
+                state = bool(is_enabled)
+                for child in targets:
+                    if hasattr(child, "setEnabled"):
+                        child.setEnabled(state)
+
+            # 1. Standard QPushButton or checkable toggle button
+            if hasattr(toggle_control, "toggled"):
+                toggle_control.toggled.connect(update_dependent_states)
+                update_dependent_states(toggle_control.isChecked())
+
+            # 2. QCheckBox
+            elif hasattr(toggle_control, "stateChanged"):
+                toggle_control.stateChanged.connect(
+                    lambda state, tc=toggle_control: update_dependent_states(
+                        tc.isChecked()
+                    )
+                )
+                update_dependent_states(toggle_control.isChecked())
+
+            # 3. Custom toggle widget with a custom signal (e.g. state_changed or value_changed)
+            elif hasattr(toggle_control, "state_changed"):
+                toggle_control.state_changed.connect(
+                    update_dependent_states
+                )
+                if hasattr(toggle_control, "is_checked"):
+                    update_dependent_states(toggle_control.is_checked())
+            elif hasattr(toggle_control, "value_changed"):
+                toggle_control.value_changed.connect(
+                    update_dependent_states
+                )
+                if hasattr(toggle_control, "get_value"):
+                    update_dependent_states(toggle_control.get_value())
 
     def get_value_from_widget(self, key):
         widget = self.widgets.get(key)
@@ -306,7 +390,6 @@ class ConfigCreatorWidget(QWidget):
             return combo.currentText()
 
         return ""
-
     def get_config_paths(self):
         
       rbu_path = self.get_value_from_widget("rbu_path")
@@ -391,7 +474,7 @@ class ConfigCreatorWidget(QWidget):
         font_row_layout.addStretch(1)
         self.params_grid.addWidget(font_row, 1, 0, 1, 3)
 
-        # Build Config Sections Dynamically
+    # Build Config Sections Dynamically
         current_row = 2
         sections = ["section_1", "section_2", "section_3", "section_4"]
 
@@ -428,10 +511,15 @@ class ConfigCreatorWidget(QWidget):
         self.splitter.addWidget(self.terminal_frame)
         self.splitter.setSizes([600, 600])
 
+        # Configure mutually exclusive toggles once ALL widgets are constructed
+        self._setup_mutually_exclusive_sections()
+
         # Execute Post-Widget Creation Tasks
         for task in self.after_widgets_created_tasks:
             task()
         self.after_widgets_created_tasks.clear()
+ 
+        
  
     def _build_section(self, config_dict, start_row=0):
         # Extract collapsible settings from config_dict (defaulting to collapsible)
@@ -454,41 +542,36 @@ class ConfigCreatorWidget(QWidget):
             )
             content_parent = section_widget.get_content_frame()
         else:
-            # Fallback to standard non-collapsible QGroupBox if collapsible is explicitly False
             section_widget = QGroupBox(section_title)
             content_parent = section_widget
 
-        # 2. Reuse existing layout on content_parent if present, otherwise create a new one
+        # 2. Layout setups
         box_layout = content_parent.layout()
         if box_layout is None:
             box_layout = QVBoxLayout(content_parent)
             box_layout.setContentsMargins(4, 4, 4, 4)
 
-        # Inner container for grid layout alignment
         content_widget = QWidget()
         content_grid = QGridLayout(content_widget)
         content_grid.setContentsMargins(0, 0, 0, 0)
         content_grid.setHorizontalSpacing(12)
         content_grid.setVerticalSpacing(getattr(theme, "ROW_SPACING", 8))
 
-        # Match column stretch ratios of the main params_grid
         content_grid.setColumnStretch(0, 1)
         content_grid.setColumnStretch(1, 4)
         content_grid.setColumnStretch(2, 1)
 
-        # Build section items inside content_grid
         current_row = 0
         for key, item in config_dict.items():
             if not isinstance(item, dict):
                 continue
 
             item_type = item.get("type")
-            
+
             if item_type == "spacer":
                 spacer_height = item.get("height", 14)
                 spacer_widget = QWidget()
                 spacer_widget.setFixedHeight(spacer_height)
-                # Ensure transparent / no background or borders
                 spacer_widget.setStyleSheet("background: transparent; border: none;")
                 content_grid.addWidget(spacer_widget, current_row, 0, 1, 3)
                 current_row += 1
@@ -529,182 +612,195 @@ class ConfigCreatorWidget(QWidget):
     # -------------------------------------------------------------------------
     # Helper Construction Methods for Custom Widget Types
     # -------------------------------------------------------------------------
+    def _register_dependency(self, item, target_widget):
+        """Helper to register dependencies if 'dependsOn' is set."""
+        depends_on = item.get("dependsOn")
+        if depends_on:
+            if depends_on not in self.dependencies:
+                self.dependencies[depends_on] = []
+            self.dependencies[depends_on].append(target_widget)
+
     def _create_toggle_button(self, key, item, current_row, grid=None):
-      target_grid = grid if grid is not None else self.params_grid
-    
-      label_text = item.get("label", "Toggle")
-      btn = QPushButton(f"{label_text} (OFF)")
-      btn.setCheckable(True)
-      btn.setChecked(item.get("default", False))
-      btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-    
-      btn.toggled.connect(
-          lambda checked, b=btn, l=label_text: b.setText(
-              f"{l} (ON)" if checked else f"{l} (OFF)"
-          )
-      )
-    
-      target_grid.addWidget(btn, current_row, 0, 1, 3)
-      self.widgets[key] = btn
-      target_grid.setRowMinimumHeight(current_row + 1, 25)
-      return current_row + 1
-    
-    
-    def _create_single_button(self, key, item, current_row, grid=None):
-      target_grid = grid if grid is not None else self.params_grid
-    
-      container = QWidget()
-      h_layout = QHBoxLayout(container)
-      h_layout.setContentsMargins(0, 0, 0, 0)
-      h_layout.setSpacing(8)
-    
-      btn = QPushButton(item.get("label", "Action"))
-      btn.setFixedWidth(item.get("button_width", 160))
-      h_layout.addWidget(btn)
-      h_layout.addStretch(1)
-    
-      target_grid.addWidget(container, current_row, 0, 1, 3)
-      self.widgets[item.get("button_key", key)] = btn
-      return current_row + 1
-    
-    
-    def _create_button_row(self, key, item, current_row, grid=None):
-      target_grid = grid if grid is not None else self.params_grid
-    
-      container = QWidget()
-      h_layout = QHBoxLayout(container)
-      h_layout.setContentsMargins(0, 0, 0, 0)
-      h_layout.setSpacing(8)
-    
-      buttons_dict = {}
-      for label in item.get("buttons", []):
-        b = QPushButton(label)
-        b.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        h_layout.addWidget(b)
-        buttons_dict[label] = b
-    
-      target_grid.addWidget(container, current_row, 0, 1, 3)
-      self.widgets[item.get("key", key)] = buttons_dict
-      return current_row + 1
-    
-    
-    def _create_button_pair(self, key, item, current_row, grid=None):
-      target_grid = grid if grid is not None else self.params_grid
-    
-      container = QWidget()
-      h_layout = QHBoxLayout(container)
-      h_layout.setContentsMargins(0, 0, 0, 0)
-      h_layout.setSpacing(8)
-    
-      label1 = item.get("label1", "Button 1")
-      label2 = item.get("label2", "Button 2")
-    
-      if item.get("is_toggle_1", False):
-        btn1 = QPushButton(f"{label1} (OFF)")
-        btn1.setCheckable(True)
-        btn1.setChecked(item.get("default_1", False))
-        btn1.toggled.connect(
-            lambda checked, b=btn1, l=label1: b.setText(
+        target_grid = grid if grid is not None else self.params_grid
+
+        label_text = item.get("label", "Toggle")
+        btn = QPushButton(f"{label_text} (OFF)")
+        btn.setCheckable(True)
+        btn.setChecked(item.get("default", False))
+        btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+        btn.toggled.connect(
+            lambda checked, b=btn, l=label_text: b.setText(
                 f"{l} (ON)" if checked else f"{l} (OFF)"
             )
         )
-      else:
-        btn1 = QPushButton(label1)
-    
-      btn2 = QPushButton(label2)
-      btn1.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-      btn2.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-    
-      h_layout.addWidget(btn1)
-      h_layout.addWidget(btn2)
-    
-      target_grid.addWidget(container, current_row, 0, 1, 3)
-      self.widgets[item.get("key1", "btn_action_2")] = btn1
-      self.widgets[item.get("key2", "btn_action_4")] = btn2
-    
-      target_grid.setRowMinimumHeight(current_row + 1, 25)
-      return current_row + 1
-    
-    
-    def _create_action_with_fields(self, key, item, current_row, grid=None):
+
+        target_grid.addWidget(btn, current_row, 0, 1, 3)
+        self.widgets[key] = btn
+        self._register_dependency(item, btn)
+
+        target_grid.setRowMinimumHeight(current_row + 1, 25)
+        return current_row + 1
+
+    def _create_single_button(self, key, item, current_row, grid=None):
         target_grid = grid if grid is not None else self.params_grid
-    
+
         container = QWidget()
         h_layout = QHBoxLayout(container)
         h_layout.setContentsMargins(0, 0, 0, 0)
         h_layout.setSpacing(8)
-    
+
         btn = QPushButton(item.get("label", "Action"))
         btn.setFixedWidth(item.get("button_width", 160))
         h_layout.addWidget(btn)
-    
+        h_layout.addStretch(1)
+
+        target_grid.addWidget(container, current_row, 0, 1, 3)
+        self.widgets[item.get("button_key", key)] = btn
+        self._register_dependency(item, container)
+
+        return current_row + 1
+
+    def _create_button_row(self, key, item, current_row, grid=None):
+        target_grid = grid if grid is not None else self.params_grid
+
+        container = QWidget()
+        h_layout = QHBoxLayout(container)
+        h_layout.setContentsMargins(0, 0, 0, 0)
+        h_layout.setSpacing(8)
+
+        buttons_dict = {}
+        for label in item.get("buttons", []):
+            b = QPushButton(label)
+            b.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            h_layout.addWidget(b)
+            buttons_dict[label] = b
+
+        target_grid.addWidget(container, current_row, 0, 1, 3)
+        self.widgets[item.get("key", key)] = buttons_dict
+        self._register_dependency(item, container)
+
+        return current_row + 1
+
+    def _create_button_pair(self, key, item, current_row, grid=None):
+        target_grid = grid if grid is not None else self.params_grid
+
+        container = QWidget()
+        h_layout = QHBoxLayout(container)
+        h_layout.setContentsMargins(0, 0, 0, 0)
+        h_layout.setSpacing(8)
+
+        label1 = item.get("label1", "Button 1")
+        label2 = item.get("label2", "Button 2")
+
+        if item.get("is_toggle_1", False):
+            btn1 = QPushButton(f"{label1} (OFF)")
+            btn1.setCheckable(True)
+            btn1.setChecked(item.get("default_1", False))
+            btn1.toggled.connect(
+                lambda checked, b=btn1, l=label1: b.setText(
+                    f"{l} (ON)" if checked else f"{l} (OFF)"
+                )
+            )
+        else:
+            btn1 = QPushButton(label1)
+
+        btn2 = QPushButton(label2)
+        btn1.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        btn2.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+        h_layout.addWidget(btn1)
+        h_layout.addWidget(btn2)
+
+        target_grid.addWidget(container, current_row, 0, 1, 3)
+        self.widgets[item.get("key1", "btn_action_2")] = btn1
+        self.widgets[item.get("key2", "btn_action_4")] = btn2
+        self._register_dependency(item, container)
+
+        target_grid.setRowMinimumHeight(current_row + 1, 25)
+        return current_row + 1
+
+    def _create_action_with_fields(self, key, item, current_row, grid=None):
+        target_grid = grid if grid is not None else self.params_grid
+
+        container = QWidget()
+        h_layout = QHBoxLayout(container)
+        h_layout.setContentsMargins(0, 0, 0, 0)
+        h_layout.setSpacing(8)
+
+        btn = QPushButton(item.get("label", "Action"))
+        btn.setFixedWidth(item.get("button_width", 160))
+        h_layout.addWidget(btn)
+
         fields_dict = {}
         for field_info in item.get("fields", []):
             f_key = field_info["key"]
             f_label = QLabel(field_info.get("label", f_key) + ":")
             f_entry = QLineEdit(field_info.get("default", "0"))
-            
-            # Read custom field width if set; fallback to default (e.g., 50)
+
             field_w = field_info.get("width", 50)
             f_entry.setFixedWidth(field_w)
-            
+
             h_layout.addWidget(f_label)
             h_layout.addWidget(f_entry)
             fields_dict[f_key] = f_entry
-    
+
         h_layout.addStretch(1)
-    
+
         target_grid.addWidget(container, current_row, 0, 1, 3)
         self.widgets[item.get("button_key")] = btn
         self.widgets[item.get("fields_key")] = fields_dict
+        self._register_dependency(item, container)
+
         return current_row + 1
-    
-    
+
     def _create_standard_widget(self, key, item, current_row, grid=None):
-      target_grid = grid if grid is not None else self.params_grid
-      # Use parent container of target grid if available
-      parent_container = (
-          target_grid.parentWidget()
-          if target_grid.parentWidget()
-          else self.scroll_content
-      )
-    
-      res = create_gui_widget(
-          parent_frame=parent_container,
-          key=key,
-          item=item,
-          row=current_row,
-      )
-    
-      if not res or res[0] is None:
-        return current_row + 1
-    
-      widget_instance, _, next_row = res
-      self.widgets[key] = widget_instance
-    
-      if item.get("type") in ["entry", "filePath", "dropdown"]:
-        target_grid.removeWidget(widget_instance)
-        target_grid.addWidget(widget_instance, current_row, 1, 1, 2)
-    
-        if hasattr(widget_instance, "setSizePolicy"):
-          widget_instance.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-    
-        for child in widget_instance.findChildren((QLineEdit, QComboBox)):
-          child.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-    
-      if item.get("type") == "dropdown" and "optionsFromPath" in item:
-        dynamic_path_key = item["optionsFromPath"]
-        file_filter = item.get("fileTypeFilter", "")
-    
-        if dynamic_path_key in self.widgets:
-          path_widget = self.widgets[dynamic_path_key]
-          self.after_widgets_created_tasks.append(
-              lambda d=widget_instance, p=path_widget, ff=file_filter: (
-                  setup_dynamic_file_options(d, p, ff)
-              )
-          )
-    
-      return next_row
+        target_grid = grid if grid is not None else self.params_grid
+        parent_container = (
+            target_grid.parentWidget()
+            if target_grid.parentWidget()
+            else self.scroll_content
+        )
+
+        res = create_gui_widget(
+            parent_frame=parent_container,
+            key=key,
+            item=item,
+            row=current_row,
+        )
+
+        if not res or res[0] is None:
+            return current_row + 1
+
+        widget_instance, _, next_row = res
+        self.widgets[key] = widget_instance
+        self._register_dependency(item, widget_instance)
+
+        if item.get("type") in ["entry", "filePath", "dropdown"]:
+            target_grid.removeWidget(widget_instance)
+            target_grid.addWidget(widget_instance, current_row, 1, 1, 2)
+
+            if hasattr(widget_instance, "setSizePolicy"):
+                widget_instance.setSizePolicy(
+                    QSizePolicy.Expanding, QSizePolicy.Fixed
+                )
+
+            for child in widget_instance.findChildren((QLineEdit, QComboBox)):
+                child.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+        if item.get("type") == "dropdown" and "optionsFromPath" in item:
+            dynamic_path_key = item["optionsFromPath"]
+            file_filter = item.get("fileTypeFilter", "")
+
+            if dynamic_path_key in self.widgets:
+                path_widget = self.widgets[dynamic_path_key]
+                self.after_widgets_created_tasks.append(
+                    lambda d=widget_instance, p=path_widget, ff=file_filter: (
+                        setup_dynamic_file_options(d, p, ff)
+                    )
+                )
+
+        return next_row
 
     def _add_divider(self, row):
         divider = QFrame()
@@ -748,6 +844,39 @@ class ConfigCreatorWidget(QWidget):
         self.terminal_text_widget.moveCursor(self.terminal_text_widget.textCursor().End)
         self.terminal_text_widget.insertPlainText(text)
         self.terminal_text_widget.moveCursor(self.terminal_text_widget.textCursor().End)
+        
+    def update_dependencies(self, key, is_enabled):
+      if key in self.dependencies:
+        for dep_widget in self.dependencies[key]:
+            dep_widget.setEnabled(is_enabled)
+            
+    def _setup_mutually_exclusive_sections(self):
+        btn_sec3 = self.widgets.get("enable_sec3")
+        btn_sec4 = self.widgets.get("enable_sec4")
+    
+        if not btn_sec3 or not btn_sec4:
+            return
+    
+        def on_sec3_toggled(checked):
+            if checked and btn_sec4.isChecked():
+                btn_sec4.blockSignals(True)
+                btn_sec4.setChecked(False)
+                btn_sec4.blockSignals(False)
+                self.update_dependencies("enable_sec4", False)
+    
+        def on_sec4_toggled(checked):
+            if checked and btn_sec3.isChecked():
+                btn_sec3.blockSignals(True)
+                btn_sec3.setChecked(False)
+                btn_sec3.blockSignals(False)
+                self.update_dependencies("enable_sec3", False)
+    
+        btn_sec3.toggled.connect(on_sec3_toggled)
+        btn_sec4.toggled.connect(on_sec4_toggled)
+    
+        # Initial state sync
+        self.update_dependencies("enable_sec3", btn_sec3.isChecked())
+        self.update_dependencies("enable_sec4", btn_sec4.isChecked())         
 
 ###############################################################################
 ###############################################################################
@@ -763,7 +892,7 @@ class MainWindow(QMainWindow):
         self.slow_ctrl_VMM   = None
         self.slow_ctrl_R5560 = None
         
-        self.init_slow_ctrl()
+        # self.init_slow_ctrl()
 
         self.is_acq_running = False
 
@@ -771,21 +900,10 @@ class MainWindow(QMainWindow):
         
         self.setWindowTitle("MBUTY - Slow Control")
 
-    def init_slow_ctrl(self):
-        
-        rbu_p, rbu_f, addr_p, addr_f, cfg_vmm_p, cfg_vmm_f, cfg_r5560_p, cfg_r5560_f = self.config_widget.get_config_paths()
-
-        # print("\n----------------------------------------------------------------------")
-        # print("Configuration Paths:")
-        # print(f"  RBU Path:         {rbu_p}")
-        # print(f"  RBU File:         {rbu_f}")
-        # print(f"  Addr Path:        {addr_p}")
-        # print(f"  Addr File:        {addr_f}")
-        # print(f"  VMM Cfg Path:     {cfg_vmm_p}")
-        # print(f"  VMM Cfg File:     {cfg_vmm_f}")
-        # print(f"  R5560 Cfg Path:   {cfg_r5560_p}")
-        # print(f"  R5560 Cfg File:   {cfg_r5560_f}")
-        # print("----------------------------------------------------------------------\n")
+    def init_slow_ctrl_VMM(self):
+        rbu_p, rbu_f, addr_p, addr_f, cfg_vmm_p, cfg_vmm_f, _, _ = (
+            self.config_widget.get_config_paths()
+        )
 
         try:
             self.slow_ctrl_VMM = VMMSlowCtrl(
@@ -799,7 +917,12 @@ class MainWindow(QMainWindow):
         except Exception as e:
             print(f"[ERROR] Failed to initialize VMM Slow Ctrl: {e}")
             self.slow_ctrl_VMM = None
-            
+
+    def init_slow_ctrl_R5560(self):
+        rbu_p, rbu_f, addr_p, addr_f, _, _, cfg_r5560_p, cfg_r5560_f = (
+            self.config_widget.get_config_paths()
+        )
+
         try:
             self.slow_ctrl_R5560 = R5560SlowCtrl(
                 rbu_path=rbu_p,
@@ -809,10 +932,9 @@ class MainWindow(QMainWindow):
                 cfg_path=cfg_r5560_p,
                 cfg_file=cfg_r5560_f,
             )
-                        
         except Exception as e:
             print(f"[ERROR] Failed to initialize R5560 Slow Ctrl: {e}")
-            self.slow_ctrl_R5560 = None    
+            self.slow_ctrl_R5560 = None
 
     def _connect_signals(self):
         widgets = self.config_widget.widgets
@@ -854,7 +976,7 @@ class MainWindow(QMainWindow):
 
     def handle_set_registers(self):
         """Handler for configuring the R5560 digitiser registers."""
-        self.init_slow_ctrl()
+        self.init_slow_ctrl_R5560()
         if not self.slow_ctrl_R5560:
             QMessageBox.critical(
                 self,
@@ -877,7 +999,7 @@ class MainWindow(QMainWindow):
             
     def handle_change_threshold_glob(self):
         """Handler for updating the threshold on R5560 digitisers."""
-        self.init_slow_ctrl()
+        self.init_slow_ctrl_R5560()
         if not self.slow_ctrl_R5560:
             QMessageBox.critical(
                 self,
@@ -915,7 +1037,7 @@ class MainWindow(QMainWindow):
             
     def handle_change_threshold_lcl(self):
         """Handler for updating the threshold on specific ring and fen R5560 digitisers."""
-        self.init_slow_ctrl()
+        self.init_slow_ctrl_R5560()
         if not self.slow_ctrl_R5560:
             QMessageBox.critical(
                 self,
@@ -966,7 +1088,7 @@ class MainWindow(QMainWindow):
             )   
 
     def handle_force_acq_off(self):
-        self.init_slow_ctrl()
+        self.init_slow_ctrl_VMM()
         if self.slow_ctrl_VMM is None:
             QMessageBox.critical(self, "Hardware Error", "VMMSlowCtrl backend could not be initialized.")
             return
@@ -994,7 +1116,7 @@ class MainWindow(QMainWindow):
 
     def handle_power_toggle(self):
         
-        self.init_slow_ctrl()
+        self.init_slow_ctrl_VMM()
         if self.slow_ctrl_VMM is None:
             QMessageBox.critical(self, "Hardware Error", "VMMSlowCtrl backend could not be initialized.")
             return
@@ -1103,17 +1225,17 @@ class MainWindow(QMainWindow):
         QMessageBox.critical(self, "Execution Error", f"Failed to execute RBU script:\n{err_msg}")
 
     def handle_global_warm_init(self):
-        self.init_slow_ctrl()
+        self.init_slow_ctrl_VMM()
         if self.slow_ctrl_VMM:
             self.slow_ctrl_VMM.warm_init_glob()
 
     def handle_global_hard_reset(self):
-        self.init_slow_ctrl()
+        self.init_slow_ctrl_VMM()
         if self.slow_ctrl_VMM:
             self.slow_ctrl_VMM.hard_reset_glob()
 
     def handle_warm_init(self):
-        self.init_slow_ctrl()
+        self.init_slow_ctrl_VMM()
         if not self.slow_ctrl_VMM:
             QMessageBox.critical(self, "Hardware Error", "VMMSlowCtrl backend is not initialized.")
             return
@@ -1126,7 +1248,7 @@ class MainWindow(QMainWindow):
             print("[ERROR] Ring and FEN must be integers.")
 
     def handle_hard_reset(self):
-        self.init_slow_ctrl()
+        self.init_slow_ctrl_VMM()
         if not self.slow_ctrl_VMM:
             QMessageBox.critical(self, "Hardware Error", "VMMSlowCtrl backend is not initialized.")
             return
@@ -1138,7 +1260,10 @@ class MainWindow(QMainWindow):
             self.slow_ctrl_VMM.hard_reset(ring, fen, hybrid)
         except ValueError:
             print("[ERROR] Ring, FEN, and Hybrid must be integers.")
+           
             
+           
+    
 ###############################################################################
 ###############################################################################
 

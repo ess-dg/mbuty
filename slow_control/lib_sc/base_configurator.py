@@ -52,4 +52,5 @@ class BaseSlowCtrl():
                 )
             except Exception as err:
                 print(f"[WARNING] Hardware connection to RMM failed. Switching to debug mode.")
+                print(f"---------> Either RBU folder does not exist or give a valid RBU path! ")
                 self.debug = True
