@@ -393,7 +393,7 @@ def hardReset(fen_portal, ring, fen, hybrid, vmm_index, cfg):
         configVmm(fen_portal, ring, fen, hybrid, vmm_index, cfg, reset=True)
         time.sleep(0.1)
         configVmm(fen_portal, ring, fen, hybrid, vmm_index, cfg, reset=False)
-     except:   
+    except:   
          print(f"Hard resetting ring {ring}, fen {fen}, hybrid {hybrid}, vmm {vmm_index} failed.")
          
 # VMM Hard reset global
@@ -490,7 +490,7 @@ def configDetector(fen_portal, cfg):
     
                     configVmm(fen_portal, ring, fen, hybrid, vmm_index, cfg, reset=False)
                     channel_mask = channel_mask | (1 << (hybrid * 2 + vmm_index))
-                 except:
+                except:
                      print(f"\tConfiguring VMM {vmm_index} failed.")
                      
         try:             
