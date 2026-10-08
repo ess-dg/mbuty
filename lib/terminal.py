@@ -378,10 +378,12 @@ def dumpToPcapng(interface='en0', destPath='./', fileName='temp',typeOfCapture='
                     raise RuntimeError("pcap capture failed: interface does not exist or insufficient permissions.")
                     
             allStatus = sum(status)      
-            if allStatus == 0: 
-                print('recording completed!')
-            else:
-                print(' \033[1;31mERROR ... \n\033[1;37m')
+            # if allStatus == 0: 
+            #     print('recording completed!')
+            # else:
+            #     print(' \033[1;31mERROR ... \n\033[1;37m')
+     
+            print('recording completed!')
                      
             return destPath, fileFull
          

@@ -548,7 +548,8 @@ class VMMSlowCtrl(BaseSlowCtrl):
             acqOnOff_global(self.fen_portal, self.cfg, on=False)
             configDetector(self.fen_portal, self.cfg)
             acqOnOff_global(self.fen_portal, self.cfg, on=True)
-
+        print("\n----------------------------------------------------------------------")
+        
     def acq_off(self):
         print("\n----------------------------------------------------------------------")
         print("Acquisition stopped.")
@@ -556,12 +557,15 @@ class VMMSlowCtrl(BaseSlowCtrl):
         if not self.debug and self.fen_portal:
             acqOnOff_global(self.fen_portal, self.cfg, on=False)
 
+        print("\n----------------------------------------------------------------------")
+        
     def warm_init(self, ring, fen):
         print("\n----------------------------------------------------------------------")
         print(f"Execute warm init: ring {ring}, fen {fen}")
         if not self.debug and self.fen_portal:
             acqOnOff_global(self.fen_portal, self.cfg, on=False)
             resetFec(self.fen_portal, ring, fen)
+        print("\n----------------------------------------------------------------------")    
 
     def warm_init_glob(self):
         print("\n----------------------------------------------------------------------")
@@ -569,6 +573,7 @@ class VMMSlowCtrl(BaseSlowCtrl):
         if not self.debug and self.fen_portal:
             acqOnOff_global(self.fen_portal, self.cfg, on=False)
             resetFec_global(self.fen_portal, self.cfg)
+        print("\n----------------------------------------------------------------------")    
 
     def hard_reset(self, ring, fen, hybrid):
         print("\n----------------------------------------------------------------------")
@@ -581,7 +586,9 @@ class VMMSlowCtrl(BaseSlowCtrl):
 
             time.sleep(0.5)
             resetFec_global(self.fen_portal, self.cfg)
-
+            
+        print("\n----------------------------------------------------------------------")
+        
     def hard_reset_glob(self):
         print("\n----------------------------------------------------------------------")
         print("Execute global hard reset")
@@ -590,6 +597,7 @@ class VMMSlowCtrl(BaseSlowCtrl):
             hardReset_global(self.fen_portal, self.cfg)
             time.sleep(1)
             resetFec_global(self.fen_portal, self.cfg)
+        print("\n----------------------------------------------------------------------")     
 
 ###############################################################################
 ###############################################################################
