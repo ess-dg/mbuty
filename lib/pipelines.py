@@ -565,7 +565,7 @@ class GenericBMPipeline(BeamMonitorPipeline):
         
         self.events_container = BMMapper.map(self.readouts_container, self.config)
         print(f'{INFO}Calculating Beam Monitor ToF/wavelength...{RESET}')
-        self.events_container.compute_and_filter_tof(remove_invalid=True)
+        self.events_container.compute_and_filter_tof(remove_invalid=self.parameters.plotting.removeInvalidToFs)
         if self.parameters.wavelength.calculateLambda:
             from lib.abs_units_engine import calculate_monitor_wavelength
             calculate_monitor_wavelength(self.events_container, self.parameters)
@@ -588,7 +588,7 @@ class IBMPipeline(BeamMonitorPipeline):
         self.events_container = IBMMonitorMapper.map(self.readouts_container, self.config)
 
         print(f'{INFO}Calculating Beam Monitor ToF/wavelength...{RESET}')
-        self.events_container.compute_and_filter_tof(remove_invalid=True)
+        self.events_container.compute_and_filter_tof(remove_invalid=self.parameters.plotting.removeInvalidToFs)
         if self.parameters.wavelength.calculateLambda:
             from lib.abs_units_engine import calculate_monitor_wavelength
             calculate_monitor_wavelength(self.events_container, self.parameters)

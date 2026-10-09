@@ -324,7 +324,7 @@ class BaseReader:
             # 4. Instrument registry lookup
             # ------------------------------------------------------------------
             single_readout_size, hw = get_readout_spec(int(instr_id))
-            single_readout_size = np.int64(single_readout_size)
+            single_readout_size     = np.int64(single_readout_size)
 
             # Track known vs unknown IDs for post-read check_valid_data_stream.
             if hw is not None:
