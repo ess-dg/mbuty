@@ -23,7 +23,8 @@ from lib.container_events import eventsVMMnormal, eventsVMMclustered, eventsR556
 from lib.colors import WARN, ERR, INFO, OK, RESET
 
 # =============================================================================
-# Wires and Strips Normal Clusterer (Multi-Blade & Multi-Grid)
+# Wires and Strips Normal Clusterer (Multi-Blade & Multi-Grid) this is old and 
+# clusters planes all together 
 # =============================================================================
 
 class VMMNormalClustererOld:

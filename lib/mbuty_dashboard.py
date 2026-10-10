@@ -155,8 +155,17 @@ def _selected_plot_names_by_tab(parameters) -> dict:
 
     # Wavelength is only shown if plotMONtofPHS is also on.
     beam_monitor = set()
-    if mon.plotMONtofPHS:
-        beam_monitor.add("ToF & PHS")
+    
+    if mon.activatePlots:
+        
+        
+        beam_monitor.add("ToF")
+        beam_monitor.add("PHS 0D")
+        
+        beam_monitor.add("Position 1D")
+        
+        
+        
         if w.plotLambdaDistr:
             beam_monitor.add("Wavelength")
 

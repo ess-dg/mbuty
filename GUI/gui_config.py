@@ -862,13 +862,13 @@ config = {
             "dependsOn": ("parameters.MONitor.MONOnOff", True),
             "info": "Threshold on monitor events. 0 disables threshold; any other value enables it.",
         },
-        "parameters.MONitor.plotMONtofPHS": {
-            "label": "Plot Monitor ToF & PHS",
+        "parameters.MONitor.activatePlots": {
+            "label": "Enable plots for Monitor",
             "type": "bool",
             "options": ["True", "False"],
             "default": "True",
             "dependsOn": ("parameters.MONitor.MONOnOff", True),
-            "info": "ON/OFF plotting for Monitor Time-of-Flight and Pulse Height spectra.",
+            "info": "ON/OFF plotting for Monitor ToF, PHS, etc.",
         },
         "parameters.MONitor.energyBins": {
             "label": "Energy Bins",
@@ -878,7 +878,7 @@ config = {
             "dependsOn":  {
                     "and": [
                     ("parameters.MONitor.MONOnOff", True),
-                    ("parameters.MONitor.plotMONtofPHS", True)
+                    ("parameters.MONitor.activatePlots", True)
                     ]},
             "info": "Number of bins to use in the MON pulse height histogram.",
         },
@@ -890,9 +890,21 @@ config = {
             "dependsOn":  {
                     "and": [
                     ("parameters.MONitor.MONOnOff", True),
-                    ("parameters.MONitor.plotMONtofPHS", True)
+                    ("parameters.MONitor.activatePlots", True)
                     ]},
             "info": "Maximum energy value considered in MON pulse height analysis.",
+         },
+        "parameters.MONitor.posBins": {
+            "label": "Position Bins",
+            "type": "entry",
+            "default": 128,
+            "inputValidation": "int",
+            "dependsOn":  {
+                    "and": [
+                    ("parameters.MONitor.MONOnOff", True),
+                    ("parameters.MONitor.activatePlots", True)
+                    ]},
+            "info": "Number of bins to use in the MON position histogram.",
          },
         "parameters.MONitor.MONDistance": {
             "label": "Monitor Distance (mm)",
@@ -900,7 +912,11 @@ config = {
             "default": 6000,
             "inputValidation": "int",
             "info": "Distance in mm from chopper to monitor (needed for lambda calculation of ToF).", 
-            "dependsOn": ("parameters.MONitor.MONOnOff", True),
+            "dependsOn":  {
+                    "and": [
+                    ("parameters.MONitor.MONOnOff", True),
+                    ("parameters.MONitor.activatePlots", True)
+                    ]},
         }
     },
     "reduced_file": {#####################################################################################################################

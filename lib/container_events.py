@@ -518,7 +518,64 @@ class eventsR5560(events):
     
 ###############################################################################
 
-class eventsBM(events):
+class eventsBMbase(events):
+    
+    """Generic Beam Monitor passthrough event container."""
+    def clean_BM_types(self):
+  
+        if self.fill_count == 0:
+            return
+        print(f"{INFO}Checking BM type... {RESET}", end='')
+
+    #     # Isolate the active preallocated memory chunk
+    #     m = self.matrix[:self.fill_count]
+
+    #     BM_type = m['type'] 
+        
+    #     BM_type is an array of values 
+        
+    #     check if BM_type is either 0 1 2 3 no other values 
+        
+    #     and that all values are the same values
+        
+    
+    #      print(f"\t {WARN}\t {n_removed} events removed because of Invalid ToFs {RESET}")
+    #     else:
+                
+    #         print(f'\t {WARN}\t Invalid ToFs not removed, kept in the plots! {RESET}')
+
+
+    # def check_bm_type(geo: np.ndarray, bm_hw: str) -> None:
+    # """Cross-check the type field of Beam Monitor readouts against configuration targets."""
+    # if len(geo) == 0:
+    #     return
+
+    # for geo_val in np.unique(geo):
+    #     if geo_val == 1:
+    #         if bm_hw == 'ibm':
+    #             print(f"\n\t{WARN}WARNING: found BM data type 1 (GENERIC - 0D) but config says {bm_hw}!")
+    #             print("\tThe BM data may be parsed incorrectly.{RESET}")
+    #         else:
+    #             print(f"\n\tBM data is type 1 (GENERIC - 0D)")
+    #     elif geo_val == 2:
+    #         if bm_hw == 'ibm':
+    #             print(f"\n\t{WARN}WARNING: found BM data type 2 (GENERIC - 1D or 2D) but config says {bm_hw}!")
+    #             print("\tThe BM data may be parsed incorrectly.{RESET}")
+    #         else:
+    #             print(f"\n\tBM data is type 2 (GENERIC - 1D or 2D)")
+    #     elif geo_val == 3:
+    #         if bm_hw == 'generic':
+    #             print(f"\n\t{WARN}WARNING: found BM data type 3 (IBM) but config says {bm_hw}!")
+    #             print("\tThe BM data may be parsed incorrectly.{RESET}")
+    #         else:
+    #             print(f"\n\tBM data is type 3 (IBM)")
+    #     else:
+    #         print(f"\n\t{ERR}WARNING: BM data found with unexpected type: {geo_val}.{RESET}")
+    #         print(f"\tValid BM types are usually only type 0 (GENERIC) or 3 (IBM).{RESET}")
+        
+        
+
+class eventsBM(eventsBMbase):
     """Generic Beam Monitor passthrough event container."""
     def __init__(self, size: int = 0): 
  
@@ -539,7 +596,7 @@ class eventsBM(events):
 
 
 ###############################################################################
-class eventsIBM(events):
+class eventsIBM(eventsBMbase):
     """IBM-variant Beam Monitor passthrough event container."""
     
     def __init__(self, size: int):

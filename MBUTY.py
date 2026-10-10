@@ -593,17 +593,20 @@ if __name__ == '__main__':
     #################################
 
     ### ON/OFF
-    parameters.MONitor.MONOnOff    = True   
+    parameters.MONitor.MONOnOff    = True 
+    
+    ### ON/OFF plotting for MON
+    parameters.MONitor.activatePlots = True  
 
     ### threshold on MON, th is OFF if 0, any other value is ON
     parameters.MONitor.MONThreshold = 0 
-
-    ### ON/OFF plotting (MON ToF and Pulse Height) 
-    parameters.MONitor.plotMONtofPHS = True  
     
     ### Pulse Height Spectr. settings for MON
     parameters.MONitor.energyBins = 256
     parameters.MONitor.maxEnerg   = 1000
+    
+    ### position bins MON
+    parameters.MONitor.posBins    = 128
 
     ### in mm, distance of MON from chopper if plotMONtofPH == 1 (needed for lambda calculation if ToF)
     parameters.MONitor.MONDistance  = 6000   

@@ -16,6 +16,7 @@ is in plain functions.
 import sys
 import os
 import numpy as np
+import time 
 
 # =============================================================================
 _workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -303,30 +304,82 @@ def match_data_stream_with_config(instr_name_from_conf: str, det_type: str, inst
         #         f"have specified instrument {instr_name_from_conf} and type {det_type}"
         #     )
 
+# def check_bm_type(geo: np.ndarray, bm_hw: str) -> None:
+#     """Cross-check the type field of Beam Monitor readouts against configuration targets."""
+#     if len(geo) == 0:
+#         return
+
+#     for geo_val in np.unique(geo):
+#         if geo_val == 1:
+#             if bm_hw == 'ibm':
+#                 print(f"\n\t{WARN}WARNING: found BM data type 1 (GENERIC - 0D) but config says {bm_hw}!")
+#                 print("\tThe BM data may be parsed incorrectly.{RESET}")
+#             else:
+#                 print(f"\n\tBM data is type 1 (GENERIC - 0D)")
+#         elif geo_val == 2:
+#             if bm_hw == 'ibm':
+#                 print(f"\n\t{WARN}WARNING: found BM data type 2 (GENERIC - 1D or 2D) but config says {bm_hw}!")
+#                 print("\tThe BM data may be parsed incorrectly.{RESET}")
+#             else:
+#                 print(f"\n\tBM data is type 2 (GENERIC - 1D or 2D)")
+#         elif geo_val == 3:
+#             if bm_hw == 'generic':
+#                 print(f"\n\t{WARN}WARNING: found BM data type 3 (IBM) but config says {bm_hw}!")
+#                 print("\tThe BM data may be parsed incorrectly.{RESET}")
+#             else:
+#                 print(f"\n\tBM data is type 3 (IBM)")
+#         else:
+#             print(f"\n\t{ERR}WARNING: BM data found with unexpected type: {geo_val}.{RESET}")
+#             print(f"\tValid BM types are usually only type 0,1,2 (GENERIC 0D,1D,2D) or 3 (IBM).{RESET}")
+            
+            
+
 def check_bm_type(geo: np.ndarray, bm_hw: str) -> None:
     """Cross-check the type field of Beam Monitor readouts against configuration targets."""
     if len(geo) == 0:
         return
 
-    for geo_val in np.unique(geo):
-        if geo_val == 1:
-            if bm_hw == 'ibm':
-                print(f"\n\t{WARN}WARNING: found BM data type 1 (GENERIC - 0D) but config says {bm_hw}!")
-                print("\tThe BM data may be parsed incorrectly.{RESET}")
-            else:
-                print(f"\n\tBM data is type 1 (GENERIC - 0D)")
-        elif geo_val == 2:
-            if bm_hw == 'ibm':
-                print(f"\n\t{WARN}WARNING: found BM data type 2 (GENERIC - 1D or 2D) but config says {bm_hw}!")
-                print("\tThe BM data may be parsed incorrectly.{RESET}")
-            else:
-                print(f"\n\tBM data is type 2 (GENERIC - 1D or 2D)")
-        elif geo_val == 3:
-            if bm_hw == 'generic':
-                print(f"\n\t{WARN}WARNING: found BM data type 3 (IBM) but config says {bm_hw}!")
-                print("\tThe BM data may be parsed incorrectly.{RESET}")
-            else:
-                print(f"\n\tBM data is type 3 (IBM)")
+    # Convert NumPy integers to standard Python ints for clean printing
+    unique_vals = [int(v) for v in np.unique(geo)]
+
+    # 1. Check that all values are valid (1, 2, 3)
+    valid_types = {1, 2, 3}
+    invalid_vals = set(unique_vals) - valid_types
+    if invalid_vals:
+        print(f"\n\t{ERR}ERROR: BM data contains invalid type value(s): {sorted(invalid_vals)}.{RESET}")
+        print(f"\t{ERR}Valid BM types are only 1 (GENERIC 0D) 2 (GENERIC 1D or 2D) or 3 (IBM).{RESET}")
+        print(f"\t{ERR}... analysis continues but results might be affected for BM.{RESET}")        
+        time.sleep(0.5)
+        return
+
+    # 2. Check that the array does not contain a mixture of different types
+    if len(unique_vals) > 1:
+        print(f"\n\t{ERR}ERROR: BM data contains a mixture of multiple types: {unique_vals}.{RESET}")
+        print(f"\t{ERR}Expected all readouts to have the exact same BM type.{RESET}")
+        print(f"\t{ERR}... analysis continues but results might be affected for BM.{RESET}")
+        time.sleep(0.5)
+        return
+
+    # 3. Process the single validated type
+    geo_val = unique_vals[0]
+
+    if geo_val == 1:
+        if bm_hw == 'ibm':
+            print(f"\n\t{WARN}WARNING: found BM data type 1 (GENERIC - 0D) but config says {bm_hw}!{RESET}")
+            print(f"\t{WARN}The BM data may be parsed incorrectly.{RESET}")
         else:
-            print(f"\n\t{ERR}WARNING: BM data found with unexpected type: {geo_val}.{RESET}")
-            print(f"\tValid BM types are usually only type 0 (GENERIC) or 3 (IBM).{RESET}")
+            print("\n\t BM data is type 1 (GENERIC - 0D)\n")
+
+    elif geo_val == 2:
+        if bm_hw == 'ibm':
+            print(f"\n\t{WARN}WARNING: found BM data type 2 (GENERIC - 1D or 2D) but config says {bm_hw}!{RESET}")
+            print(f"\t{WARN}The BM data may be parsed incorrectly.{RESET}")
+        else:
+            print("\n\t BM data is type 2 (GENERIC - 1D or 2D)\n")
+
+    elif geo_val == 3:
+        if bm_hw == 'generic':
+            print(f"\n\t{WARN}WARNING: found BM data type 3 (IBM) but config says {bm_hw}!{RESET}")
+            print(f"\t{WARN}The BM data may be parsed incorrectly.{RESET}")
+        else:
+            print("\n\t BM data is type 3 (IBM)\n")

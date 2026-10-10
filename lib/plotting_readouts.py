@@ -701,3 +701,50 @@ class NMXReadoutsPlotter(BaseReadoutsPlotter):
             if k == 0:
                 plothtch.ax[0][k].set_ylabel('X ch no.')
                 plothtch.ax[1][k].set_ylabel('Y ch no.')
+                
+                
+                
+# ============================================================================
+# BM
+# ============================================================================
+# class BMReadoutsPlotter(BaseReadoutsPlotter):
+    
+#     def plot_adc_vs_channel(self, fig_num=1006):
+#         """ADC vs channel 2D occupancy per ASIC column; row 0 = X edge, row 1 = Y edge."""
+#         if self.is_empty:
+#             return
+
+#         norm_colors = log_scale_norm(self.parameters.pulseHeigthSpect.plotPHSlog)
+
+#         plothtch = PlotGrid(fig_num, 2, len(self._columns))
+#         plothtch.fig.suptitle('ADC vs CH')
+#         ax_e = self.axis_set.ax_energy
+#         m = self.matrix
+
+#         for k, (uid, slot, asic) in enumerate(self._columns):
+#             selX = self.select_asic_from_column(uid, slot, asic, 'X')
+#             selY = self.select_asic_from_column(uid, slot, asic, 'Y')
+
+#             if self.is_clustered:
+#                 histochX, _, _ = self.hist.hist2d(ax_e.centers, m['adc0'][selX], self.xbins, m['channel0'][selX])
+#                 histochY, _, _ = self.hist.hist2d(ax_e.centers, m['adc1'][selY], self.xbins, m['channel1'][selY])
+#             else:
+#                 histochX, _, _ = self.hist.hist2d(ax_e.centers, m['adc'][selX], self.xbins, m['channel'][selX])
+#                 histochY, _, _ = self.hist.hist2d(ax_e.centers, m['adc'][selY], self.xbins, m['channel'][selY])
+
+#             plothtch.ax[0][k].imshow(histochX, aspect='auto', norm=norm_colors, interpolation='none',
+#                                       extent=[ax_e.start, ax_e.stop, self.xbins[0], self.xbins[-1]], origin='lower', cmap='jet')
+#             plothtch.ax[1][k].imshow(histochY, aspect='auto', norm=norm_colors, interpolation='none',
+#                                       extent=[ax_e.start, ax_e.stop, self.xbins[0], self.xbins[-1]], origin='lower', cmap='jet')
+
+#             plothtch.ax[0][k].set_title(self._column_label(uid, slot, asic, 'X'), fontsize=6, rotation=90)
+#             plothtch.ax[0][k].set_xlabel('ADC')
+#             plothtch.ax[1][k].set_xlabel('ADC')
+
+#             if k == 0:
+#                 plothtch.ax[0][k].set_ylabel('X ch no.')
+#                 plothtch.ax[1][k].set_ylabel('Y ch no.')
+                  
+                
+                
+                

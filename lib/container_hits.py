@@ -185,11 +185,15 @@ class hits():
         interactive inspection in Spyder or a terminal.
         """
         return pd.DataFrame(self.matrix)
-
+###############################################################################
+###############################################################################
+###############################################################################
 
 # ----------------------------------------------------------------------
 # Concrete hits subclasses — one per readout container type
 # ----------------------------------------------------------------------
+
+###############################################################################
 
 class hitsVMMnormal(hits):
     """
@@ -233,6 +237,8 @@ class hitsVMMnormal(hits):
          df = pd.DataFrame(self.matrix[columns_to_extract])
 
          return df
+
+###############################################################################
 
 class hitsVMMclustered(hits):
     """
@@ -280,6 +286,8 @@ class hitsVMMclustered(hits):
 
          return df
 
+###############################################################################
+
 class hitsR5560(hits):
     """
     Helium-3 continuous gas tube (CAEN R5560) hits.
@@ -315,7 +323,9 @@ class hitsR5560(hits):
          df = pd.DataFrame(self.matrix[columns_to_extract])
 
          return df
-     
+  
+###############################################################################
+        
 # # Note: Removed since these classes do not have clustering, mapping now goes directly 
 # to events skipping hits altogeather
 
@@ -355,6 +365,8 @@ class hitsR5560(hits):
 
 #       return df             
 
+###############################################################################
+
 # class hitsBM(hits):
 #     """
 #     Generic Beam Monitor diagnostic hits.
@@ -388,6 +400,8 @@ class hitsR5560(hits):
 #          df = pd.DataFrame(self.matrix[columns_to_extract])
 
 #          return df
+
+###############################################################################
 
 # class hitsIBM(hits):
 #     """

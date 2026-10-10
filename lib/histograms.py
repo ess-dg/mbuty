@@ -460,7 +460,6 @@ class BaseAxisSet:
 
     def _build_generic_axes(self) -> None:
         p = self.parameters
-        self.ax_energy_mon = Axis(0, p.MONitor.maxEnerg, p.MONitor.energyBins)
         self.ax_energy     = Axis(0, p.pulseHeigthSpect.maxEnerg, p.pulseHeigthSpect.energyBins)
         # Calculate steps safely by dividing the total ToF range window by the individual bin width
         tof_steps = int(round(p.plotting.ToFrange / p.plotting.ToFbinning))
@@ -504,6 +503,19 @@ class BaseAxisSet:
 
 ###############################################################################
 
+# BEAM MONITOR
+
+class BMAxisSet(BaseAxisSet):
+
+    def build_specific_axes(self) -> None:  
+        p = self.parameters
+        self.ax_pos_mon    = Axis(0, 127, p.MONitor.posBins)  
+        self.ax_energy_mon = Axis(0, p.MONitor.maxEnerg, p.MONitor.energyBins)
+        
+        
+###############################################################################
+
+      
 class MBAxisSet(BaseAxisSet):
     """Position axes for Multi-Blade (VMM) wire/strip detectors."""
 

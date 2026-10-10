@@ -23,7 +23,7 @@ import matplotlib.colors as colors
 _workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
-from lib.colors import WARN, RESET
+from lib.colors import WARN, RESET, ERR
 from lib.histograms import Histogrammer
 from lib.plotting_base import PlotGrid, BasePlotter, log_scale_norm, _safe_colorbar, fg_color
 
@@ -684,7 +684,7 @@ class MGEventsPlotter(VMMEventsPlotter):
         fig_tof.suptitle('DET ToF')
 
 # ============================================================================
-# R5560 tubes
+# R5560 - He3 tubes
 # ============================================================================
 
 class R5560EventsPlotter(BaseEventsPlotter):
@@ -908,57 +908,6 @@ class R5560EventsPlotter(BaseEventsPlotter):
         ax2.set_ylabel('Tube ID')
         ax2.set_xlabel('ToF (ms)')
         fig_tof.suptitle('DET ToF')
-
-# ============================================================================
-# Beam monitor
-# ============================================================================
-
-class MonitorEventsPlotter(BasePlotter):
-    PLOT_METHODS = {
-        "ToF & PHS":  "plot_tof_phs_mon",
-        "Wavelength": "plot_lambda_mon",
-    }
-
-    def plot_tof_phs_mon(self, fig_num=999):
-        if self.is_empty:
-            return
-        m = self.matrix
-        ax_tof, ax_energy_mon = self.axis_set.ax_tof, self.axis_set.ax_energy_mon
-
-        hist_tof = self.hist.hist1d(ax_tof.centers, m['ToF'] / 1e9)
-        hist_phs = self.hist.hist1d(ax_energy_mon.centers, m['pulseHeight0'])
-
-        grid = PlotGrid(fig_num, n_rows=1, n_cols=2, fig_size=(9, 6), sharex=False, sharey=False)
-        fig = grid.fig
-        ax1, ax2 = grid.ax[0]
-        fig.suptitle('MONITOR')
-
-        ax1.step(ax_tof.centers * 1e3, hist_tof, fg_color(), where='mid', label='MON')
-        ax1.set_xlabel('ToF (ms)')
-        ax1.set_ylabel('counts')
-        ax1.set_title('ToF')
-
-        ax2.step(ax_energy_mon.centers, hist_phs, fg_color(), where='mid', label='MON')
-        ax2.set_xlabel('Pulse Heigth (a.u.)')
-        ax2.set_ylabel('counts')
-        ax2.set_title('PHS')
-
-    def plot_lambda_mon(self, fig_num=9998):
-        if self.is_empty:
-            return
-        m = self.matrix
-        ax_lambda = self.axis_set.ax_lambda
-        hist_lambda = self.hist.hist1d(ax_lambda.centers, m['wavelength'])
-
-        grid = PlotGrid(fig_num, n_rows=1, n_cols=1, fig_size=(6, 6), sharex=False, sharey=False)
-        fig = grid.fig
-        ax1 = grid.ax[0][0]
-        fig.suptitle('MONITOR')
-
-        ax1.step(ax_lambda.centers, hist_lambda, fg_color(), where='mid', label='MON')
-        ax1.set_xlabel('wavelength (A)')
-        ax1.set_ylabel('counts')
-        ax1.set_title('WAVELENGTH')
 
 # ============================================================================
 # SKADI pixel detector
@@ -1345,3 +1294,123 @@ class NMXEventsPlotter(VMMEventsPlotter):
             py_pos = ax_py.get_position()
             ax_px.set_position([new_x0, px_pos.y0, new_width, px_pos.height])
             ax_py.set_position([new_x0, py_pos.y0, new_width, py_pos.height])
+            
+            
+            
+# ============================================================================
+# Beam monitor
+# ============================================================================
+
+class MonitorEventsPlotter(BasePlotter):
+    PLOT_METHODS = {
+        "ToF":  "plot_tof_mon",
+        "PHS 0D":  "plot_phs_mon_0D",
+        "Wavelength": "plot_lambda_mon",
+        "Position 1D": "plot_pos_mon_1D",
+    }
+    
+    def plot_bm_according_to_type(self):
+        """
+        Inspects unique BM types present in the event matrix and triggers
+        the appropriate plot methods.
+        """
+        if self.is_empty:
+            return
+
+        m = self.matrix
+        unique_types = [int(v) for v in np.unique(m['type'])]
+
+        if len(unique_types) == 1:
+            bm_type = unique_types[0]
+
+            # Type 1 (0D Generic) or Type 3 (IBM)
+            if bm_type in (1, 3):
+                self.plot_tof_mon()
+                self.plot_phs_mon_0D()
+
+            # Type 2 (1D/2D Generic)
+            elif bm_type == 2:
+                self.plot_tof_mon()
+                self.plot_phs_mon_0D()
+                self.plot_pos_mon_1D()
+
+            # Optional wavelength plot if present in parameter flags
+            if getattr(self.parameters.wavelength, 'plotLambdaDistr', False):
+                self.plot_lambda_mon()
+
+        else:
+            print(f"\t{ERR}... analysis continues but results might be affected for BM.{RESET}")
+        
+
+    def plot_tof_mon(self, fig_num=9991):
+        if self.is_empty:
+            return
+        m = self.matrix
+        ax_tof =  self.axis_set.ax_tof
+
+        hist_tof = self.hist.hist1d(ax_tof.centers, m['ToF'] / 1e9)
+
+        grid = PlotGrid(fig_num, n_rows=1, n_cols=1, fig_size=(9, 6), sharex=False, sharey=False)
+        fig = grid.fig
+        ax1 = grid.ax[0][0]
+        fig.suptitle('MONITOR')
+
+        ax1.step(ax_tof.centers * 1e3, hist_tof, fg_color(), where='mid', label='MON')
+        ax1.set_xlabel('ToF (ms)')
+        ax1.set_ylabel('counts')
+        ax1.set_title('ToF')
+
+        
+    def plot_phs_mon_0D(self, fig_num=9992):
+        if self.is_empty:
+            return
+        m = self.matrix
+        ax_energy_mon =  self.axis_set.ax_energy_mon
+
+        hist_phs = self.hist.hist1d(ax_energy_mon.centers, m['pulseHeight0'])
+
+        grid = PlotGrid(fig_num, n_rows=1, n_cols=1, fig_size=(9, 6), sharex=False, sharey=False)
+        fig = grid.fig
+        ax2 = grid.ax[0][0]
+        fig.suptitle('MONITOR')
+
+        ax2.step(ax_energy_mon.centers, hist_phs, fg_color(), where='mid', label='MON')
+        ax2.set_xlabel('Pulse Heigth (a.u.)')
+        ax2.set_ylabel('counts')
+        ax2.set_title('PHS')
+
+    def plot_lambda_mon(self, fig_num=9993):
+        if self.is_empty:
+            return
+        m = self.matrix
+        ax_lambda = self.axis_set.ax_lambda
+        hist_lambda = self.hist.hist1d(ax_lambda.centers, m['wavelength'])
+
+        grid = PlotGrid(fig_num, n_rows=1, n_cols=1, fig_size=(6, 6), sharex=False, sharey=False)
+        fig = grid.fig
+        ax1 = grid.ax[0][0]
+        fig.suptitle('MONITOR')
+
+        ax1.step(ax_lambda.centers, hist_lambda, fg_color(), where='mid', label='MON')
+        ax1.set_xlabel('wavelength (A)')
+        ax1.set_ylabel('counts')
+        ax1.set_title('WAVELENGTH')
+        
+        
+    def plot_pos_mon_1D(self, fig_num=9994):
+        if self.is_empty:
+            return
+        m = self.matrix
+        ax_pos   = self.axis_set.ax_pos_mon
+        hist_pos = self.hist.hist1d(ax_pos.centers, m['coordinate0'])
+
+        grid = PlotGrid(fig_num, n_rows=1, n_cols=1, fig_size=(6, 6), sharex=False, sharey=False)
+        fig = grid.fig
+        ax1 = grid.ax[0][0]
+        fig.suptitle('MONITOR')
+
+        ax1.step(ax_pos.centers, hist_pos, fg_color(), where='mid', label='MON')
+        ax1.set_xlabel('Position (a.u.)')
+        ax1.set_ylabel('counts')
+        ax1.set_title('POSITION')    
+

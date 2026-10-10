@@ -251,6 +251,7 @@ class BasePipeline:
                 plt.close('all')
                 sys.exit(0)
 
+###############################################################################
 
 class MBPipeline(BasePipeline):
     """Multi-Blade hardware, normal mode."""
@@ -305,6 +306,8 @@ class MBPipeline(BasePipeline):
             self.event_plotter   = MBEventsPlotter(self.events_container, self.parameters,self.config, self.axis_set, unit_ids)
 
 
+###############################################################################
+
 class MBClusteredPipeline(BasePipeline):
     """Pre-clustered VMM3A hardware tracking streams (opMode == 'clustered').
     MB-only for now -- MG has no clustered track yet.
@@ -348,6 +351,8 @@ class MBClusteredPipeline(BasePipeline):
             self.event_plotter = MBEventsPlotter(self.events_container, self.parameters,self.config, self.axis_set, unit_ids)
 
 
+###############################################################################
+
 class MGPipeline(BasePipeline):
     """Multi-Grid hardware, normal mode."""
 
@@ -386,6 +391,7 @@ class MGPipeline(BasePipeline):
             from lib.plotting_events import MGEventsPlotter
             self.event_plotter = MGEventsPlotter(self.events_container, self.parameters,self.config, self.axis_set,unit_ids)
 
+###############################################################################
 
 class R5560Pipeline(BasePipeline):
     """CAEN R5560 Helium-3 gas tube detectors."""
@@ -427,6 +433,8 @@ class R5560Pipeline(BasePipeline):
     def plot_always(self):
         super().plot_always()
         self.event_plotter.plot_position_per_tube()
+        
+###############################################################################        
 
 class SkadiPipeline(BasePipeline):
     """SKADI detector layout streams -- not yet implemented."""
@@ -454,6 +462,8 @@ class SkadiPipeline(BasePipeline):
         if self.events_container is not None:
             from lib.plotting_events import SKADIEventsPlotter
             self.event_plotter = SKADIEventsPlotter(self.events_container, self.parameters,self.config, self.axis_set,unit_ids)
+
+###############################################################################
             
 class NMXPipeline(BasePipeline):
     def analyze(self) -> None:
@@ -489,7 +499,9 @@ class NMXPipeline(BasePipeline):
             self.event_plotter = NMXEventsPlotter(self.events_container, self.parameters,self.config, self.axis_set,unit_ids)
                         
   
-
+###############################################################################
+###############################################################################
+###############################################################################
 
 # =============================================================================
 # Beam Monitor pipelines -- independent of BasePipeline entirely
@@ -514,18 +526,18 @@ class BeamMonitorPipeline:
 
     def __init__(self, readouts_container, parameters, config: dict):
         self.readouts_container = readouts_container
-        self.parameters = parameters
-        self.config = config
+        self.parameters   = parameters
+        self.config       = config
 
         self.events_container = None
-        self.event_plotter = None
+        self.event_plotter    = None
 
     def analyze(self) -> None:
         raise NotImplementedError
 
     def build_plotter(self) -> None:
-        from lib.histograms import BaseAxisSet
-        self.axis_set = BaseAxisSet(self.parameters, self.config)
+        from lib.histograms import BMAxisSet
+        self.axis_set = BMAxisSet(self.parameters, self.config)
         if self.events_container is not None:
             from lib.plotting_events import MonitorEventsPlotter
             self.event_plotter = MonitorEventsPlotter(self.events_container, self.parameters, self.config, self.axis_set, [])
@@ -533,8 +545,15 @@ class BeamMonitorPipeline:
     def plot(self) -> None:
         self.build_plotter()
         if self.event_plotter is not None:
-            if self.parameters.MONitor.plotMONtofPHS:
-                self.event_plotter.plot_tof_phs_mon()
+            if self.parameters.MONitor.activatePlots:
+                
+                
+                self.event_plotter.plot_bm_according_to_type()
+                
+                # self.event_plotter.plot_tof_mon()
+                # self.event_plotter.plot_phs_mon_0D()
+                # self.event_plotter.plot_pos_mon_1D()
+                
                 if self.parameters.wavelength.plotLambdaDistr:
                     self.event_plotter.plot_lambda_mon()
             
@@ -549,6 +568,7 @@ class BeamMonitorPipeline:
     #     self.analyze()
     #     self.plot()
 
+###############################################################################
 
 class GenericBMPipeline(BeamMonitorPipeline):
     """Generic Beam Monitor. BMMapper maps readouts straight into a
@@ -563,6 +583,9 @@ class GenericBMPipeline(BeamMonitorPipeline):
         # Map directly into events
         from lib.mapping_engine import BMMapper
         
+        # debug
+        # self.readouts_container.matrix['type'] = 2
+        
         self.events_container = BMMapper.map(self.readouts_container, self.config)
         print(f'{INFO}Calculating Beam Monitor ToF/wavelength...{RESET}')
         self.events_container.compute_and_filter_tof(remove_invalid=self.parameters.plotting.removeInvalidToFs)
@@ -574,6 +597,7 @@ class GenericBMPipeline(BeamMonitorPipeline):
         from lib.threshold_engine import apply_monitor_threshold
         apply_monitor_threshold(self.events_container, self.parameters.MONitor.MONThreshold)
 
+###############################################################################
 
 class IBMPipeline(BeamMonitorPipeline):
     """Ionization Beam Monitor. IBMMonitorMapper maps readouts straight into
@@ -597,6 +621,10 @@ class IBMPipeline(BeamMonitorPipeline):
         from lib.threshold_engine import apply_monitor_threshold
         apply_monitor_threshold(self.events_container, self.parameters.MONitor.MONThreshold)
 
+
+###############################################################################
+###############################################################################
+###############################################################################
 
 # =============================================================================
 # Dispatchers -- plain if/elif, no registry table

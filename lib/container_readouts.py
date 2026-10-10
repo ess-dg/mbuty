@@ -20,7 +20,7 @@ _workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
 
-from lib.colors import WARN, RESET, INFO, OK
+from lib.colors import WARN, RESET, INFO, OK, ERR
 # =============================================================================
 ###############################################################################
 class readouts():
@@ -193,6 +193,7 @@ class readouts():
 
         return master
     
+###############################################################################
 
 class readoutsVMM(readouts):
     """
@@ -255,6 +256,7 @@ class readoutsVMM(readouts):
         return [(int(r['ring']), int(r['fen']), int(r['hybrid'])) for r in unique]
     
  
+###############################################################################
 
 class readoutsVMMnormal(readoutsVMM):
     """Multi-Blade / Multi-Grid normal readouts parameterized data profile."""
@@ -358,6 +360,7 @@ class readoutsVMMnormal(readoutsVMM):
 
         return df        
 
+###############################################################################
 
 class readoutsVMMclustered(readoutsVMM):
     """Multi-Blade clustered readouts parameterized data profile."""
@@ -424,6 +427,7 @@ class readoutsVMMclustered(readoutsVMM):
 
         return df           
 
+###############################################################################
 
 class readoutsR5560(readouts):
     """Helium-3 continuous gas tube (CAEN) parameterized data profile."""
@@ -468,12 +472,40 @@ class readoutsR5560(readouts):
 
         return df           
 
-class readoutsBM(readouts):
+###############################################################################
+class readoutsBM_base(readouts):
+
+    def __init__(self, size: int = 0, subclass_fields: list = None):
+        baseBM_fields = [
+            ('type',    'int64'),
+            ('channel', 'int64'),
+        ] + (subclass_fields or [])
+        
+        super().__init__(size, baseBM_fields)
+        
+    def clean_and_sort(self, parameters=None, config=None) -> None: 
+       
+        super().clean_and_sort(parameters, config)
+        
+        # debug 
+        # if self.fill_count > 0 and len(self.matrix) > 0:
+        #     self.matrix['type'][0] = 3
+        
+        from lib.instrument_registry import check_bm_type
+        
+        cfg = config or getattr(self, 'config', None) or {}
+        monitor_list = cfg.get('monitor') or [{}]
+        bm_hardware_type = monitor_list[0].get('hardwareType', 'generic').lower()
+        check_bm_type(self.matrix['type'], bm_hardware_type)
+        
+        
+        
+###############################################################################
+
+class readoutsBM(readoutsBM_base):
     """Generic Beam Monitor diagnostic parameterized data profile."""
     def __init__(self, size: int = 0):
         hardware_fields = [
-            ('type',    'int64'),
-            ('channel', 'int64'),
             ('adc',     'int64'),
             ('posX',    'int64'),
             ('posY',    'int64')
@@ -500,9 +532,11 @@ class readoutsBM(readouts):
                 self.fill_count = len(self.matrix)
                  
                 if self.fill_count == 0 :
-                    print(f'\t {WARN}WARNING ---> BM data found but is IBM or others ({{{types_list_str}}}) whereas you selected GENERIC in config file! {RESET}')
+                    print(f'\t {ERR}WARNING ---> BM data found but is IBM or others ({{{types_list_str}}}) whereas you selected GENERIC in config file! {RESET}')
+                    print(f"\t{ERR}... analysis continues but results might be affected for BM - empty container.{RESET}")        
+                    time.sleep(0.2)
                 else:
-                    print(f'\t {WARN}WARNING ---> BM data found {self.fill_count}. GENERIC BM data mixed with other types: {{{types_list_str}}} then removed {removed}.{RESET}')
+                    print(f'\t {ERR}WARNING ---> BM data found {self.fill_count}. GENERIC BM data mixed with other types: {{{types_list_str}}} then removed {removed}.{RESET}')
         
         if np.any(valid_types):
              print(f'\t {OK}BM GENERIC found with {self.fill_count} readouts.{RESET}')
@@ -516,6 +550,9 @@ class readoutsBM(readouts):
         #     print(f'\t {WARN}WARNING ---> Multiple BM types found in data {{{types_list_str}}} {RESET}')
             
         super().clean_and_sort(parameters, config)
+        
+                
+        
         
     def get_data_frame(self) -> pd.DataFrame:
         """
@@ -546,14 +583,12 @@ class readoutsBM(readouts):
 
         return df          
         
+###############################################################################
 
-
-class readoutsIBM(readouts):
+class readoutsIBM(readoutsBM_base):
     """IBM variant Beam Monitor diagnostic parameterized data profile."""
     def __init__(self, size: int = 0):
         hardware_fields = [
-            ('type',     'int64'),
-            ('channel',  'int64'),
             ('debug',    'int64'),
             ('adc',      'int64'),
             ('mcaSum',   'int64')
@@ -580,9 +615,11 @@ class readoutsIBM(readouts):
                 self.fill_count = len(self.matrix)
 
                 if self.fill_count == 0 :
-                    print(f'\t {WARN}WARNING ---> BM data found but is GENERIC or others ({{{types_list_str}}}) whereas you selected IBM in config file! {RESET}')
+                    print(f'\t {ERR}WARNING ---> BM data found but is GENERIC or others ({{{types_list_str}}}) whereas you selected IBM in config file! {RESET}')
+                    print(f"\t{ERR}... analysis continues but results might be affected for BM - empty container.{RESET}")        
+                    time.sleep(0.2)
                 else:
-                    print(f'\t {WARN}WARNING ---> BM IBM data found {self.fill_count}. IBM data mixed with other types: {{{types_list_str}}} then removed {removed}.{RESET}')
+                    print(f'\t {ERR}WARNING ---> BM IBM data found {self.fill_count}. IBM data mixed with other types: {{{types_list_str}}} then removed {removed}.{RESET}')
                
                     
         if np.any(valid_types):
@@ -620,7 +657,7 @@ class readoutsIBM(readouts):
 
         return df          
         
-
+###############################################################################
 
 class readoutsSKADI(readouts):
     """SKADI detector parameterized data profile."""
