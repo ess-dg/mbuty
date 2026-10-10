@@ -542,22 +542,32 @@ class BeamMonitorPipeline:
             from lib.plotting_events import MonitorEventsPlotter
             self.event_plotter = MonitorEventsPlotter(self.events_container, self.parameters, self.config, self.axis_set, [])
 
+    # def plot(self) -> None:
+    #     self.build_plotter()
+    #     if self.event_plotter is not None:
+    #         if self.parameters.MONitor.activatePlots:
+                
+                
+    #             # self.event_plotter.plot_bm_according_to_type()
+                
+    #             self.event_plotter.plot_tof_mon()
+    #             self.event_plotter.plot_phs_mon_0D()
+    #             self.event_plotter.plot_pos_mon_1D()
+                
+    #             if self.parameters.wavelength.plotLambdaDistr:
+    #                 self.event_plotter.plot_lambda_mon()
+            
     def plot(self) -> None:
         self.build_plotter()
         if self.event_plotter is not None:
-            if self.parameters.MONitor.activatePlots:
-                
-                
-                self.event_plotter.plot_bm_according_to_type()
-                
-                # self.event_plotter.plot_tof_mon()
-                # self.event_plotter.plot_phs_mon_0D()
-                # self.event_plotter.plot_pos_mon_1D()
-                
-                if self.parameters.wavelength.plotLambdaDistr:
-                    self.event_plotter.plot_lambda_mon()
-            
-                
+            if getattr(self.parameters.MONitor, 'activatePlots', False):
+                # Dynamically call plot methods for whatever plots are active
+                for plot_name in self.event_plotter.available_plot_names():
+                    method_name = self.event_plotter.PLOT_METHODS.get(plot_name)
+                    if method_name and hasattr(self.event_plotter, method_name):
+                        getattr(self.event_plotter, method_name)()
+                        
+                        
     def check_empty(self):
         if self.readouts_container.fill_count == 0:
             print(f"{WARN}\t WARNING: BM readouts container is empty — skipping pipeline: {type(self).__name__}.{RESET}")

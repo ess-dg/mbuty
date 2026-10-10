@@ -168,6 +168,9 @@ def _selected_plot_names_by_tab(parameters) -> dict:
         
         if w.plotLambdaDistr:
             beam_monitor.add("Wavelength")
+    
+
+            
 
     return {
         "readouts":           readouts,
@@ -254,6 +257,7 @@ def build_dashboard_section(detector_pipeline, bm_pipeline, parameters, unit_ids
     detector_pipeline.build_plotters(unit_ids=unit_ids)
     data_source = OrchestratorDataSource(detector_pipeline, bm_pipeline if bm_active else None)
     selected = _selected_plot_names_by_tab(parameters)
+        
     config = {
         "readouts_active_plots": [n for n in data_source.get_available_plots("readouts")
                                    if n in selected["readouts"]],

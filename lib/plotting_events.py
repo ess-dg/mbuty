@@ -1309,37 +1309,64 @@ class MonitorEventsPlotter(BasePlotter):
         "Position 1D": "plot_pos_mon_1D",
     }
     
-    def plot_bm_according_to_type(self):
-        """
-        Inspects unique BM types present in the event matrix and triggers
-        the appropriate plot methods.
-        """
+    def available_plot_names(self):
+        """Returns only plot names that are valid for the active data type."""
         if self.is_empty:
-            return
+            return []
 
-        m = self.matrix
-        unique_types = [int(v) for v in np.unique(m['type'])]
+        unique_types = [int(v) for v in np.unique(self.matrix['type'])]
+        if len(unique_types) != 1:
+            return list(self.PLOT_METHODS.keys())
 
-        if len(unique_types) == 1:
-            bm_type = unique_types[0]
+        bm_type = unique_types[0]
+        plots = ["ToF", "PHS 0D"]
 
-            # Type 1 (0D Generic) or Type 3 (IBM)
-            if bm_type in (1, 3):
-                self.plot_tof_mon()
-                self.plot_phs_mon_0D()
+        if bm_type == 2:
+            plots.append("Position 1D")
 
-            # Type 2 (1D/2D Generic)
-            elif bm_type == 2:
-                self.plot_tof_mon()
-                self.plot_phs_mon_0D()
-                self.plot_pos_mon_1D()
+        if getattr(self.parameters.wavelength, 'plotLambdaDistr', False):
+            plots.append("Wavelength")
 
-            # Optional wavelength plot if present in parameter flags
-            if getattr(self.parameters.wavelength, 'plotLambdaDistr', False):
-                self.plot_lambda_mon()
+        return plots
+    
+    def render_all_active_plots(self) -> None:
+        """Executes all currently active plot methods."""
+        for plot_name in self.available_plot_names():
+            method_name = self.PLOT_METHODS.get(plot_name)
+            if method_name and hasattr(self, method_name):
+                getattr(self, method_name)()
+    
+    # def plot_bm_according_to_type(self):
+    #     """
+    #     Inspects unique BM types present in the event matrix and triggers
+    #     the appropriate plot methods.
+    #     """
+    #     if self.is_empty:
+    #         return
 
-        else:
-            print(f"\t{ERR}... analysis continues but results might be affected for BM.{RESET}")
+    #     m = self.matrix
+    #     unique_types = [int(v) for v in np.unique(m['type'])]
+
+    #     if len(unique_types) == 1:
+    #         bm_type = unique_types[0]
+
+    #         # Type 1 (0D Generic) or Type 3 (IBM)
+    #         if bm_type in (1, 3):
+    #             self.plot_tof_mon()
+    #             self.plot_phs_mon_0D()
+
+    #         # Type 2 (1D/2D Generic)
+    #         elif bm_type == 2:
+    #             self.plot_tof_mon()
+    #             self.plot_phs_mon_0D()
+    #             self.plot_pos_mon_1D()
+
+    #         # Optional wavelength plot if present in parameter flags
+    #         if getattr(self.parameters.wavelength, 'plotLambdaDistr', False):
+    #             self.plot_lambda_mon()
+
+    #     else:
+    #         print(f"\t{ERR}... analysis continues but results might be affected for BM.{RESET}")
         
 
     def plot_tof_mon(self, fig_num=9991):
