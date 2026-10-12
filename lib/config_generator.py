@@ -49,12 +49,45 @@ def _generateTopologyMB(num_units):
 
 # FOR MG
 # The helper function (renamed from a method)
+# def _generateTopologyMG(num_units):
+#     unit_config = []
+#     ring    = 0
+#     hybridW = 0
+#     hybridG = 1
+#     for i in range(num_units):
+#         unit_config.append({
+#             "ID": i,
+#             "ring": ring,
+#             "fen": 0,
+#             "hybridW": hybridW,
+#             "hybridG": hybridG,
+#             "serialHW": '',
+#             "serialHG": ''
+#         })
+#         hybridW += 2
+#         hybridG += 2
+#         if hybridG >= 4:
+#             ring += 1
+#             hybridW = 0
+#             hybridG = 1
+            
+#     return unit_config
+
 def _generateTopologyMG(num_units):
     unit_config = []
-    ring    = 0
-    hybridW = 0
-    hybridG = 1
+    
     for i in range(num_units):
+        ring = i // 2
+        
+        # Unit 0, 2, 4... (even indices) get hybridW=5, hybridG=4
+        # Unit 1, 3, 5... (odd indices) get hybridW=3, hybridG=2
+        if i % 2 == 0:
+            hybridW = 5
+            hybridG = 4
+        else:
+            hybridW = 3
+            hybridG = 2
+
         unit_config.append({
             "ID": i,
             "ring": ring,
@@ -64,16 +97,8 @@ def _generateTopologyMG(num_units):
             "serialHW": '',
             "serialHG": ''
         })
-        hybridW += 2
-        hybridG += 2
-        if hybridG >= 4:
-            ring += 1
-            hybridW = 0
-            hybridG = 1
             
     return unit_config
-
-
 
 # FOR SKADI
 # The helper function (renamed from a method)
@@ -272,7 +297,7 @@ def generateDefaultDetConfig(path, detectorName, detectorType, instrumentName, u
             "operationMode": operationMode,
             "topology": topology,
             "wires": 120,
-            "grids": 12,
+            "grids": 88,
             "wirePitchX_mm": 22,
             "wirePitchZ_mm": 10,
             "gridPitchY_mm": 25,
@@ -469,9 +494,9 @@ if __name__ == '__main__':
     
     
     
-    # detectorName = "MG1column"
-    # detectorType = 'MG'
-    # instrumentName = 'TREX'
+    detectorName = "MG1testaaaaaaa"
+    detectorType = 'MG'
+    instrumentName = 'TREX'
     
     # detectorName = "MG_EMMA"
     # detectorType = 'MG'
@@ -491,9 +516,9 @@ if __name__ == '__main__':
     # instrumentName = 'ESTIA'
     
     
-    detectorName = "SKADI48"
-    detectorType = 'SKADI'
-    instrumentName = 'SKADI'
+    # detectorName = "SKADI48"
+    # detectorType = 'SKADI'
+    # instrumentName = 'SKADI'
     
     
     # detectorName = "NMXtest"
@@ -502,7 +527,7 @@ if __name__ == '__main__':
  
     
     operationMode = 'normal'
-    units = 4   # 4 rings/quadrants = 1 panel. Use 8 for 2 panels, 12 for 3, etc.
+    units = 8   # 4 rings/quadrants = 1 panel. Use 8 for 2 panels, 12 for 3, etc.
     orientation = 'horizontal'
 
     # Call the function directly

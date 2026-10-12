@@ -1,0 +1,99 @@
+{
+    "detectorName": "MG_testVessandBOX",
+    "detectorType": "MG",
+    "instrumentName": "TREX",
+    "units": 8,
+    "orientation": "vertical",
+    "operationMode": "normal",
+    "topology": [
+        {
+            "ID": 0,
+            "ring": 0,
+            "fen": 0,
+            "hybridW": 5,
+            "hybridG": 4,
+            "serialHW": "",
+            "serialHG": ""
+        },
+        {
+            "ID": 2,
+            "ring": 0,
+            "fen": 0,
+            "hybridW": 3,
+            "hybridG": 2,
+            "serialHW": "",
+            "serialHG": ""
+        },
+        {
+            "ID": 4,
+            "ring": 1,
+            "fen": 0,
+            "hybridW": 5,
+            "hybridG": 4,
+            "serialHW": "",
+            "serialHG": ""
+        },
+        {
+            "ID": 5,
+            "ring": 1,
+            "fen": 0,
+            "hybridW": 3,
+            "hybridG": 2,
+            "serialHW": "",
+            "serialHG": ""
+        },
+        {
+            "ID": 6,
+            "ring": 1,
+            "fen": 1,
+            "hybridW": 5,
+            "hybridG": 4,
+            "serialHW": "",
+            "serialHG": ""
+        },
+        {
+            "ID": 7,
+            "ring": 1,
+            "fen": 1,
+            "hybridW": 3,
+            "hybridG": 2,
+            "serialHW": "",
+            "serialHG": ""
+        },
+        {
+            "ID": 8,
+            "ring": 1,
+            "fen": 2,
+            "hybridW": 5,
+            "hybridG": 4,
+            "serialHW": "",
+            "serialHG": ""
+        },
+        {
+            "ID": 9,
+            "ring": 1,
+            "fen": 2,
+            "hybridW": 3,
+            "hybridG": 2,
+            "serialHW": "",
+            "serialHG": ""
+        }
+    ],
+    "wires": 120,
+    "grids": 88,
+    "wirePitchX_mm": 22,
+    "wirePitchZ_mm": 10,
+    "gridPitchY_mm": 25,
+    "wiresPerRow": 20,
+    "angularOffset_deg": 10,
+    "linearOffset1stWires_mm": 80,
+    "monitor": [
+        {
+            "ID": 99,
+            "hardwareType": "generic",
+            "connectionType": "ring",
+            "ring": 11,
+            "channel": 0
+        }
+    ]
+}
