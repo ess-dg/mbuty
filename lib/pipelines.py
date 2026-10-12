@@ -538,6 +538,11 @@ class BeamMonitorPipeline:
     def build_plotter(self) -> None:
         from lib.histograms import BMAxisSet
         self.axis_set = BMAxisSet(self.parameters, self.config)
+        
+        if self.readouts_container is not None:
+            from lib.plotting_readouts import MonitorReadoutsPlotter
+            self.readout_plotter = MonitorReadoutsPlotter(self.readouts_container, self.parameters, self.config, self.axis_set, [])
+            
         if self.events_container is not None:
             from lib.plotting_events import MonitorEventsPlotter
             self.event_plotter = MonitorEventsPlotter(self.events_container, self.parameters, self.config, self.axis_set, [])
@@ -557,21 +562,35 @@ class BeamMonitorPipeline:
     #             if self.parameters.wavelength.plotLambdaDistr:
     #                 self.event_plotter.plot_lambda_mon()
             
+    # def plot(self) -> None:
+    #     self.build_plotter()
+    #     if self.event_plotter is not None:
+    #         if getattr(self.parameters.MONitor, 'activatePlots', False):
+    #             # Dynamically call plot methods for whatever plots are active
+    #             for plot_name in self.event_plotter.available_plot_names():
+    #                 method_name = self.event_plotter.PLOT_METHODS.get(plot_name)
+    #                 if method_name and hasattr(self.event_plotter, method_name):
+    #                     getattr(self.event_plotter, method_name)()
+    
     def plot(self) -> None:
         self.build_plotter()
+        if not getattr(self.parameters.MONitor, 'activatePlots', False):
+            return
+    
+        # Render readouts plots (includes ADC vs Ch 1D)
+        if self.readout_plotter is not None:
+            self.readout_plotter.render_all_active_plots()
+    
+        # Render events plots
         if self.event_plotter is not None:
-            if getattr(self.parameters.MONitor, 'activatePlots', False):
-                # Dynamically call plot methods for whatever plots are active
-                for plot_name in self.event_plotter.available_plot_names():
-                    method_name = self.event_plotter.PLOT_METHODS.get(plot_name)
-                    if method_name and hasattr(self.event_plotter, method_name):
-                        getattr(self.event_plotter, method_name)()
+            self.event_plotter.render_all_active_plots()
                         
                         
     def check_empty(self):
         if self.readouts_container.fill_count == 0:
             print(f"{WARN}\t WARNING: BM readouts container is empty — skipping pipeline: {type(self).__name__}.{RESET}")
             return True
+        
 # not used anymore
     # def execute(self) -> None:
     #     self.check_empty()
@@ -595,6 +614,7 @@ class GenericBMPipeline(BeamMonitorPipeline):
         
         # debug
         # self.readouts_container.matrix['type'] = 2
+        # self.readouts_container.matrix['type'][4] = 1
         
         self.events_container = BMMapper.map(self.readouts_container, self.config)
         print(f'{INFO}Calculating Beam Monitor ToF/wavelength...{RESET}')

@@ -18,7 +18,7 @@ import sys, os
 _workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
-from lib.colors import WARN, RESET
+from lib.colors import WARN, RESET, ERR
 from lib.plotting_base import PlotGrid, BasePlotter, log_scale_norm, fg_color
 
 ###############################################################################
@@ -707,44 +707,85 @@ class NMXReadoutsPlotter(BaseReadoutsPlotter):
 # ============================================================================
 # BM
 # ============================================================================
-# class BMReadoutsPlotter(BaseReadoutsPlotter):
+class MonitorReadoutsPlotter(BaseReadoutsPlotter):
     
-#     def plot_adc_vs_channel(self, fig_num=1006):
-#         """ADC vs channel 2D occupancy per ASIC column; row 0 = X edge, row 1 = Y edge."""
-#         if self.is_empty:
-#             return
+    PLOT_METHODS = {
+        "ADC vs Ch 1D": "plot_ADC_vs_ch_1D",
+    }
+    
+    def available_plot_names(self):
+        """Returns only plot names that are valid for the active BM data type."""
+        if self.is_empty:
+            return []
 
-#         norm_colors = log_scale_norm(self.parameters.pulseHeigthSpect.plotPHSlog)
+        unique_types = [int(v) for v in np.unique(self.matrix['type'])]
+        if len(unique_types) != 1:
+            print(f"\n\t{ERR}ERROR: BM data contains a mixture of multiple types: {unique_types}.{RESET}")
+            print(f"\t{ERR}Expected all readouts to have the exact same BM type.{RESET}")
+            print(f"\t{ERR}... analysis continues but results might be affected for BM.{RESET}")
+            print(f"\t{ERR}... activating all BM plots for BM.{RESET}")
+            return list(self.PLOT_METHODS.keys())
 
-#         plothtch = PlotGrid(fig_num, 2, len(self._columns))
-#         plothtch.fig.suptitle('ADC vs CH')
-#         ax_e = self.axis_set.ax_energy
-#         m = self.matrix
+        bm_type = unique_types[0]
+        
+        plots = []
 
-#         for k, (uid, slot, asic) in enumerate(self._columns):
-#             selX = self.select_asic_from_column(uid, slot, asic, 'X')
-#             selY = self.select_asic_from_column(uid, slot, asic, 'Y')
+        if bm_type == 1:   # 0D generic 
+            pass
+            
+        elif bm_type == 2: # 1D or 2D generic (also VMM) 2D for now has no plots, future devel 
+            plots.append("ADC vs Ch 1D")
+                
+        elif bm_type == 3:    # I-BM 
+            pass
+ 
+        else:  
+            print(f"\n\t{ERR}ERROR: BM data contains invalid type value(s): {bm_type}.{RESET}")
+            print(f"\t{ERR}Valid BM types are only 1 (GENERIC 0D) 2 (GENERIC 1D or 2D) or 3 (IBM).{RESET}")
+            print(f"\t{ERR}... analysis continues but results might be affected for BM.{RESET}")       
+            return []
+            
 
-#             if self.is_clustered:
-#                 histochX, _, _ = self.hist.hist2d(ax_e.centers, m['adc0'][selX], self.xbins, m['channel0'][selX])
-#                 histochY, _, _ = self.hist.hist2d(ax_e.centers, m['adc1'][selY], self.xbins, m['channel1'][selY])
-#             else:
-#                 histochX, _, _ = self.hist.hist2d(ax_e.centers, m['adc'][selX], self.xbins, m['channel'][selX])
-#                 histochY, _, _ = self.hist.hist2d(ax_e.centers, m['adc'][selY], self.xbins, m['channel'][selY])
+        return plots
+    
+    def render_all_active_plots(self) -> None:
+        """Executes all currently active plot methods."""
+        for plot_name in self.available_plot_names():
+            method_name = self.PLOT_METHODS.get(plot_name)
+            if method_name and hasattr(self, method_name):
+                getattr(self, method_name)()
+    
+    def plot_ADC_vs_ch_1D(self, fig_num=9996):
+        """ADC vs channel 1D"""
+        if self.is_empty:
+            return
+        
+        # number of channels in one VMM BM
+        n_channels = 128
+        
+        xbins = np.linspace(0, n_channels - 1, n_channels)
 
-#             plothtch.ax[0][k].imshow(histochX, aspect='auto', norm=norm_colors, interpolation='none',
-#                                       extent=[ax_e.start, ax_e.stop, self.xbins[0], self.xbins[-1]], origin='lower', cmap='jet')
-#             plothtch.ax[1][k].imshow(histochY, aspect='auto', norm=norm_colors, interpolation='none',
-#                                       extent=[ax_e.start, ax_e.stop, self.xbins[0], self.xbins[-1]], origin='lower', cmap='jet')
+        norm_colors = log_scale_norm(self.parameters.pulseHeigthSpect.plotPHSlog)
+        
+        m = self.matrix
+        
+        ax_energy = self.axis_set.ax_energy_mon
+        
+        grid = PlotGrid(fig_num, n_rows=1, n_cols=1, fig_size=(6, 6), sharex=False, sharey=False)
+        fig = grid.fig
+        ax1 = grid.ax[0][0]
+        fig.suptitle('MONITOR')
+        
+        adcch, _, _ = self.hist.hist2d(ax_energy.centers, m['adc'], xbins, m['channel'])
 
-#             plothtch.ax[0][k].set_title(self._column_label(uid, slot, asic, 'X'), fontsize=6, rotation=90)
-#             plothtch.ax[0][k].set_xlabel('ADC')
-#             plothtch.ax[1][k].set_xlabel('ADC')
+        ax1.imshow(adcch, aspect='auto', norm=norm_colors, interpolation='none',
+                      extent=[ax_energy.start, ax_energy.stop, xbins[0], xbins[-1]], origin='lower', cmap='jet')
+       
+        ax1.set_title('ADC vs Channel 1D')
+        ax1.set_ylabel('channel (a.u.)')
+        ax1.set_xlabel('ADC (a.u.)')
 
-#             if k == 0:
-#                 plothtch.ax[0][k].set_ylabel('X ch no.')
-#                 plothtch.ax[1][k].set_ylabel('Y ch no.')
-                  
+
                 
                 
                 

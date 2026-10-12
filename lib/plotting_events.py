@@ -1307,23 +1307,47 @@ class MonitorEventsPlotter(BasePlotter):
         "PHS 0D":  "plot_phs_mon_0D",
         "Wavelength": "plot_lambda_mon",
         "Position 1D": "plot_pos_mon_1D",
+        "PHS vs Pos 1D": "plot_PHS_vs_pos_1D",
     }
     
     def available_plot_names(self):
-        """Returns only plot names that are valid for the active data type."""
+        """Returns only plot names that are valid for the active BM data type."""
         if self.is_empty:
             return []
 
         unique_types = [int(v) for v in np.unique(self.matrix['type'])]
         if len(unique_types) != 1:
+            print(f"\n\t{ERR}ERROR: BM data contains a mixture of multiple types: {unique_types}.{RESET}")
+            print(f"\t{ERR}Expected all readouts to have the exact same BM type.{RESET}")
+            print(f"\t{ERR}... analysis continues but results might be affected for BM.{RESET}")
+            print(f"\t{ERR}... activating all BM plots for BM.{RESET}")
             return list(self.PLOT_METHODS.keys())
 
         bm_type = unique_types[0]
+        
         plots = ["ToF", "PHS 0D"]
 
-        if bm_type == 2:
+        if bm_type == 1:   # 0D generic 
+            pass
+            
+        elif bm_type == 2: # 1D or 2D generic (also VMM) 2D for now has no plots, future devel 
             plots.append("Position 1D")
-
+            plots.append("PHS vs Pos 1D")
+            
+            
+        elif bm_type == 3:    # I-BM 
+            pass
+        
+            
+            
+        else:  
+            print(f"\n\t{ERR}ERROR: BM data contains invalid type value(s): {bm_type}.{RESET}")
+            print(f"\t{ERR}Valid BM types are only 1 (GENERIC 0D) 2 (GENERIC 1D or 2D) or 3 (IBM).{RESET}")
+            print(f"\t{ERR}... analysis continues but results might be affected for BM.{RESET}")       
+            return []
+            
+            
+        # wavelength plot only if wavelngth flag isa activste and it is valid for all types   
         if getattr(self.parameters.wavelength, 'plotLambdaDistr', False):
             plots.append("Wavelength")
 
@@ -1335,39 +1359,6 @@ class MonitorEventsPlotter(BasePlotter):
             method_name = self.PLOT_METHODS.get(plot_name)
             if method_name and hasattr(self, method_name):
                 getattr(self, method_name)()
-    
-    # def plot_bm_according_to_type(self):
-    #     """
-    #     Inspects unique BM types present in the event matrix and triggers
-    #     the appropriate plot methods.
-    #     """
-    #     if self.is_empty:
-    #         return
-
-    #     m = self.matrix
-    #     unique_types = [int(v) for v in np.unique(m['type'])]
-
-    #     if len(unique_types) == 1:
-    #         bm_type = unique_types[0]
-
-    #         # Type 1 (0D Generic) or Type 3 (IBM)
-    #         if bm_type in (1, 3):
-    #             self.plot_tof_mon()
-    #             self.plot_phs_mon_0D()
-
-    #         # Type 2 (1D/2D Generic)
-    #         elif bm_type == 2:
-    #             self.plot_tof_mon()
-    #             self.plot_phs_mon_0D()
-    #             self.plot_pos_mon_1D()
-
-    #         # Optional wavelength plot if present in parameter flags
-    #         if getattr(self.parameters.wavelength, 'plotLambdaDistr', False):
-    #             self.plot_lambda_mon()
-
-    #     else:
-    #         print(f"\t{ERR}... analysis continues but results might be affected for BM.{RESET}")
-        
 
     def plot_tof_mon(self, fig_num=9991):
         if self.is_empty:
@@ -1436,8 +1427,38 @@ class MonitorEventsPlotter(BasePlotter):
         ax1 = grid.ax[0][0]
         fig.suptitle('MONITOR')
 
+
         ax1.step(ax_pos.centers, hist_pos, fg_color(), where='mid', label='MON')
         ax1.set_xlabel('Position (a.u.)')
         ax1.set_ylabel('counts')
-        ax1.set_title('POSITION')    
+        ax1.set_title('POSITION 1D')   
+        
+    def plot_PHS_vs_pos_1D(self, fig_num=9995): 
+       if self.is_empty:
+           return
+       
+       m = self.matrix
+       
+       norm_colors = log_scale_norm(self.parameters.pulseHeigthSpect.plotPHSlog)
+       
+       ax_energy = self.axis_set.ax_energy_mon
+       ax_pos    = self.axis_set.ax_pos_mon
+       
+       grid = PlotGrid(fig_num, n_rows=1, n_cols=1, fig_size=(6, 6), sharex=False, sharey=False)
+       fig = grid.fig
+       ax1 = grid.ax[0][0]
+       fig.suptitle('MONITOR')
+   
+       phs, _, _ = self.hist.hist2d(ax_energy.centers, m['pulseHeight0'], ax_pos.centers, m['coordinate0'])
+       
+       
+       ax1.imshow(phs, aspect='auto', norm=norm_colors, interpolation='none',
+                     extent=[ax_energy.start, ax_energy.stop, ax_pos.start, ax_pos.stop], origin='lower', cmap='jet')
+      
+       ax1.set_title('PHS vs Position 1D')
+       ax1.set_ylabel('position (a.u.)')
+       ax1.set_xlabel('pulse height (a.u.)')
+       
+    
+
 

@@ -77,20 +77,54 @@ class DashboardDataSource:
 
 
 class OrchestratorDataSource(DashboardDataSource):
+#     def __init__(self, detector_pipeline, bm_pipeline):
+#         self._plotters = {
+#             "readouts":           detector_pipeline.readout_plotter,
+#             "hits":        detector_pipeline.hit_plotter,
+#             "events": detector_pipeline.event_plotter,
+#             "beam_monitor_readouts":       bm_pipeline.readout_plotter if bm_pipeline else None,
+#             "beam_monitor":       bm_pipeline.event_plotter if bm_pipeline else None,
+#         }
+#         # Container backing each tab's dataframe pane, keyed like _plotters.
+#         self._containers = {
+#             "readouts":              detector_pipeline.readouts_container,
+#             "hits":           detector_pipeline.hits_container,
+#             "events":    detector_pipeline.events_container,
+#             "beam_monitor":          bm_pipeline.events_container if bm_pipeline else None,
+#             "beam_monitor_readouts": bm_pipeline.readouts_container if bm_pipeline else None,
+#         }
+
     def __init__(self, detector_pipeline, bm_pipeline):
+        # Build a list of all active plotters for the beam monitor tab
+        bm_plotters = []
+        if bm_pipeline:
+            if getattr(bm_pipeline, "readout_plotter", None) is not None:
+                bm_plotters.append(bm_pipeline.readout_plotter)
+            if getattr(bm_pipeline, "event_plotter", None) is not None:
+                bm_plotters.append(bm_pipeline.event_plotter)
+
         self._plotters = {
-            "readouts":           detector_pipeline.readout_plotter,
-            "hits":        detector_pipeline.hit_plotter,
+            "readouts": detector_pipeline.readout_plotter,
+            "hits": detector_pipeline.hit_plotter,
             "events": detector_pipeline.event_plotter,
-            "beam_monitor":       bm_pipeline.event_plotter if bm_pipeline else None,
+            # Store the list of plotters under "beam_monitor"
+            "beam_monitor": bm_plotters if bm_plotters else None,
+            "beam_monitor_readouts": (
+                bm_pipeline.readout_plotter if bm_pipeline else None
+            ),
         }
+
         # Container backing each tab's dataframe pane, keyed like _plotters.
         self._containers = {
-            "readouts":              detector_pipeline.readouts_container,
-            "hits":           detector_pipeline.hits_container,
-            "events":    detector_pipeline.events_container,
-            "beam_monitor":          bm_pipeline.events_container if bm_pipeline else None,
-            "beam_monitor_readouts": bm_pipeline.readouts_container if bm_pipeline else None,
+            "readouts": detector_pipeline.readouts_container,
+            "hits": detector_pipeline.hits_container,
+            "events": detector_pipeline.events_container,
+            "beam_monitor": (
+                bm_pipeline.events_container if bm_pipeline else None
+            ),
+            "beam_monitor_readouts": (
+                bm_pipeline.readouts_container if bm_pipeline else None
+            ),
         }
 
     def beam_monitor_present(self) -> bool:
@@ -99,9 +133,24 @@ class OrchestratorDataSource(DashboardDataSource):
         _, fill_count = self.get_dataframe_array("beam_monitor")
         return fill_count > 0
     
+    # def get_available_plots(self, tab_key):
+    #     p = self._plotters.get(tab_key)
+    #     return p.available_plot_names() if p else []
+    
     def get_available_plots(self, tab_key):
         p = self._plotters.get(tab_key)
-        return p.available_plot_names() if p else []
+        if not p:
+            return []
+
+        # Handle list/tuple of plotters (for beam_monitor)
+        if isinstance(p, (list, tuple)):
+            plots = []
+            for plotter in p:
+                if plotter is not None:
+                    plots.extend(plotter.available_plot_names())
+            return plots
+
+        return p.available_plot_names()
 
     def get_dataframe_array(self, tab_key):
         container = self._containers.get(tab_key)
@@ -109,11 +158,23 @@ class OrchestratorDataSource(DashboardDataSource):
             return np.empty(0, dtype=[("_", "i4")]), 0
         return container.matrix, container.fill_count
 
-    def render_plot(self, tab_key, plot_name, figure):
-        p = self._plotters.get(tab_key)
-        if p:
-            p.render(plot_name, figure)
+    # def render_plot(self, tab_key, plot_name, figure):
+    #     p = self._plotters.get(tab_key)
+    #     if p:
+    #         p.render(plot_name, figure)
 
+    def render_plot(self, tab_key, plot_name, figure):
+            p = self._plotters.get(tab_key)
+            if not p:
+                return
+    
+            if isinstance(p, (list, tuple)):
+                for plotter in p:
+                    if plotter and plot_name in plotter.available_plot_names():
+                        plotter.render(plot_name, figure)
+                        return
+            else:
+                p.render(plot_name, figure)
 
 # --------------------------------------------------------------------------
 # Orchestration entry point -- everything MBUTY.py needs is this one call
@@ -157,14 +218,13 @@ def _selected_plot_names_by_tab(parameters) -> dict:
     beam_monitor = set()
     
     if mon.activatePlots:
-        
-        
+           
         beam_monitor.add("ToF")
         beam_monitor.add("PHS 0D")
-        
         beam_monitor.add("Position 1D")
-        
-        
+        beam_monitor.add("PHS vs Pos 1D")
+        beam_monitor.add("ADC vs Ch 1D")
+       
         
         if w.plotLambdaDistr:
             beam_monitor.add("Wavelength")
