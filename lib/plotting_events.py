@@ -562,11 +562,12 @@ class MGEventsPlotter(VMMEventsPlotter):
         orientation = self.config.get('orientation')
 
         norm_colors = log_scale_norm(log_scale)
-        num_units = self.config['units']
+        num_units     = self.config['units']
         num_wires     = self.config['wires']
         num_strips    = self.config['grids']
         wires_per_row = self.config['wiresPerRow']
         ax_wires, ax_grids, ax_tof = self.axis_set.ax_x, self.axis_set.ax_y, self.axis_set.ax_tof
+
         m = self.matrix
 
         h2d, _, _ = self.hist.hist_xyz(
@@ -593,11 +594,27 @@ class MGEventsPlotter(VMMEventsPlotter):
             ax22[0][0].set_xlabel('Wire ch.')
             ax22[0][0].set_ylabel('Grid ch.')
 
-            for k in np.arange(0, num_units * num_wires, wires_per_row):
-                ax22[0][0].plot([k - 0.5, k - 0.5], [-0.5, num_strips - 0.5], 'r', linewidth=1)
-            for k in range(1, num_units):
-                ax22[0][0].plot([k * num_wires - 0.5, k * num_wires - 0.5],
-                                 [-0.5, num_strips - 1 + 0.5], color='m', linewidth=1)
+            # for k in np.arange(0, num_units * num_wires, wires_per_row):
+            #     ax22[0][0].plot([k - 0.5, k - 0.5], [-0.5, num_strips - 0.5], 'r', linewidth=1)
+            # for k in range(1, num_units):
+            #     ax22[0][0].plot([k * num_wires - 0.5, k * num_wires - 0.5],
+            #                      [-0.5, num_strips - 1 + 0.5], color='m', linewidth=1)
+            
+            
+            # 1. Red lines: boundary after every row of wires within each active unit
+            for u in self.unit_ids:
+                for r in range(wires_per_row, num_wires + 1, wires_per_row):
+                    wire_pos = u * num_wires + r - 0.5
+                    ax22[0][0].plot([wire_pos, wire_pos], [-0.5, num_strips - 0.5], 'r', linewidth=1)
+            
+            # 2. Magenta lines: major boundary between units 
+            max_unit = max(self.unit_ids) if len(self.unit_ids) > 0 else 0
+            
+            for u in range(1, max_unit + 1):
+                unit_boundary = u * num_wires - 0.5
+                ax22[0][0].plot([unit_boundary, unit_boundary], [-0.5, num_strips - 0.5], 
+                                color='m', linewidth=1)
+        
             ax22[0][0].set_xlim(ax_wires.centers[0], ax_wires.centers[-1])
         else:
             print(f'\n --> {WARN}WARNING: horizontal is not supported yet for MG for now, change in config file{RESET}', end='')
@@ -612,6 +629,19 @@ class MGEventsPlotter(VMMEventsPlotter):
         ax22[1][0].set_ylabel('counts')
         ax22[1][0].set_xlim(ax_wires.centers[0], ax_wires.centers[-1])
         ax22[1][0].legend(loc='upper right', shadow=False, fontsize='large')
+        
+        # Find overall maximum height between 1D and 2D histogram arrays for ax22[1][0]
+        max_y_1d_wires = np.max(h_proj_all) if len(h_proj_all) > 0 else 0
+        max_y_2d_wires = np.max(h_proj_2d) if len(h_proj_2d) > 0 else 0
+        max_y_wires = max(max_y_1d_wires, max_y_2d_wires, 1)
+        
+        # 2. Magenta lines (units) scaled to max_y for ax22[1][0]
+        max_unit = max(self.unit_ids) if len(self.unit_ids) > 0 else 0
+        for u in range(1, max_unit + 1):
+            unit_boundary = u * num_wires - 0.5
+            ax22[1][0].plot([unit_boundary, unit_boundary], [0, max_y_wires], color='m', linewidth=1)
+        
+        
 
         default_hist = Histogrammer(out_of_bounds=True)
         wire_ch_for_x = np.floor_divide(m['coordinate0'][self.selc], wires_per_row)
@@ -620,9 +650,22 @@ class MGEventsPlotter(VMMEventsPlotter):
             print('Warning: num of Wires / Wires per row is not integer!')
             time.sleep(2)
 
-        rows_per_col = int(num_wires / wires_per_row)
-        steps = num_units * rows_per_col
-        stop = steps - 1
+        rows_per_col = int(num_wires / wires_per_row)  # 120 / 20 = 6
+
+        # Number of physical units spanned (e.g., max_unit 9 -> 10 units total) REGARDELSS OF MISSING ONE
+        num_units_spanned = max(self.unit_ids) + 1  # Or: max(self.unit_ids) - min(self.unit_ids) + 1
+
+        # Total number of rows across all spanned units (e.g., 10 * 6 = 60)
+        total_rows = num_units_spanned * rows_per_col  
+
+        steps = total_rows + 1
+        stop  = total_rows
+        
+        # Generates [0, 1, 2, ..., 60] (61 points)
+        # rows_axis = np.linspace(0, total_rows, total_rows + 1)
+        
+        # steps = num_units * rows_per_col
+        # stop = steps - 1
         rows_axis = np.linspace(0, stop, steps)
 
         h2d_proj_win, _, _ = default_hist.hist_xyz(
@@ -638,15 +681,38 @@ class MGEventsPlotter(VMMEventsPlotter):
         ax22[0][1].set_ylabel('Grid ch.')
         ax22[0][1].set_xlim(ax_wires.centers[0] / wires_per_row - 0.5, ax_wires.centers[-1] / wires_per_row - 0.5)
 
-        for k in range(1, num_units):
-            ax22[0][1].plot([k * rows_per_col - 0.5, k * rows_per_col - 0.5],
-                             [-0.5, num_strips - 1 + 0.5], color='m', linewidth=1)
+        # for k in range(1, num_units):
+        #     ax22[0][1].plot([k * rows_per_col - 0.5, k * rows_per_col - 0.5],
+        #                      [-0.5, num_strips - 1 + 0.5], color='m', linewidth=1)
+        
+        # 2. Magenta lines: major boundary between units 
+        max_unit = max(self.unit_ids) if len(self.unit_ids) > 0 else 0
+
+        for u in range(1, max_unit + 1):
+            boundary_pos = u * rows_per_col - 0.5
+            ax22[0][1].plot([boundary_pos, boundary_pos], 
+                    [-0.5, num_strips - 0.5], color='m', linewidth=1)
 
         h_proj_all_2 = default_hist.hist1d(rows_axis, wire_ch_for_x)
         h_proj_2d_2  = np.sum(h2d_proj_win, axis=0)
 
         ax22[1][1].step(rows_axis, h_proj_all_2, 'r', where='mid', label='1D')
         ax22[1][1].step(rows_axis, h_proj_2d_2, 'b', where='mid', label='2D')
+        
+        # 2. Magenta lines: major boundary between units 
+        max_unit = max(self.unit_ids) if len(self.unit_ids) > 0 else 0
+        
+       # 2. Histogram Boundary Lines (ax22[1][1])
+        # Find overall maximum height between both 1D and 2D histogram arrays
+        max_y_1d = np.max(h_proj_all_2) if len(h_proj_all_2) > 0 else 0
+        max_y_2d = np.max(h_proj_2d_2) if len(h_proj_2d_2) > 0 else 0
+        max_y = max(max_y_1d, max_y_2d, 1)  # Fallback to 1 if both are 0
+        
+        for u in range(1, max_unit + 1):
+            boundary_pos = u * rows_per_col - 0.5
+            ax22[1][1].plot([boundary_pos, boundary_pos], 
+                            [0, max_y], color='m', linewidth=1)
+            
         if log_scale:
             ax22[1][1].set_yscale('log')
         ax22[1][1].set_xlabel('Row no.')

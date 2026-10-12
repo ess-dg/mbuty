@@ -338,6 +338,8 @@ if __name__ == '__main__':
     configFileName  = "AMOR.json"
     # configFileName  = "clustered.json"
     
+    # configFileName  = "MG_testVessandBOX.json"
+    
     # configFileName  = "skadi1.json"
     # configFileName  = "skadi_full.json"
     
@@ -434,6 +436,8 @@ if __name__ == '__main__':
     ### folder and file to open (file can be a list of files)
 
     parameters.fileManagement.fileName = ['ESSmask2023.pcapng']
+    
+    # parameters.fileManagement.fileName = ['MGtvessandbox.pcapng']
     
     # parameters.fileManagement.fileName = ['20260522_153423_duration_s_5_fullyOpenAgain_00000_vkjaa.pcapng']
     
