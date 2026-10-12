@@ -641,8 +641,7 @@ class MGEventsPlotter(VMMEventsPlotter):
             unit_boundary = u * num_wires - 0.5
             ax22[1][0].plot([unit_boundary, unit_boundary], [0, max_y_wires], color='m', linewidth=1)
         
-        
-
+ 
         default_hist = Histogrammer(out_of_bounds=True)
         wire_ch_for_x = np.floor_divide(m['coordinate0'][self.selc], wires_per_row)
 
