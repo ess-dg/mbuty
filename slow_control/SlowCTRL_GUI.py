@@ -1129,7 +1129,25 @@ class MainWindow(QMainWindow):
 
         self.thread.start()
         
-
+    def _update_acq_toggle_ui(self, state_is_on: bool):
+        """Updates the acquisition toggle button state, styling, and dependencies."""
+        self.is_acq_running = state_is_on
+    
+        if self.btn_toggle_power:
+            # 1. Update checked state and trigger Qt toggled signals for dependencies
+            self.btn_toggle_power.setChecked(state_is_on)
+    
+            # 2. Update text and color
+            if state_is_on:
+                self.btn_toggle_power.setText("Stop Acquisition (ON)")
+                self.btn_toggle_power.setStyleSheet(
+                    "background-color: darkred; color: white; font-weight: bold;"
+                )
+            else:
+                self.btn_toggle_power.setText("Start Acquisition (OFF)")
+                self.btn_toggle_power.setStyleSheet(
+                    "background-color: darkgreen; color: white; font-weight: bold;"
+                )
 
     def handle_power_toggle(self):
         
@@ -1154,18 +1172,14 @@ class MainWindow(QMainWindow):
         self.thread.finished.connect(self.thread.deleteLater)
 
         self.thread.start()
-
+    
+    
     def on_acq_toggle_finished(self, state_is_on):
-        self.is_acq_running = state_is_on
         self.btn_toggle_power.setEnabled(True)
-
+        self._update_acq_toggle_ui(state_is_on)
         if state_is_on:
-            self.btn_toggle_power.setText("Stop Acquisition (ON)")
-            self.btn_toggle_power.setStyleSheet("background-color: darkred; color: white; font-weight: bold;")
             print("[ACTION] Acquisition started successfully.\n")
         else:
-            self.btn_toggle_power.setText("Start Acquisition (OFF)")
-            self.btn_toggle_power.setStyleSheet("background-color: darkgreen; color: white; font-weight: bold;")
             print("[ACTION] Acquisition stopped successfully.\n")
 
     def on_acq_toggle_error(self, err_msg):
@@ -1245,11 +1259,13 @@ class MainWindow(QMainWindow):
         self.init_slow_ctrl_VMM()
         if self.slow_ctrl_VMM:
             self.slow_ctrl_VMM.warm_init_glob()
+            self._update_acq_toggle_ui(False)
 
     def handle_global_hard_reset(self):
         self.init_slow_ctrl_VMM()
         if self.slow_ctrl_VMM:
             self.slow_ctrl_VMM.hard_reset_glob()
+            self._update_acq_toggle_ui(False)
 
     def handle_warm_init(self):
         self.init_slow_ctrl_VMM()
@@ -1261,6 +1277,7 @@ class MainWindow(QMainWindow):
             ring = int(fields.get("ring").text()) if "ring" in fields else 0
             fen  = int(fields.get("fen").text()) if "fen" in fields else 0
             self.slow_ctrl_VMM.warm_init(ring, fen)
+            self._update_acq_toggle_ui(False)
         except ValueError:
             print("[ERROR] Ring and FEN must be integers.")
 
@@ -1275,6 +1292,7 @@ class MainWindow(QMainWindow):
             fen = int(fields.get("fen").text()) if "fen" in fields else 0
             hybrid = int(fields.get("hybrid").text()) if "hybrid" in fields else 0
             self.slow_ctrl_VMM.hard_reset(ring, fen, hybrid)
+            self._update_acq_toggle_ui(False)
         except ValueError:
             print("[ERROR] Ring, FEN, and Hybrid must be integers.")
            
