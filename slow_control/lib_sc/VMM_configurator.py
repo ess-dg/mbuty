@@ -368,7 +368,6 @@ def configAssister(fen_portal, ring, fen, cfg, mask):
 
 # WARM INIT
 def resetFec(fen_portal, ring, fen):  # this is warm init
-    
     try:
         print(f"Resetting ring {ring}, fen {fen}")
         fen_portal.userRegWrite(ring, fen, "sc_app_reset_assister", 0)
@@ -397,10 +396,10 @@ def hardReset(fen_portal, ring, fen, hybrid, vmm_index, cfg):
     except:   
          print(f"Hard resetting ring {ring}, fen {fen}, hybrid {hybrid}, vmm {vmm_index} failed")
          print(f"---> skipping reset ring {ring}, fen {fen}, hybrid {hybrid}, vmm {vmm_index}")
+
 # VMM Hard reset global
 def hardReset_global(fen_portal, cfg):
     print(f"Hard resetting ALL but really ALL!")
-    
     for the_fen in cfg["fecs"]:
         for the_hybrid in the_fen["hybrids"]:
             for vmm_index in [0, 1]:
@@ -511,67 +510,17 @@ def configDetector(fen_portal, cfg):
 
 # Status code mappings
 LINK_STATUS_MAP = {
-    0: "Down / Disconnected",
-    1: "Initializing",
-    2: "Error / Fault",
-    3: "Warning / Degraded",
-    4: "Link Up / Operational",
-    5: "Sending data",
+    0: ("red", "Disconnected"),
+    1: ("red", "Initializing"),
+    2: ("red", "Error"),
+    3: ("yellow", "Warning"),
+    4: ("green", "Link Up / Idle"),
+    5: ("cyan", "Sending data"),
 }
-
-LINK_COLOR_MAP = {
-    0: "red",
-    1: "red",
-    2: "red",
-    3: "yellow",
-    4: "green",
-    5: "cyan",
-}
-
-
-def read_link_status(fen_portal, ring, fen, hybrids_per_fec=8):
-    """Triggers hardware register read and parses the link status for all hybrids."""
-    raw_val = read_raw_link_status(fen_portal, ring, fen)
-    parsed_statuses = parse_hybrid_link_statuses(
-        raw_val, hybrids_per_fec=hybrids_per_fec
-    )
-    
-    # maybe chop away hyb 6 and 7 , leave hyb 0 to 5 only 
-    
-    
-    
-
-    # Convert parsed dict into status code string (e.g., "44000000") and print
-    status_str = format_hybrid_status_string(parsed_statuses)
-    print(f"Hybrid Status String: {status_str}")
-
-    return parsed_statuses
-
-
-def format_hybrid_status_string(parsed_statuses):
-    """
-    Extracts the status integer codes from the parsed dictionary
-    and joins them into a single continuous string (e.g., "44000000").
-    """
-    return "".join(
-        str(info["code"]) for info in parsed_statuses.values()
-    )
-
-
-def read_raw_link_status(fen_portal, ring, fen):
-    """Triggers and reads the raw link status register."""
-    fen_portal.userRegWrite(ring, fen, "sc_app_link_status", 0)
-    fen_portal.userRegWrite(ring, fen, "sc_app_link_status", 1)
-    val = fen_portal.userRegRead(ring, fen, "app_link_status")
-    fen_portal.userRegWrite(ring, fen, "sc_app_link_status", 0)
-
-    print(f"Raw Link Status Register: {val}")
-    return val
-
 
 def link_status_interpreter(status_code):
     """
-    Interprets link status integer (0 to 5) and returns a tuple:
+    Interprets link status integer (0 to 5) and returns:
     (description: str, color: str)
     """
     try:
@@ -579,29 +528,39 @@ def link_status_interpreter(status_code):
     except (ValueError, TypeError):
         return ("Unknown / Invalid Code", "grey")
 
-    description = LINK_STATUS_MAP.get(code, "Unknown Status")
-    color = LINK_COLOR_MAP.get(code, "grey")
-
+    color, description = LINK_STATUS_MAP.get(code, ("grey", "Unknown Status"))
     return description, color
 
+def read_raw_link_status(fen_portal, ring, fen):
+    """Triggers and reads the raw link status register."""
+    fen_portal.userRegWrite(ring, fen, "sc_app_link_status", 0)
+    fen_portal.userRegWrite(ring, fen, "sc_app_link_status", 1)
+    raw_val = fen_portal.userRegRead(ring, fen, "app_link_status")
+    fen_portal.userRegWrite(ring, fen, "sc_app_link_status", 0)
 
-def parse_hybrid_link_statuses(raw_val, hybrids_per_fec=8):
+    # print(f"Raw Link Status Register: {val}")
+    return raw_val
+
+def parse_hybrid_link_statuses(raw_val, hybrids_per_fec=6):
     """
-    Extracts individual hybrid link status nibbles/bits from the raw register value
-    similar to CheckLinkStatus in C++.
+    Extracts individual hybrid link status nibbles from the 32-bit (8 hex digit) raw register.
+    Rightmost digit corresponds to hybrid 0. 
+    Setting hybrids_per_fec=6 extracts hybrids 0-5.
     """
     if isinstance(raw_val, str):
         raw_val = int(raw_val, 16) if raw_val.startswith("0x") else int(raw_val)
 
-    hex_str = f"{raw_val:0{hybrids_per_fec}x}"
+    # Always format as an 8-digit hex string (32-bit hardware register)
+    hex_str = f"{raw_val:08x}"
 
     hybrid_statuses = {}
     for n in range(hybrids_per_fec):
-        char_idx = len(hex_str) - 1 - n
+        # Index from right to left (Hybrid 0 = rightmost digit)
+        char_idx    = len(hex_str) - 1 - n
         status_code = int(hex_str[char_idx], 16) if char_idx >= 0 else 0
 
         desc, color = link_status_interpreter(status_code)
-        hybrid_statuses[f"hybr. {n}"] = {
+        hybrid_statuses[f"{n}"] = {
             "code": status_code,
             "status": desc,
             "color": color,
@@ -610,12 +569,59 @@ def parse_hybrid_link_statuses(raw_val, hybrids_per_fec=8):
     return hybrid_statuses
 
 
-def read_link_status_global(fen_portal, cfg):
-    
-    for the_fen in cfg["fecs"]:
-        parsed_statuses = read_link_status(fen_portal, the_fen["ring"], the_fen["fen"])
+def format_hybrid_status_string(parsed_statuses):
+    """
+    Joins status codes in reverse order so the leftmost digit in the output string
+    corresponds to the highest hybrid (e.g., hybrid 5 to 0 -> '000044').
+    """
+    return "".join(
+        str(info["code"]) for info in reversed(list(parsed_statuses.values()))
+    )
 
-    # return somthing here to devel 
+def read_link_status(fen_portal, ring, fen, hybrids_per_fec=6):
+    """Triggers hardware register read and parses link status for active hybrids."""
+    raw_val = read_raw_link_status(fen_portal, ring, fen)
+
+    parsed_statuses = parse_hybrid_link_statuses(
+        raw_val, hybrids_per_fec=hybrids_per_fec
+    )
+
+    status_str = format_hybrid_status_string(parsed_statuses)
+
+    print(f"Hybrid Status String: {status_str}")
+
+    # Print individual status per hybrid
+    for hyb, info in parsed_statuses.items():
+        print(f"Ring {ring}, FEN {fen}, Hyb {hyb}: {info['status']} ({info['code']})")
+
+    return parsed_statuses
+
+
+def read_link_status_global(fen_portal, cfg, hybrids_per_fec=6):
+    """
+    Iterates through all Ring/FEN pairs in cfg['fecs'], reads their link status,
+    and returns a structured dictionary keyed by Ring and FEN.
+    """
+    global_link_statuses = {}
+
+    for the_fen in cfg.get("fecs", []):
+        ring = the_fen["ring"]
+        fen  = the_fen["fen"]
+
+        # Key for the top-level structure (e.g., "Ring 0, FEN 1")
+        fec_key = f"{ring}_{fen}"
+
+        # Read hybrid status dictionary for this specific FEN
+        parsed_statuses = read_link_status(fen_portal, ring, fen, hybrids_per_fec=hybrids_per_fec)
+
+        global_link_statuses[fec_key] = {
+            "ring": ring,
+            "fen": fen,
+            "hybrids": parsed_statuses,
+        }
+        
+
+    return global_link_statuses
 
 ###############################################################################
 
@@ -634,9 +640,10 @@ def raw_temperature_interpreter(val):
     # Bitwise shift: 16-bit register value shifted right by 4 bits (12-bit ADC result in mV)
     result = (adc_raw & 0xFFFF) >> 4
 
-    # Temperature calculation formula
+    # Temperature calculation formula in (°C)
     temperature = (725 - result) / 1.85
 
+    # Temperature in (°C)
     return temperature
 
 
@@ -667,23 +674,45 @@ def read_temperature(fen_portal, ring, fen, hyb, vmm):
     # Convert raw value to temperature in °C
     temperature = round(raw_temperature_interpreter(val), 2)
     
-
     # Print only the numerical temperature value
-    print(temperature)
+    print(f"Ring {ring}, FEN {fen}, Hyb {hyb}, VMM {vmm}: {temperature} °C")
 
+    # Temperature in (°C)
     return temperature
 
 
 def read_temperature_global(fen_portal, cfg):
-     
-    for the_fen in cfg["fecs"]:
-        for the_hybrid in the_fen["hybrids"]:
+    """
+    Iterates through all Ring/FEN/Hybrid entries in cfg['fecs'], reads temperatures
+    for both VMMs (0 and 1), and returns a nested dictionary of results.
+    """
+    global_temperatures = {}
+
+    for the_fen in cfg.get("fecs", []):
+        ring    = the_fen["ring"]
+        fen     = the_fen["fen"]
+        
+        fec_key = f"{ring}_{fen}"
+
+        hybrids_dict = {}
+
+        for the_hybrid in the_fen.get("hybrids", []):
+            hyb = the_hybrid["hybrid"]
+            vmms_dict = {}
+
             for vmm_index in [0, 1]:
-                temperature = read_temperature(fen_portal, the_fen['ring'], the_fen['fen'], the_hybrid['hybrid'], vmm_index)
-        
-        
-        
-     # return somthing here to devel     
+                temp = read_temperature(fen_portal, ring, fen, hyb, vmm_index)
+                vmms_dict[f"{vmm_index}"] = temp
+
+            hybrids_dict[f"{hyb}"] = vmms_dict
+
+        global_temperatures[fec_key] = {
+            "ring": ring,
+            "fen": fen,
+            "hybrids": hybrids_dict,
+        }
+
+    return global_temperatures
 
 ###############################################################################
 ###############################################################################
@@ -780,8 +809,8 @@ class VMMSlowCtrl(BaseSlowCtrl):
          
          if not self.debug and self.fen_portal:
              acqOnOff_global(self.fen_portal, self.cfg, on=False)
-             read_link_status_global(self.fen_portal, self.cfg)
-             
+             global_link_statuses = read_link_status_global(self.fen_portal, self.cfg)
+             # print(global_link_statuses)
          print("\n----------------------------------------------------------------------")       
              
     def temperatures_glob(self):  
@@ -790,8 +819,8 @@ class VMMSlowCtrl(BaseSlowCtrl):
           
           if not self.debug and self.fen_portal:
               acqOnOff_global(self.fen_portal, self.cfg, on=False)
-              read_temperature_global(self.fen_portal, self.cfg)
-              
+              global_temperatures = read_temperature_global(self.fen_portal, self.cfg)
+              # print(global_temperatures)
           print("\n----------------------------------------------------------------------")   
           
 
