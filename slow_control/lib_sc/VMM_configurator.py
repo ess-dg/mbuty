@@ -648,7 +648,7 @@ def read_temperature(fen_portal, ring, fen, hyb):
         # Pulse sc_i2c_vmm_adc register to trigger ADC conversion
         fen_portal.userRegWrite(ring, fen, "sc_i2c_vmm_adc", 0)
         fen_portal.userRegWrite(ring, fen, "sc_i2c_vmm_adc", toggle_value)
-        time.sleep(0.3)
+        time.sleep(0.1)
         
         # Compose register string with 2-digit zero-padding (e.g., vmm_i2c_adc00)
         stringa = f"vmm_i2c_adc{xx:02d}"
