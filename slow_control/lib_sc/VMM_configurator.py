@@ -535,6 +535,11 @@ def read_link_status(fen_portal, ring, fen, hybrids_per_fec=8):
     parsed_statuses = parse_hybrid_link_statuses(
         raw_val, hybrids_per_fec=hybrids_per_fec
     )
+    
+    # maybe chop away hyb 6 and 7 , leave hyb 0 to 5 only 
+    
+    
+    
 
     # Convert parsed dict into status code string (e.g., "44000000") and print
     status_str = format_hybrid_status_string(parsed_statuses)
@@ -603,43 +608,59 @@ def parse_hybrid_link_statuses(raw_val, hybrids_per_fec=8):
         }
 
     return hybrid_statuses
+
+
+
 ###############################################################################
 
 
 # ADC read for temperature etc:
+    
+    
+def raw_temperature_interpreter(val):
+    """
+    Interprets raw register value read from the VMM ADC and converts it to Temperature (°C).
+    """
+    # Safely convert input string (hex or dec) or int to integer
+    if isinstance(val, str):
+        adc_raw = int(val, 16) if val.startswith("0x") else int(val)
+    else:
+        adc_raw = int(val)
 
-# sc_i2c_vmm_adc 0
-# sc_i2c_vmm_adc  (1 << XX);
-# read vmm_i2c_adcXX (depending on which VMM from 00 to 09)
-# sc_i2c_vmm_adc 0
-# // ------------------------------------------------------------------------ //
-# bool FECConfigModule::ReadADC(int &result, int hybrid_index, int vmm_index)
-# {
-#     if(IsDbgEnabled())GetMessageHandler()(“Reading ADC on hybrid...“,”FEC_config_module::ReadADC”);
+    # Bitwise shift: 16-bit register value shifted right by 4 bits (12-bit ADC result in mV)
+    result = (adc_raw & 0xFFFF) >> 4
 
-#     bool ok;
+    # Temperature calculation formula
+    temperature = (725 - result) / 1.85
 
-#     int idx = hybrid_index*2+vmm_index;
-#     QString sVmmIndex = “99”;
-#     if(idx < 10) {
-#         sVmmIndex = “0" + QString::number(idx);
-#     }
-#     else if(idx < 16) {
-#         sVmmIndex = QString::number(idx);
-#     }
-#     QString strResult = ESS_ReadSc(“sc_i2c_vmm_adc”, idx, “vmm_i2c_adc” + sVmmIndex, ok);
-#     if(!ok) {
-#         return false;
-#     }
-#     result = (strResult.toInt(&ok,16) & 0xFFFF) >> 4; //bit shift
+    return temperature
 
 
+def read_temperature(fen_portal, ring, fen, hyb):
+    """
+    Triggers ADC reading via I2C for both VMMs (0 and 1) on the specified hybrid (hyb),
+    reads the ADC registers, and computes the temperatures.
+    """
+    temperatures = {}
 
-#     if(m_fec->m_hybrids[hybrid_index].m_vmms[vmm_index].GetRegister(“sp”) != 0 && m_fec->m_hybrids[hybrid_index].m_vmms[vmm_index].GetRegister(“sm5_sm0") == 1) {
-#         result = 1200 - result;
-#     }
-#     return true;
-# } (edited) 
+    for vmm in [0, 1]:
+        xx = 2 * hyb + vmm
+        toggle_value = 1 << xx
+
+        # Pulse sc_i2c_vmm_adc register to trigger ADC conversion
+        fen_portal.userRegWrite(ring, fen, "sc_i2c_vmm_adc", 0)
+        fen_portal.userRegWrite(ring, fen, "sc_i2c_vmm_adc", toggle_value)
+
+        # Compose register string with 2-digit zero-padding (e.g., vmm_i2c_adc00 to vmm_i2c_adc11)
+        stringa = f"vmm_i2c_adc{xx:02d}"
+
+        # Read raw ADC register value
+        val = fen_portal.userRegRead(ring, fen, stringa)
+
+        # Clear trigger
+        fen_portal.userRegWrite(ring, fen, "sc_i2c_vmm_adc", 0)
+
+        # Convert raw value to
 
 
 
@@ -705,6 +726,12 @@ class VMMSlowCtrl(BaseSlowCtrl):
         
         if not self.debug and self.fen_portal:
             acqOnOff_global(self.fen_portal, self.cfg, on=False)
+            
+            
+            
+        read_link_status(self.fen_portal, 0, 0)
+        read_temperature(self.fen_portal, 0, 0, 3)    
+        read_temperature(self.fen_portal, 1, 1, 2)  
 
         print("\n----------------------------------------------------------------------")
         
