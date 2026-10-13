@@ -509,8 +509,6 @@ def configDetector(fen_portal, cfg):
 
 # LINK STATUS reader
 
-# LINK STATUS reader
-
 # Status code mappings
 LINK_STATUS_MAP = {
     0: "Down / Disconnected",
@@ -538,7 +536,21 @@ def read_link_status(fen_portal, ring, fen, hybrids_per_fec=8):
         raw_val, hybrids_per_fec=hybrids_per_fec
     )
 
+    # Convert parsed dict into status code string (e.g., "44000000") and print
+    status_str = format_hybrid_status_string(parsed_statuses)
+    print(f"Hybrid Status String: {status_str}")
+
     return parsed_statuses
+
+
+def format_hybrid_status_string(parsed_statuses):
+    """
+    Extracts the status integer codes from the parsed dictionary
+    and joins them into a single continuous string (e.g., "44000000").
+    """
+    return "".join(
+        str(info["code"]) for info in parsed_statuses.values()
+    )
 
 
 def read_raw_link_status(fen_portal, ring, fen):
@@ -571,28 +583,7 @@ def link_status_interpreter(status_code):
 def parse_hybrid_link_statuses(raw_val, hybrids_per_fec=8):
     """
     Extracts individual hybrid link status nibbles/bits from the raw register value
-    similar to CheckLinkStatus in C++.
-    """
-    # Convert string or int input safely to int
-    if isinstance(raw_val, str):
-        raw_val = int(raw_val, 16) if raw_val.startswith("0x") else int(raw_val)
-
-    hex_str = f"{raw_val:0{hybrids_per_fec}x}"
-
-    hybrid_statuses = {}
-    for n in range(hybrids_per_fec):
-        # Extract corresponding nibble for hybrid n (LSB to MSB)
-        char_idx = len(hex_str) - 1 - n
-        status_code = int(hex_str[char_idx], 16) if char_idx >= 0 else 0
-
-        desc, color = link_status_interpreter(status_code)
-        hybrid_statuses[f"hybr. {n}"] = {
-            "code": status_code,
-            "status": desc,
-            "color": color,
-        }
-
-    return hybrid_statuses
+    similar to CheckLinkStatus in
 
 ###############################################################################
 
