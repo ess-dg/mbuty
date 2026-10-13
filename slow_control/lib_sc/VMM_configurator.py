@@ -609,13 +609,9 @@ def parse_hybrid_link_statuses(raw_val, hybrids_per_fec=8):
 
     return hybrid_statuses
 
-
-
 ###############################################################################
 
-
 # ADC read for temperature etc:
-    
     
 def raw_temperature_interpreter(val):
     """
@@ -668,7 +664,6 @@ def read_temperature(fen_portal, ring, fen, hyb):
         print(temp_c)
 
     return temperatures
-
 
 
 ###############################################################################
@@ -737,6 +732,9 @@ class VMMSlowCtrl(BaseSlowCtrl):
         read_link_status(self.fen_portal, 0, 0)
         read_temperature(self.fen_portal, 0, 0, 3)    
         read_temperature(self.fen_portal, 1, 1, 2)  
+        read_temperature(self.fen_portal, 1, 1, 3) 
+        read_temperature(self.fen_portal, 1, 2, 5) 
+        read_temperature(self.fen_portal, 1, 2, 4) 
 
         print("\n----------------------------------------------------------------------")
         
