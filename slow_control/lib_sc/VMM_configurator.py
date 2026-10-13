@@ -516,7 +516,7 @@ LINK_STATUS_MAP = {
     2: "Error / Fault",
     3: "Warning / Degraded",
     4: "Link Up / Operational",
-    5: "Diagnostic / Loopback",
+    5: "Sending data",
 }
 
 LINK_COLOR_MAP = {
@@ -609,6 +609,14 @@ def parse_hybrid_link_statuses(raw_val, hybrids_per_fec=8):
 
     return hybrid_statuses
 
+
+def read_link_status_global(fen_portal, cfg):
+    
+    for the_fen in cfg["fecs"]:
+        parsed_statuses = read_link_status(fen_portal, the_fen["ring"], the_fen["fen"])
+
+    # return somthing here to devel 
+
 ###############################################################################
 
 # ADC read for temperature etc:
@@ -632,43 +640,50 @@ def raw_temperature_interpreter(val):
     return temperature
 
 
-def read_temperature(fen_portal, ring, fen, hyb):
+def read_temperature(fen_portal, ring, fen, hyb, vmm):
     """
     Triggers ADC reading via I2C for both VMMs (0 and 1) on the specified hybrid (hyb),
     reads the ADC registers, and computes the temperatures.
     """
-    temperatures = {}
 
-    for vmm in [0, 1]:
+    xx = 2 * hyb + vmm
+    toggle_value = 1 << xx
+
+    # Pulse sc_i2c_vmm_adc register to trigger ADC conversion
+    fen_portal.userRegWrite(ring, fen, "sc_i2c_vmm_adc", 0)
+    fen_portal.userRegWrite(ring, fen, "sc_i2c_vmm_adc", toggle_value)
+    time.sleep(0.1)
+    
+    # Compose register string with 2-digit zero-padding (e.g., vmm_i2c_adc00)
+    stringa = f"vmm_i2c_adc{xx:02d}"
+
+    # Read raw ADC register value
+    val = fen_portal.userRegRead(ring, fen, stringa)
+    
+    time.sleep(0.1)
+    # Clear trigger
+    fen_portal.userRegWrite(ring, fen, "sc_i2c_vmm_adc", 0)
+
+    # Convert raw value to temperature in °C
+    temperature = round(raw_temperature_interpreter(val), 2)
+    
+
+    # Print only the numerical temperature value
+    print(temperature)
+
+    return temperature
+
+
+def read_temperature_global(fen_portal, cfg):
+     
+    for the_fen in cfg["fecs"]:
+        for the_hybrid in the_fen["hybrids"]:
+            for vmm_index in [0, 1]:
+                temperature = read_temperature(fen_portal, the_fen['ring'], the_fen['fen'], the_hybrid['hybrid'], vmm_index)
         
         
-        xx = 2 * hyb + vmm
-        toggle_value = 1 << xx
-
-        # Pulse sc_i2c_vmm_adc register to trigger ADC conversion
-        fen_portal.userRegWrite(ring, fen, "sc_i2c_vmm_adc", 0)
-        fen_portal.userRegWrite(ring, fen, "sc_i2c_vmm_adc", toggle_value)
-        time.sleep(0.1)
         
-        # Compose register string with 2-digit zero-padding (e.g., vmm_i2c_adc00)
-        stringa = f"vmm_i2c_adc{xx:02d}"
-
-        # Read raw ADC register value
-        val = fen_portal.userRegRead(ring, fen, stringa)
-        
-        time.sleep(0.1)
-        # Clear trigger
-        fen_portal.userRegWrite(ring, fen, "sc_i2c_vmm_adc", 0)
-
-        # Convert raw value to temperature in °C
-        temp_c = round(raw_temperature_interpreter(val), 2)
-        temperatures[f"vmm_{vmm}"] = temp_c
-
-        # Print only the numerical temperature value
-        print(temp_c)
-
-    return temperatures
-
+     # return somthing here to devel     
 
 ###############################################################################
 ###############################################################################
@@ -704,19 +719,6 @@ class VMMSlowCtrl(BaseSlowCtrl):
 
     def acq_on(self):
         print("\n----------------------------------------------------------------------")
-        print('link status')
-        
-        read_link_status(self.fen_portal, 0, 0)
-        print("\n-------")
-        read_link_status(self.fen_portal, 1, 0)
-        print("\n-------")
-        read_link_status(self.fen_portal, 1, 1)
-        print("\n-------")
-        read_link_status(self.fen_portal, 1, 2)
-        
-        print("\n----------------------------------------------------------------------")
-        
-        
         print("Acquisition started.")
         if not self.debug and self.fen_portal:
             acqOnOff_global(self.fen_portal, self.cfg, on=False)
@@ -727,19 +729,8 @@ class VMMSlowCtrl(BaseSlowCtrl):
     def acq_off(self):
         print("\n----------------------------------------------------------------------")
         print("Acquisition stopped.")
-        
         if not self.debug and self.fen_portal:
             acqOnOff_global(self.fen_portal, self.cfg, on=False)
-            
-            
-            
-        read_link_status(self.fen_portal, 0, 0)
-        read_temperature(self.fen_portal, 0, 0, 3)    
-        read_temperature(self.fen_portal, 1, 1, 2)  
-        read_temperature(self.fen_portal, 1, 1, 3) 
-        read_temperature(self.fen_portal, 1, 2, 5) 
-        read_temperature(self.fen_portal, 1, 2, 4) 
-
         print("\n----------------------------------------------------------------------")
         
     def warm_init(self, ring, fen):
@@ -781,6 +772,28 @@ class VMMSlowCtrl(BaseSlowCtrl):
             time.sleep(1)
             resetFec_global(self.fen_portal, self.cfg)
         print("\n----------------------------------------------------------------------")     
+
+
+    def link_status_glob(self):  
+         print("\n----------------------------------------------------------------------")
+         print("Reading link status")
+         
+         if not self.debug and self.fen_portal:
+             acqOnOff_global(self.fen_portal, self.cfg, on=False)
+             read_link_status_global(self.fen_portal, self.cfg)
+             
+         print("\n----------------------------------------------------------------------")       
+             
+    def temperatures_glob(self):  
+          print("\n----------------------------------------------------------------------")
+          print("Reading VMMs temperature")
+          
+          if not self.debug and self.fen_portal:
+              acqOnOff_global(self.fen_portal, self.cfg, on=False)
+              read_temperature_global(self.fen_portal, self.cfg)
+              
+          print("\n----------------------------------------------------------------------")   
+          
 
 ###############################################################################
 ###############################################################################
