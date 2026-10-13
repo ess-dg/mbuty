@@ -636,7 +636,7 @@ def raw_temperature_interpreter(val):
     return temperature
 
 
-def read_temperature(fen_portal, ring, fen, hyb):
+def read_temperature(fen_portal, ring, fen, hyb, sp=0, sm5_sm0=1):
     """
     Triggers ADC reading via I2C for both VMMs (0 and 1) on the specified hybrid (hyb),
     reads the ADC registers, and computes the temperatures.
@@ -651,7 +651,7 @@ def read_temperature(fen_portal, ring, fen, hyb):
         fen_portal.userRegWrite(ring, fen, "sc_i2c_vmm_adc", 0)
         fen_portal.userRegWrite(ring, fen, "sc_i2c_vmm_adc", toggle_value)
 
-        # Compose register string with 2-digit zero-padding (e.g., vmm_i2c_adc00 to vmm_i2c_adc11)
+        # Compose register string with 2-digit zero-padding (e.g., vmm_i2c_adc00)
         stringa = f"vmm_i2c_adc{xx:02d}"
 
         # Read raw ADC register value
@@ -660,9 +660,14 @@ def read_temperature(fen_portal, ring, fen, hyb):
         # Clear trigger
         fen_portal.userRegWrite(ring, fen, "sc_i2c_vmm_adc", 0)
 
-        # Convert raw value to
+        # Convert raw value to temperature in °C
+        temp_c = round(raw_temperature_interpreter(val, sp=sp, sm5_sm0=sm5_sm0), 2)
+        temperatures[f"vmm_{vmm}"] = temp_c
 
+        # Print only the numerical temperature value
+        print(temp_c)
 
+    return temperatures
 
 
 
