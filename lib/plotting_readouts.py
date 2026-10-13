@@ -270,15 +270,15 @@ class MGReadoutsPlotter(BaseReadoutsPlotter):
             histo2 = self.hist.hist1d(self.xbins, m['channel'][selG & asic0])
             histo3 = self.hist.hist1d(self.xbins, m['channel'][selG & asic1])
 
-            ploth.ax[0][k].bar(self.xbins, histo0, 0.8, color='r')
-            ploth.ax[1][k].bar(self.xbins, histo1, 0.8, color='m')
-            ploth.ax[2][k].bar(self.xbins, histo2, 0.8, color='b')
-            ploth.ax[3][k].bar(self.xbins, histo3, 0.8, color='c')
+            ploth.ax[1][k].bar(self.xbins, histo0, 0.8, color='r')
+            ploth.ax[0][k].bar(self.xbins, histo1, 0.8, color='m')
+            ploth.ax[3][k].bar(self.xbins, histo2, 0.8, color='b')
+            ploth.ax[2][k].bar(self.xbins, histo3, 0.8, color='c')
 
-            ploth.ax[0][k].set_xlabel('WIRE H ASIC 0 ch no.')
-            ploth.ax[1][k].set_xlabel('WIRE H ASIC 1 ch no.')
-            ploth.ax[2][k].set_xlabel('GRID H ASIC 0 ch no.')
-            ploth.ax[3][k].set_xlabel('GRID H ASIC 1 ch no.')
+            ploth.ax[1][k].set_xlabel('WIRE H ASIC 0 ch no.')
+            ploth.ax[0][k].set_xlabel('WIRE H ASIC 1 ch no.')
+            ploth.ax[3][k].set_xlabel('GRID H ASIC 0 ch no.')
+            ploth.ax[2][k].set_xlabel('GRID H ASIC 1 ch no.')
 
             ploth.ax[0][k].set_title(f'MG.{uid}')
 
