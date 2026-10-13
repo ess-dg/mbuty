@@ -507,7 +507,66 @@ def configDetector(fen_portal, cfg):
 ###############################################################################
 ###############################################################################
 
+# LINK STATUS reader
+
+def read_link_status(fen_portal, ring, fen):
     
+    fen_portal.userRegWrite(ring, fen, "sc_app_link_status", 0)
+    fen_portal.userRegWrite(ring, fen, "sc_app_link_status", 1)
+    val = fen_portal.userRegRead(ring, fen, "app_link_status")
+    fen_portal.userRegWrite(ring, fen, "sc_app_link_status", 0)
+    
+    print(val)
+    
+    return val 
+
+
+# def link_status_interpreter():
+    
+#     dictionary link status 0 to 5 
+#     and colors 0,1,2 red, 3 yellow, 4 green, 5 cyan 
+
+###############################################################################
+
+
+# ADC read for temperature etc:
+
+# sc_i2c_vmm_adc 0
+# sc_i2c_vmm_adc  (1 << XX);
+# read vmm_i2c_adcXX (depending on which VMM from 00 to 09)
+# sc_i2c_vmm_adc 0
+# // ------------------------------------------------------------------------ //
+# bool FECConfigModule::ReadADC(int &result, int hybrid_index, int vmm_index)
+# {
+#     if(IsDbgEnabled())GetMessageHandler()(“Reading ADC on hybrid...“,”FEC_config_module::ReadADC”);
+
+#     bool ok;
+
+#     int idx = hybrid_index*2+vmm_index;
+#     QString sVmmIndex = “99”;
+#     if(idx < 10) {
+#         sVmmIndex = “0" + QString::number(idx);
+#     }
+#     else if(idx < 16) {
+#         sVmmIndex = QString::number(idx);
+#     }
+#     QString strResult = ESS_ReadSc(“sc_i2c_vmm_adc”, idx, “vmm_i2c_adc” + sVmmIndex, ok);
+#     if(!ok) {
+#         return false;
+#     }
+#     result = (strResult.toInt(&ok,16) & 0xFFFF) >> 4; //bit shift
+
+
+
+#     if(m_fec->m_hybrids[hybrid_index].m_vmms[vmm_index].GetRegister(“sp”) != 0 && m_fec->m_hybrids[hybrid_index].m_vmms[vmm_index].GetRegister(“sm5_sm0") == 1) {
+#         result = 1200 - result;
+#     }
+#     return true;
+# } (edited) 
+
+
+
+
 
 ###############################################################################
 ###############################################################################
@@ -543,6 +602,19 @@ class VMMSlowCtrl(BaseSlowCtrl):
 
     def acq_on(self):
         print("\n----------------------------------------------------------------------")
+        print('link status')
+        
+        read_link_status(self.fen_portal, 0, 0)
+        print("\n-------")
+        read_link_status(self.fen_portal, 1, 0)
+        print("\n-------")
+        read_link_status(self.fen_portal, 1, 1)
+        print("\n-------")
+        read_link_status(self.fen_portal, 1, 2)
+        
+        print("\n----------------------------------------------------------------------")
+        
+        
         print("Acquisition started.")
         if not self.debug and self.fen_portal:
             acqOnOff_global(self.fen_portal, self.cfg, on=False)
