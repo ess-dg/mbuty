@@ -509,22 +509,90 @@ def configDetector(fen_portal, cfg):
 
 # LINK STATUS reader
 
-def read_link_status(fen_portal, ring, fen):
-    
+# LINK STATUS reader
+
+# Status code mappings
+LINK_STATUS_MAP = {
+    0: "Down / Disconnected",
+    1: "Initializing",
+    2: "Error / Fault",
+    3: "Warning / Degraded",
+    4: "Link Up / Operational",
+    5: "Diagnostic / Loopback",
+}
+
+LINK_COLOR_MAP = {
+    0: "red",
+    1: "red",
+    2: "red",
+    3: "yellow",
+    4: "green",
+    5: "cyan",
+}
+
+
+def read_link_status(fen_portal, ring, fen, hybrids_per_fec=8):
+    """Triggers hardware register read and parses the link status for all hybrids."""
+    raw_val = read_raw_link_status(fen_portal, ring, fen)
+    parsed_statuses = parse_hybrid_link_statuses(
+        raw_val, hybrids_per_fec=hybrids_per_fec
+    )
+
+    return parsed_statuses
+
+
+def read_raw_link_status(fen_portal, ring, fen):
+    """Triggers and reads the raw link status register."""
     fen_portal.userRegWrite(ring, fen, "sc_app_link_status", 0)
     fen_portal.userRegWrite(ring, fen, "sc_app_link_status", 1)
     val = fen_portal.userRegRead(ring, fen, "app_link_status")
     fen_portal.userRegWrite(ring, fen, "sc_app_link_status", 0)
-    
-    print(val)
-    
-    return val 
+
+    print(f"Raw Link Status Register: {val}")
+    return val
 
 
-# def link_status_interpreter():
-    
-#     dictionary link status 0 to 5 
-#     and colors 0,1,2 red, 3 yellow, 4 green, 5 cyan 
+def link_status_interpreter(status_code):
+    """
+    Interprets link status integer (0 to 5) and returns a tuple:
+    (description: str, color: str)
+    """
+    try:
+        code = int(status_code)
+    except (ValueError, TypeError):
+        return ("Unknown / Invalid Code", "grey")
+
+    description = LINK_STATUS_MAP.get(code, "Unknown Status")
+    color = LINK_COLOR_MAP.get(code, "grey")
+
+    return description, color
+
+
+def parse_hybrid_link_statuses(raw_val, hybrids_per_fec=8):
+    """
+    Extracts individual hybrid link status nibbles/bits from the raw register value
+    similar to CheckLinkStatus in C++.
+    """
+    # Convert string or int input safely to int
+    if isinstance(raw_val, str):
+        raw_val = int(raw_val, 16) if raw_val.startswith("0x") else int(raw_val)
+
+    hex_str = f"{raw_val:0{hybrids_per_fec}x}"
+
+    hybrid_statuses = {}
+    for n in range(hybrids_per_fec):
+        # Extract corresponding nibble for hybrid n (LSB to MSB)
+        char_idx = len(hex_str) - 1 - n
+        status_code = int(hex_str[char_idx], 16) if char_idx >= 0 else 0
+
+        desc, color = link_status_interpreter(status_code)
+        hybrid_statuses[f"hybr. {n}"] = {
+            "code": status_code,
+            "status": desc,
+            "color": color,
+        }
+
+    return hybrid_statuses
 
 ###############################################################################
 
