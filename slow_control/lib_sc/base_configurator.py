@@ -51,6 +51,14 @@ class BaseSlowCtrl():
                     regmap=os.path.join(addr_path, addr_file),
                 )
             except Exception as err:
-                print(f"[WARNING] Hardware connection to RMM failed. Switching to debug mode.")
+                
+             
+                print(f"---------------------------------------------------------------------------------------------")
+                print(f"---------------------------------------------------------------------------------------------")
+                print(f"[WARNING] Hardware connection to RMM failed.\n")
+                print(f"SWITCHING TO DEBUG MODE\n")
                 print(f"---------> Either RBU folder does not exist or give a valid RBU path! ")
+                print(f"---------------------------------------------------------------------------------------------")
+                print(f"---------------------------------------------------------------------------------------------")
+                
                 self.debug = True

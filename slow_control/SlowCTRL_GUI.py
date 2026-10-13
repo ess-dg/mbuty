@@ -21,6 +21,11 @@ _workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _workspace not in sys.path:
     sys.path.insert(0, _workspace)
 
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
+
 from lib.colors import WARN, RESET, ERR, INFO
 
 # Compute project root directory once
@@ -72,6 +77,8 @@ except ImportError as e:
     print(f"[ERROR] Failed to import GUI.theme: {e}")
     theme = None
 
+###############################################################################
+###############################################################################
 ###############################################################################
 ###############################################################################
 ###############################################################################
@@ -201,6 +208,14 @@ ui_config = {
             "label": "Force Acq OFF",
             "dependsOn": "enable_sec3",
         },
+        "btn_global_readers": {
+            "type": "button_pair",
+            "label1": "link status",
+            "key1": "btn_action_22",
+            "label2": "temperature",
+            "key2": "btn_action_44",
+            "dependsOn": "enable_sec3",
+        },
         "btn_global_actions": {
             "type": "button_pair",
             "label1": "global warm init",
@@ -302,7 +317,10 @@ ui_config = {
     },
 }
 
-
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
 ###############################################################################
 ###############################################################################
 
@@ -899,6 +917,7 @@ class ConfigCreatorWidget(QWidget):
 ###############################################################################
 
 class MainWindow(QMainWindow):
+    
     def __init__(self, theme_manager=None):
         super().__init__()
         self.theme_manager = theme_manager
@@ -916,6 +935,9 @@ class MainWindow(QMainWindow):
         self._connect_signals()
         
         self.setWindowTitle("MBUTY - Slow Control")
+
+###############################################################################
+###############################################################################
 
     def init_slow_ctrl_VMM(self):
         rbu_p, rbu_f, addr_p, addr_f, cfg_vmm_p, cfg_vmm_f, _, _ = (
@@ -953,6 +975,9 @@ class MainWindow(QMainWindow):
             print(f"[ERROR] Failed to initialize R5560 Slow Ctrl: {e}")
             self.slow_ctrl_R5560 = None
 
+###############################################################################
+###############################################################################
+
     def _connect_signals(self):
         widgets = self.config_widget.widgets
 
@@ -970,6 +995,8 @@ class MainWindow(QMainWindow):
         # Action Button mappings: widget_key -> handler_function
         action_bindings = {
             "btn_ring_bring_up": self.handle_ring_bring_up,
+            "btn_action_22": self.handle_link_status,
+            "btn_action_44": self.handle_temperature,
             "btn_action_2": self.handle_global_warm_init,
             "btn_action_4": self.handle_global_hard_reset,
             "btn_action_3": self.handle_warm_init,
@@ -990,6 +1017,97 @@ class MainWindow(QMainWindow):
         if btn_rbu_abort:
             btn_rbu_abort.clicked.connect(self.handle_rbu_abort)
             btn_rbu_abort.setEnabled(False)
+            
+
+###############################################################################
+###############################################################################           
+# ----------------------------------------------------------------------------
+# RBU ------------------------------------------------------------------------
+# ----------------------------------------------------------------------------  
+
+    def handle_ring_bring_up(self):
+        rbu_path     = self.config_widget.get_value_from_widget("rbu_path")
+        rbu_run_file = self.config_widget.get_value_from_widget("rbu_run_file")
+
+        if not rbu_path or not rbu_run_file:
+            QMessageBox.warning(self, "Missing Configuration", "Please specify a valid RBU path and run file.")
+            return
+
+        script_path = os.path.join(rbu_path, rbu_run_file)
+        if not os.path.isfile(script_path):
+            QMessageBox.critical(self, "File Not Found", f"The RBU run script does not exist:\n{script_path}")
+            return
+
+        # Toggle buttons state
+        btn_rbu = self.config_widget.widgets.get("btn_ring_bring_up")
+        btn_abort = self.config_widget.widgets.get("btn_rbu_abort")
+        if btn_rbu: btn_rbu.setEnabled(False)
+        if btn_abort: btn_abort.setEnabled(True)
+
+        self.rbu_thread = QThread()
+        self.rbu_worker = RBUWorker(script_path)
+        self.rbu_worker.moveToThread(self.rbu_thread)
+
+        self.rbu_thread.started.connect(self.rbu_worker.run)
+        self.rbu_worker.finished.connect(self.on_rbu_finished)
+        self.rbu_worker.error.connect(self.on_rbu_error)
+
+        self.rbu_worker.finished.connect(self.rbu_thread.quit)
+        self.rbu_worker.finished.connect(self.rbu_worker.deleteLater)
+        self.rbu_thread.finished.connect(self.rbu_thread.deleteLater)
+
+        self.rbu_thread.start()
+
+    def handle_rbu_abort(self):
+        if hasattr(self, 'rbu_worker') and self.rbu_worker:
+            self.rbu_worker.abort()
+
+    def on_rbu_finished(self, returncode):
+        btn_rbu = self.config_widget.widgets.get("btn_ring_bring_up")
+        btn_abort = self.config_widget.widgets.get("btn_rbu_abort")
+        if btn_rbu: btn_rbu.setEnabled(True)
+        if btn_abort: btn_abort.setEnabled(False)
+
+        if returncode == 0:
+            print(f"[ACTION] RBU script finished.\n")
+        elif returncode == -999:
+            print(f"[ACTION] RBU script execution aborted by user.\n")
+        else:
+            print(f"[ERROR] RBU script exited with return code {returncode}.\n")
+
+    def on_rbu_error(self, err_msg):
+        btn_rbu = self.config_widget.widgets.get("btn_ring_bring_up")
+        btn_abort = self.config_widget.widgets.get("btn_rbu_abort")
+        if btn_rbu: btn_rbu.setEnabled(True)
+        if btn_abort: btn_abort.setEnabled(False)
+        QMessageBox.critical(self, "Execution Error", f"Failed to execute RBU script:\n{err_msg}")
+
+
+###############################################################################
+###############################################################################
+# ----------------------------------------------------------------------------
+# IOC ------------------------------------------------------------------------
+# ----------------------------------------------------------------------------   
+
+    def handle_ioc_action(self, action):
+        service_name = self.config_widget.get_value_from_widget("ioc_service")
+        if not service_name:
+            QMessageBox.warning(self, "Missing Service", "Please specify a valid IOC service name.")
+            return
+
+        print(f"[ACTION] Executing IOC action '{action}' on service '{service_name}'...")
+        try:
+            manage_IOC_service(action, service_name)
+        except Exception as e:
+            print(f"[ERROR] Failed to execute IOC action {action}: {e}")
+
+
+
+###############################################################################
+###############################################################################
+# ----------------------------------------------------------------------------
+# R5560 ----------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 
     def handle_set_registers(self):
         """Handler for configuring the R5560 digitiser registers."""
@@ -1103,31 +1221,13 @@ class MainWindow(QMainWindow):
                 "Configuration Error",
                 f"Failed to change R5560 local threshold:\n{e}",
             )   
-
-    def handle_force_acq_off(self):
-        self.init_slow_ctrl_VMM()
-        if self.slow_ctrl_VMM is None:
-            QMessageBox.critical(self, "Hardware Error", "VMMSlowCtrl backend could not be initialized.")
-            return
-
-        if self.btn_toggle_power:
-            self.btn_toggle_power.setEnabled(False)
-
-        target_state = False  # Hardcoded to turn acquisition OFF
-
-        self.thread = QThread()
-        self.worker = AcquisitionWorker(self.slow_ctrl_VMM, target_state)
-        self.worker.moveToThread(self.thread)
-
-        self.thread.started.connect(self.worker.run)
-        self.worker.finished.connect(self.on_acq_toggle_finished)
-        self.worker.error.connect(self.on_acq_toggle_error)
-
-        self.worker.finished.connect(self.thread.quit)
-        self.worker.finished.connect(self.worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
-
-        self.thread.start()
+            
+ 
+###############################################################################
+###############################################################################            
+# ----------------------------------------------------------------------------
+# VMM ------------------------------------------------------------------------
+# ----------------------------------------------------------------------------            
         
     def _update_acq_toggle_ui(self, state_is_on: bool):
         """Updates the acquisition toggle button state, styling, and dependencies."""
@@ -1173,6 +1273,30 @@ class MainWindow(QMainWindow):
 
         self.thread.start()
     
+    def handle_force_acq_off(self):
+        self.init_slow_ctrl_VMM()
+        if self.slow_ctrl_VMM is None:
+            QMessageBox.critical(self, "Hardware Error", "VMMSlowCtrl backend could not be initialized.")
+            return
+
+        if self.btn_toggle_power:
+            self.btn_toggle_power.setEnabled(False)
+
+        target_state = False  # Hardcoded to turn acquisition OFF
+
+        self.thread = QThread()
+        self.worker = AcquisitionWorker(self.slow_ctrl_VMM, target_state)
+        self.worker.moveToThread(self.thread)
+
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.on_acq_toggle_finished)
+        self.worker.error.connect(self.on_acq_toggle_error)
+
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+
+        self.thread.start()
     
     def on_acq_toggle_finished(self, state_is_on):
         self.btn_toggle_power.setEnabled(True)
@@ -1186,74 +1310,18 @@ class MainWindow(QMainWindow):
         self.btn_toggle_power.setEnabled(True)
         QMessageBox.critical(self, "Acquisition Error", f"Failed to toggle acquisition:\n{err_msg}")
 
-    def handle_ioc_action(self, action):
-        service_name = self.config_widget.get_value_from_widget("ioc_service")
-        if not service_name:
-            QMessageBox.warning(self, "Missing Service", "Please specify a valid IOC service name.")
-            return
 
-        print(f"[ACTION] Executing IOC action '{action}' on service '{service_name}'...")
-        try:
-            manage_IOC_service(action, service_name)
-        except Exception as e:
-            print(f"[ERROR] Failed to execute IOC action {action}: {e}")
-
-    def handle_ring_bring_up(self):
-        rbu_path     = self.config_widget.get_value_from_widget("rbu_path")
-        rbu_run_file = self.config_widget.get_value_from_widget("rbu_run_file")
-
-        if not rbu_path or not rbu_run_file:
-            QMessageBox.warning(self, "Missing Configuration", "Please specify a valid RBU path and run file.")
-            return
-
-        script_path = os.path.join(rbu_path, rbu_run_file)
-        if not os.path.isfile(script_path):
-            QMessageBox.critical(self, "File Not Found", f"The RBU run script does not exist:\n{script_path}")
-            return
-
-        # Toggle buttons state
-        btn_rbu = self.config_widget.widgets.get("btn_ring_bring_up")
-        btn_abort = self.config_widget.widgets.get("btn_rbu_abort")
-        if btn_rbu: btn_rbu.setEnabled(False)
-        if btn_abort: btn_abort.setEnabled(True)
-
-        self.rbu_thread = QThread()
-        self.rbu_worker = RBUWorker(script_path)
-        self.rbu_worker.moveToThread(self.rbu_thread)
-
-        self.rbu_thread.started.connect(self.rbu_worker.run)
-        self.rbu_worker.finished.connect(self.on_rbu_finished)
-        self.rbu_worker.error.connect(self.on_rbu_error)
-
-        self.rbu_worker.finished.connect(self.rbu_thread.quit)
-        self.rbu_worker.finished.connect(self.rbu_worker.deleteLater)
-        self.rbu_thread.finished.connect(self.rbu_thread.deleteLater)
-
-        self.rbu_thread.start()
-
-    def handle_rbu_abort(self):
-        if hasattr(self, 'rbu_worker') and self.rbu_worker:
-            self.rbu_worker.abort()
-
-    def on_rbu_finished(self, returncode):
-        btn_rbu = self.config_widget.widgets.get("btn_ring_bring_up")
-        btn_abort = self.config_widget.widgets.get("btn_rbu_abort")
-        if btn_rbu: btn_rbu.setEnabled(True)
-        if btn_abort: btn_abort.setEnabled(False)
-
-        if returncode == 0:
-            print(f"[ACTION] RBU script finished.\n")
-        elif returncode == -999:
-            print(f"[ACTION] RBU script execution aborted by user.\n")
-        else:
-            print(f"[ERROR] RBU script exited with return code {returncode}.\n")
-
-    def on_rbu_error(self, err_msg):
-        btn_rbu = self.config_widget.widgets.get("btn_ring_bring_up")
-        btn_abort = self.config_widget.widgets.get("btn_rbu_abort")
-        if btn_rbu: btn_rbu.setEnabled(True)
-        if btn_abort: btn_abort.setEnabled(False)
-        QMessageBox.critical(self, "Execution Error", f"Failed to execute RBU script:\n{err_msg}")
+    def handle_link_status(self):
+           self.init_slow_ctrl_VMM()
+           if self.slow_ctrl_VMM:
+               self.slow_ctrl_VMM.link_status_glob()
+               self._update_acq_toggle_ui(False)
+               
+    def handle_temperature(self):
+           self.init_slow_ctrl_VMM()
+           if self.slow_ctrl_VMM:
+               self.slow_ctrl_VMM.temperatures_glob()
+               self._update_acq_toggle_ui(False)           
 
     def handle_global_warm_init(self):
         self.init_slow_ctrl_VMM()
@@ -1298,7 +1366,8 @@ class MainWindow(QMainWindow):
            
             
            
-    
+###############################################################################
+###############################################################################    
 ###############################################################################
 ###############################################################################
 
@@ -1310,6 +1379,9 @@ class StreamOutput(QObject):
 
     def flush(self):
         pass
+
+###############################################################################
+###############################################################################
 
 class AcquisitionWorker(QObject):
     finished = Signal(bool)
@@ -1388,7 +1460,11 @@ class RBUWorker(QObject):
                 self.process.wait(timeout=2)
             except Exception:
                 self.process.kill()
-            
+
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################            
 ###############################################################################
 ###############################################################################
 ###############################################################################
