@@ -580,7 +580,13 @@ def format_hybrid_status_string(parsed_statuses):
 
 def read_link_status(fen_portal, ring, fen, hybrids_per_fec=6):
     """Triggers hardware register read and parses link status for active hybrids."""
-    raw_val = read_raw_link_status(fen_portal, ring, fen)
+    print(f"Reading link status on ring {ring}, fen {fen}")
+    
+    try:
+        raw_val = read_raw_link_status(fen_portal, ring, fen)
+    except Exception as e:
+        print(f"Reading link status on ring {ring}, fen {fen} failed -> defaulting to disconnected.")
+        raw_val = 0  # 0x00000000 sets all hybrids to Disconnected (code 0)
 
     parsed_statuses = parse_hybrid_link_statuses(
         raw_val, hybrids_per_fec=hybrids_per_fec
@@ -590,7 +596,6 @@ def read_link_status(fen_portal, ring, fen, hybrids_per_fec=6):
 
     print(f"Hybrid Status String: {status_str}")
 
-    # Print individual status per hybrid
     for hyb, info in parsed_statuses.items():
         print(f"Ring {ring}, FEN {fen}, Hyb {hyb}: {info['status']} ({info['code']})")
 
@@ -649,37 +654,48 @@ def raw_temperature_interpreter(val):
 
 def read_temperature(fen_portal, ring, fen, hyb, vmm):
     """
-    Triggers ADC reading via I2C for both VMMs (0 and 1) on the specified hybrid (hyb),
-    reads the ADC registers, and computes the temperatures.
+    Triggers ADC reading via I2C for a specific VMM on a hybrid,
+    reads the ADC register, computes, prints, and returns the temperature in °C.
     """
-
     xx = 2 * hyb + vmm
     toggle_value = 1 << xx
 
-    # Pulse sc_i2c_vmm_adc register to trigger ADC conversion
-    fen_portal.userRegWrite(ring, fen, "sc_i2c_vmm_adc", 0)
-    fen_portal.userRegWrite(ring, fen, "sc_i2c_vmm_adc", toggle_value)
-    time.sleep(0.1)
-    
-    # Compose register string with 2-digit zero-padding (e.g., vmm_i2c_adc00)
-    stringa = f"vmm_i2c_adc{xx:02d}"
+    # print(f"Reading temperature on ring {ring}, fen {fen}, hybrid {hyb}, vmm {vmm}")
 
-    # Read raw ADC register value
-    val = fen_portal.userRegRead(ring, fen, stringa)
-    
-    time.sleep(0.1)
-    # Clear trigger
-    fen_portal.userRegWrite(ring, fen, "sc_i2c_vmm_adc", 0)
+    try:
+        # Pulse sc_i2c_vmm_adc register to trigger ADC conversion
+        fen_portal.userRegWrite(ring, fen, "sc_i2c_vmm_adc", 0)
+        fen_portal.userRegWrite(ring, fen, "sc_i2c_vmm_adc", toggle_value)
 
-    # Convert raw value to temperature in °C
-    temperature = round(raw_temperature_interpreter(val), 2)
-    
-    # Print only the numerical temperature value
-    print(f"Ring {ring}, FEN {fen}, Hyb {hyb}, VMM {vmm}: {temperature} °C")
+        time.sleep(0.1)
 
-    # Temperature in (°C)
-    return temperature
+        # Compose register string with 2-digit zero-padding (e.g., vmm_i2c_adc00)
+        stringa = f"vmm_i2c_adc{xx:02d}"
 
+        # Read raw ADC register value
+        val = fen_portal.userRegRead(ring, fen, stringa)
+
+        time.sleep(0.1)
+        # Clear trigger
+        fen_portal.userRegWrite(ring, fen, "sc_i2c_vmm_adc", 0)
+
+        # Convert raw value to temperature in °C
+        temperature = round(raw_temperature_interpreter(val), 2)
+
+        # Print only the numerical temperature value
+        print(f"Ring {ring}, FEN {fen}, Hyb {hyb}, VMM {vmm}: {temperature} °C")
+        return temperature
+
+    except:
+        print(f"Ring {ring}, FEN {fen}, Hyb {hyb}, VMM {vmm}: Reading temperature failed -> skipping.")
+        # print(f"Reading temperature on ring {ring}, fen {fen}, hybrid {hyb}, vmm {vmm} failed -> skipping.")
+        # Try clearing the trigger on error to avoid leaving I2C stuck
+        try:
+            fen_portal.userRegWrite(ring, fen, "sc_i2c_vmm_adc", 0)
+        except Exception:
+            pass
+        
+        return None  # Or return float('nan')
 
 def read_temperature_global(fen_portal, cfg):
     """
