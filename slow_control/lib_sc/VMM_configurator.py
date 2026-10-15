@@ -374,8 +374,7 @@ def resetFec(fen_portal, ring, fen):  # this is warm init
         fen_portal.userRegWrite(ring, fen, "sc_app_reset_assister", 1)
         fen_portal.userRegWrite(ring, fen, "sc_app_reset_assister", 0)
     except:
-        print(f"{ERR}Resetting ring {ring}, fen {fen} failed{RESET}")
-        print(f"{ERR}---> skipping reset ring {ring}, fen {fen}{RESET}")
+        print(f"{ERR}Resetting ring {ring}, fen {fen} failed ---> skipping.{RESET}")
 
 
 # WARM INIT GLOBAL
@@ -394,8 +393,7 @@ def hardReset(fen_portal, ring, fen, hybrid, vmm_index, cfg):
         time.sleep(0.1)
         configVmm(fen_portal, ring, fen, hybrid, vmm_index, cfg, reset=False)
     except:   
-         print(f"{ERR}Hard resetting ring {ring}, fen {fen}, hybrid {hybrid}, vmm {vmm_index} failed{RESET}")
-         print(f"{ERR}---> skipping reset ring {ring}, fen {fen}, hybrid {hybrid}, vmm {vmm_index}{RESET}")
+         print(f"{ERR}Hard resetting ring {ring}, fen {fen}, hybrid {hybrid}, vmm {vmm_index} failed ---> skipping.{RESET}")
 
 # VMM Hard reset global
 def hardReset_global(fen_portal, cfg):
@@ -414,15 +412,13 @@ def acqOnOff(fen_portal, ring, fen, on=True):
             print(f"{INFO}Starting acquisition on ring {ring}, fen {fen}{RESET}")
             fen_portal.userRegWrite(ring, fen, "app_acq_enable", 1)
         except:
-            print(f"{ERR}Starting acquisition on ring {ring}, fen {fen} failed.{RESET}")
-            print(f"{ERR}---> skipping start acq ring {ring}, fen {fen}{RESET}")
+            print(f"{ERR}Starting acquisition on ring {ring}, fen {fen} failed ---> skipping.{RESET}")
     else:
         try:
             print(f"{INFO}Stopping acquisition on ring {ring}, fen {fen}{RESET}")
             fen_portal.userRegWrite(ring, fen, "app_acq_enable", 0)
         except:
-            print(f"{ERR}Stopping acquisition on ring {ring}, fen {fen} failed{RESET}")
-            print(f"{ERR}---> skipping stop acq ring {ring}, fen {fen}{RESET}")
+            print(f"{ERR}Stopping acquisition on ring {ring}, fen {fen} failed ---> skipping.{RESET}")
             
 
     try:
@@ -487,11 +483,9 @@ def configDetector(fen_portal, cfg):
                     configHybrid(fen_portal, ring, fen, hybrid, cfg)
                 else:
                     do_VMM_config = False
-                    print(f"\t{ERR}Configuring hybrid {hybrid} failed{RESET}")
-                    print(f"\t{ERR}---> skipping config hybrid {hybrid}{RESET}")
+                    print(f"\t{ERR}Configuring hybrid {hybrid} failed ---> skipping.{RESET}")
             except:
-                print(f"\t{ERR}Configuring hybrid {hybrid} failed{RESET}")
-                print(f"\t{ERR}---> skipping config hybrid {hybrid}{RESET}")
+                print(f"\t{ERR}Configuring hybrid {hybrid} failed ---> skipping.{RESET}")
 
             for vmm_index in [0, 1]:
                 try:
@@ -500,8 +494,7 @@ def configDetector(fen_portal, cfg):
                         configVmm(fen_portal, ring, fen, hybrid, vmm_index, cfg, reset=False)
                         channel_mask = channel_mask | (1 << (hybrid * 2 + vmm_index))
                 except:
-                     print(f"{ERR}\t\tConfiguring VMM {vmm_index} failed{RESET}")
-                     print(f"{ERR}\t---> skipping config VMM {vmm_index}{RESET}")
+                     print(f"{ERR}\t\tConfiguring VMM {vmm_index} failed ---> skipping.{RESET}")
                      
         try:             
             configAssister(fen_portal, ring, fen, cfg, channel_mask)
