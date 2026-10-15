@@ -342,7 +342,11 @@ def ansi_to_html(text):
         # Also handle general regex for any other ANSI escape sequences if needed
         text = re.sub(r'\033\[[0-9;]*m', '</span>', text)
         
-        # Convert newlines to HTML line breaks so lines stay single-spaced
+        # Convert tabs to non-breaking spaces so indentation is preserved in HTML
+        # (Using 4 non-breaking spaces per tab level)
+        text = text.replace('\t', '&nbsp;&nbsp;&nbsp;&nbsp;')
+        
+        # Convert newlines to HTML line breaks
         return text.replace('\n', '<br>')
 
 ###############################################################################
