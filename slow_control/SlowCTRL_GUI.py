@@ -342,8 +342,8 @@ def ansi_to_html(text):
     # Also handle general regex for any other ANSI escape sequences if needed
     text = re.sub(r'\033\[[0-9;]*m', '</span>', text)
     
-    # Wrap in a pre/line-break friendly container if needed
-    return f"<pre style='font-family: inherit; margin: 0;'>{text}</pre>" 
+    # Strip trailing newlines so appendHtml doesn't double-space
+    return text.rstrip('\n')
 
 ###############################################################################
 ###############################################################################
