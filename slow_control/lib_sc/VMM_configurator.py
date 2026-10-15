@@ -481,16 +481,24 @@ def configDetector(fen_portal, cfg):
 
             try:
                 print(f"\tConfiguring hybrid {hybrid}")
-                configHybrid(fen_portal, ring, fen, hybrid, cfg)
+                status = read_single_link_status(fen_portal, ring, fen, hybrid)
+                if status == 4 or status == 5:
+                    do_VMM_config = True
+                    configHybrid(fen_portal, ring, fen, hybrid, cfg)
+                else:
+                    do_VMM_config = False
+                    print(f"\t{ERR}Configuring hybrid {hybrid} failed{RESET}")
+                    print(f"\t{ERR}---> skipping config hybrid {hybrid}{RESET}")
             except:
                 print(f"\t{ERR}Configuring hybrid {hybrid} failed{RESET}")
                 print(f"\t{ERR}---> skipping config hybrid {hybrid}{RESET}")
 
             for vmm_index in [0, 1]:
                 try:
-                    print(f"\t\tConfiguring VMM {vmm_index}")
-                    configVmm(fen_portal, ring, fen, hybrid, vmm_index, cfg, reset=False)
-                    channel_mask = channel_mask | (1 << (hybrid * 2 + vmm_index))
+                    if do_VMM_config:
+                        print(f"\t\tConfiguring VMM {vmm_index}")
+                        configVmm(fen_portal, ring, fen, hybrid, vmm_index, cfg, reset=False)
+                        channel_mask = channel_mask | (1 << (hybrid * 2 + vmm_index))
                 except:
                      print(f"{ERR}\t\tConfiguring VMM {vmm_index} failed{RESET}")
                      print(f"{ERR}\t---> skipping config VMM {vmm_index}{RESET}")
@@ -602,6 +610,29 @@ def read_link_status(fen_portal, ring, fen, hybrids_per_fec=6):
 
     return parsed_statuses
 
+def read_single_link_status(fen_portal, ring, fen, hybrid, hybrids_per_fec=6):
+    """
+    Triggers hardware register read and returns only the integer status code (0 to 5)
+    for the specified hybrid.
+    """
+    try:
+        raw_val = read_raw_link_status(fen_portal, ring, fen)
+    except Exception as e:
+        # Fallback to 0 (Disconnected) if read fails
+        raw_val = 0  
+
+    parsed_statuses = parse_hybrid_link_statuses(
+        raw_val, hybrids_per_fec=hybrids_per_fec
+    )
+
+    # Convert hybrid to string key to match the dictionary keys ("0", "1", etc.)
+    hybrid_key = str(hybrid)
+    
+    if hybrid_key in parsed_statuses:
+        return parsed_statuses[hybrid_key]["code"]
+    
+    # Default fallback if hybrid index is out of bounds
+    return 0
 
 def read_link_status_global(fen_portal, cfg, hybrids_per_fec=6):
     """
