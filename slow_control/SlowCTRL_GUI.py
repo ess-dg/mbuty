@@ -1360,6 +1360,7 @@ class MainWindow(QMainWindow):
     def handle_temperature(self):
            self.init_slow_ctrl_VMM()
            if self.slow_ctrl_VMM:
+               print(f"{INFO}... this action takes a moment, be patient!{RESET}")
                self.slow_ctrl_VMM.temperatures_glob()
                self._update_acq_toggle_ui(False)           
 

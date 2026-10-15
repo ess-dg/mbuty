@@ -436,9 +436,9 @@ def acqOnOff(fen_portal, ring, fen, on=True):
 def acqOnOff_global(fen_portal, cfg, on=True):
     # checkConfigNames(cfg)
     if on:
-        print("{INFO}Starting acquisition on all rings all fens{RESET}")
+        print(f"{INFO}Starting acquisition on all rings all fens{RESET}")
     else:
-        print("{INFO}Stopping acquisition on all rings all fens{RESET}")
+        print(f"{INFO}Stopping acquisition on all rings all fens{RESET}")
 
     for the_fen in cfg["fecs"]:
         acqOnOff(fen_portal, the_fen["ring"], the_fen["fen"], on=on)
@@ -704,7 +704,7 @@ def read_temperature_global(fen_portal, cfg):
     for both VMMs (0 and 1), and returns a nested dictionary of results.
     """
     
-    print(f"{INFO}... this action takes a moment, be patient!{RESET}")
+    # print(f"{INFO}... this action takes a moment, be patient!{RESET}")
     
     global_temperatures = {}
 
