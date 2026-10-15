@@ -1315,7 +1315,7 @@ class MainWindow(QMainWindow):
            self.init_slow_ctrl_VMM()
            if self.slow_ctrl_VMM:
                self.slow_ctrl_VMM.link_status_glob()
-               self._update_acq_toggle_ui(False)
+               # self._update_acq_toggle_ui(False)
                
     def handle_temperature(self):
            self.init_slow_ctrl_VMM()
