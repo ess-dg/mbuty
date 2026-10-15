@@ -681,7 +681,7 @@ def read_temperature(fen_portal, ring, fen, hyb, vmm):
         fen_portal.userRegWrite(ring, fen, "sc_i2c_vmm_adc", 0)
 
         # Convert raw value to temperature in °C
-        temperature = round(raw_temperature_interpreter(val), 2)
+        temperature = round(raw_temperature_interpreter(val), 1)
 
         # Print only the numerical temperature value
         print(f"Ring {ring}, FEN {fen}, Hyb {hyb}, VMM {vmm}: {temperature} °C")
