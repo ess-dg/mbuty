@@ -594,8 +594,8 @@ def read_link_status(fen_portal, ring, fen, hybrids_per_fec=6):
 
     status_str = format_hybrid_status_string(parsed_statuses)
 
-    print(f"Hybrid Status String: {status_str}")
-
+    # print(f"Hybrid Status String: {status_str}")
+    print("\n")
     for hyb, info in parsed_statuses.items():
         print(f"Ring {ring}, FEN {fen}, Hyb {hyb}: {info['status']} ({info['code']})")
 
@@ -824,7 +824,7 @@ class VMMSlowCtrl(BaseSlowCtrl):
          print("Reading link status")
          
          if not self.debug and self.fen_portal:
-             acqOnOff_global(self.fen_portal, self.cfg, on=False)
+             # acqOnOff_global(self.fen_portal, self.cfg, on=False)
              global_link_statuses = read_link_status_global(self.fen_portal, self.cfg)
              # print(global_link_statuses)
          print("\n----------------------------------------------------------------------")       
@@ -832,7 +832,7 @@ class VMMSlowCtrl(BaseSlowCtrl):
     def temperatures_glob(self):  
           print("\n----------------------------------------------------------------------")
           print("Reading VMMs temperature")
-          
+          time.sleep(0.1)
           if not self.debug and self.fen_portal:
               acqOnOff_global(self.fen_portal, self.cfg, on=False)
               global_temperatures = read_temperature_global(self.fen_portal, self.cfg)
