@@ -10,7 +10,7 @@ Created on 30/09/2026
 import sys
 import os
 import subprocess
-import re
+# import re
 ###############################################################################
 ###############################################################################
 
@@ -39,6 +39,7 @@ if project_root not in sys.path:
 # Top-level imports
 from GUI.gui_utils import create_gui_widget, setup_dynamic_file_options
 from GUI.expandable_section import ExpandableSection
+from GUI.console_widgets import ANSIConsole
 from lib.IOC_manager_lib import manage_IOC_service
 
 # Determine theme mode from command-line arguments (default to "dark")
@@ -61,7 +62,6 @@ from qtpy.QtWidgets import (
     QPushButton,
     QToolButton,
     QSlider,
-    QPlainTextEdit,
     QSplitter,
     QScrollArea,
     QFrame,
@@ -324,33 +324,6 @@ ui_config = {
 ###############################################################################
 ###############################################################################
 
-def ansi_to_html(text):
-        # Map basic ANSI codes to CSS colors
-        ansi_colors = {
-            "\033[1;33m": '<span style="color: #ffaa00; font-weight: bold;">',  # WARN (Yellow)
-            "\033[1;31m": '<span style="color: #ff5555; font-weight: bold;">',  # ERR (Red)
-            "\033[1;36m": '<span style="color: #00ffff; font-weight: bold;">',  # INFO (Cyan)
-            "\033[1;32m": '<span style="color: #55ff55; font-weight: bold;">',  # OK (Green)
-            "\033[0m": '</span>',                                               # RESET
-            "\033[1;37m": '</span>',                                            # RESET alternative
-        }
-        
-        # Replace ANSI codes with HTML spans
-        for code, html in ansi_colors.items():
-            text = text.replace(code, html)
-            
-        # Also handle general regex for any other ANSI escape sequences if needed
-        text = re.sub(r'\033\[[0-9;]*m', '</span>', text)
-        
-        # Convert tabs to non-breaking spaces so indentation is preserved in HTML
-        # (Using 4 non-breaking spaces per tab level)
-        text = text.replace('\t', '&nbsp;&nbsp;&nbsp;&nbsp;')
-        
-        # Convert newlines to HTML line breaks
-        return text.replace('\n', '<br>')
-
-###############################################################################
-###############################################################################
 
 
 class ConfigCreatorWidget(QWidget):
@@ -521,13 +494,12 @@ class ConfigCreatorWidget(QWidget):
         font_row_layout.addStretch(1)
         self.params_grid.addWidget(font_row, 1, 0, 1, 3)
 
-    # Build Config Sections Dynamically
+        # Build Config Sections Dynamically
         current_row = 2
         sections = ["section_1", "section_2", "section_3", "section_4"]
 
         for idx, sec_key in enumerate(sections):
             if sec_key in ui_config:
-                # _build_section handles ExpandableSection creation and grid placement internally
                 current_row = self._build_section(ui_config[sec_key], start_row=current_row)
 
                 if idx < len(sections) - 1:
@@ -536,21 +508,20 @@ class ConfigCreatorWidget(QWidget):
         scroll.setWidget(self.scroll_content)
         params_layout.addWidget(scroll)
 
-        # Right Container: Terminal Console Output
+        # =====================================================================
+        # Right Container: Terminal Console Output (Using ANSIConsole)
+        # =====================================================================
         self.terminal_frame = QGroupBox("Terminal Output Logs")
         terminal_layout = QVBoxLayout(self.terminal_frame)
 
-        self.terminal_text_widget = QPlainTextEdit()
-        self.terminal_text_widget.setReadOnly(True)
+        # Instantiate ANSIConsole instead of QPlainTextEdit
+        self.terminal_text_widget = ANSIConsole(theme_manager=getattr(self, 'theme_manager', None))
         self.terminal_text_widget.setFont(theme.mono_font(size=theme.FONT_SIZE_CONSOLE))
-        self.terminal_text_widget.setStyleSheet(
-            "background-color: #121212; color: #00ff66; border: 1px solid #333;"
-        )
         terminal_layout.addWidget(self.terminal_text_widget)
 
         clear_btn = QPushButton("Clear Output")
         clear_btn.setFont(theme.base_font(size=theme.FONT_SIZE_BASE))
-        clear_btn.clicked.connect(self.terminal_text_widget.clear)
+        clear_btn.clicked.connect(self.terminal_text_widget.clear_console)
         terminal_layout.addWidget(clear_btn)
 
         # Assemble Splitter
@@ -565,6 +536,7 @@ class ConfigCreatorWidget(QWidget):
         for task in self.after_widgets_created_tasks:
             task()
         self.after_widgets_created_tasks.clear()
+   
  
     def _build_section(self, config_dict, start_row=0):
         # Extract collapsible settings from config_dict (defaulting to collapsible)
@@ -886,39 +858,22 @@ class ConfigCreatorWidget(QWidget):
         # print(f"Terminal console successfully initialized.")
      
         print(f"{INFO}Terminal console successfully initialized.{RESET}")
-
-
-    # def _append_terminal_message(self, text):
-    #     self.terminal_text_widget.moveCursor(self.terminal_text_widget.textCursor().End)
-    #     self.terminal_text_widget.insertPlainText(text)
-    #     self.terminal_text_widget.moveCursor(self.terminal_text_widget.textCursor().End)
-    
     
     def _append_terminal_message(self, message):
-        # Convert ANSI escape codes to HTML with <br> tags
-        html_message = ansi_to_html(message)
-        
-        # Insert HTML at the end of the document without creating new paragraph blocks
-        cursor = self.terminal_text_widget.textCursor()
-        cursor.movePosition(cursor.End)
-        cursor.insertHtml(html_message)
-        
-        # Auto-scroll to the bottom
-        self.terminal_text_widget.setTextCursor(cursor)
+        # ANSIConsole natively parses ANSI codes, tabs, and newlines!
+        self.terminal_text_widget.write(message)
 
-        
     def update_dependencies(self, key, is_enabled):
-      if key in self.dependencies:
-        for dep_widget in self.dependencies[key]:
-            dep_widget.setEnabled(is_enabled)
-            
+        if key in self.dependencies:
+            for dep_widget in self.dependencies[key]:
+                dep_widget.setEnabled(is_enabled)
+                
     def _log_address_map_warning(self, section_name):
         """Appends a highlighted warning message to the terminal console output."""
         msg = f"\n{INFO} {section_name} activated: Ensure you load and use the correct Address Map file.{RESET}\n"
         if hasattr(self, "terminal_text_widget"):
-            self.terminal_text_widget.appendHtml(ansi_to_html(msg))
-    
-    
+            self.terminal_text_widget.write(msg)
+            
     def _setup_mutually_exclusive_sections(self):
         btn_sec3 = self.widgets.get("enable_sec3")
         btn_sec4 = self.widgets.get("enable_sec4")
