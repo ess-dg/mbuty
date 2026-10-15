@@ -638,7 +638,6 @@ def read_link_status_global(fen_portal, cfg, hybrids_per_fec=6):
             "hybrids": parsed_statuses,
         }
         
-
     return global_link_statuses
 
 ###############################################################################
