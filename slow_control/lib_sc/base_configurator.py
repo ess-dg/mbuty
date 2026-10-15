@@ -53,12 +53,12 @@ class BaseSlowCtrl():
             except Exception as err:
                 
              
-                print(f"---------------------------------------------------------------------------------------------")
-                print(f"---------------------------------------------------------------------------------------------")
-                print(f"[WARNING] Hardware connection to RMM failed.\n")
-                print(f"SWITCHING TO DEBUG MODE\n")
-                print(f"---------> Either RBU folder does not exist or give a valid RBU path! ")
-                print(f"---------------------------------------------------------------------------------------------")
-                print(f"---------------------------------------------------------------------------------------------")
+                print(f"{WARN}---------------------------------------------------------------------------------------------{RESET}")
+                print(f"{WARN}---------------------------------------------------------------------------------------------{RESET}")
+                print(f"{WARN}[WARNING] Hardware connection to RMM failed.{RESET}\n")
+                print(f"{WARN}SWITCHING TO DEBUG MODE{RESET}\n")
+                print(f"{WARN}---------> Either RBU folder does not exist or give a valid RBU path! {RESET}")
+                print(f"{WARN}---------------------------------------------------------------------------------------------{RESET}")
+                print(f"{WARN}---------------------------------------------------------------------------------------------{RESET}")
                 
                 self.debug = True

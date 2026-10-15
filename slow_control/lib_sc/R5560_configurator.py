@@ -265,20 +265,20 @@ class R5560SlowCtrl(BaseSlowCtrl):
             loadConfig(rbu_file_full) if os.path.exists(rbu_file_full) else None
         )
 
-        print(f" ---> backend slow control R5560 initialized with config {cfg_file}")
+        print(f"{INFO} ---> backend slow control R5560 initialized with config {cfg_file}{RESET}")
 
     def configureR5560(self):
         print("\n----------------------------------------------------------------------")
-        print("Configuring R5560 digitiser registers ...")
+        print(f"{INFO}Configuring R5560 digitiser registers ...{RESET}")
 
         if not self.debug and self.fen_portal:
             configAllFEN(self.fen_portal, self.topology, self.cfg_registers)
         else:
-            print("Debug mode active: skipping hardware write.")
+            print(f"{WARN}Debug mode active: skipping hardware write.{RESET}")
     
     def changeThreshold_glob(self, threshold=3000):
         print("\n----------------------------------------------------------------------")
-        print(f"Changing threshold ({threshold}) on all R5560 digitisers ...")
+        print(f"{INFO}Changing threshold ({threshold}) on all R5560 digitisers ...{RESET}")
 
         # Keep internal config state in sync if registers are loaded
         if self.cfg_registers:
@@ -290,11 +290,11 @@ class R5560SlowCtrl(BaseSlowCtrl):
                 self.fen_portal, self.topology, threshold=threshold
             )
         else:
-            print("Debug mode active: skipping hardware write.")
+            print(f"{WARN}Debug mode active: skipping hardware write.{RESET}")
             
     def changeThreshold_lcl(self, threshold=3000, ring=0, fen=0):
         print("\n----------------------------------------------------------------------")
-        print(f"Changing threshold ({threshold}) on R5560 digitiser at ring {ring}, fen {fen} ...")
+        print(f"{INFO}Changing threshold ({threshold}) on R5560 digitiser at ring {ring}, fen {fen} ...{RESET}")
 
         # Keep internal config state in sync if registers are loaded
         if self.cfg_registers:
@@ -306,7 +306,7 @@ class R5560SlowCtrl(BaseSlowCtrl):
                 self.fen_portal, threshold=threshold, ring=ring, fen=fen
             )
         else:
-            print("Debug mode active: skipping hardware write.")       
+            print(f"{WARN}Debug mode active: skipping hardware write.{RESET}")       
             
 ###############################################################################################
 ###############################################################################################

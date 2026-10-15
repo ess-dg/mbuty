@@ -324,6 +324,31 @@ ui_config = {
 ###############################################################################
 ###############################################################################
 
+def ansi_to_html(text):
+    # Map basic ANSI codes to CSS colors
+    ansi_colors = {
+        "\033[1;33m": '<span style="color: #ffaa00; font-weight: bold;">',  # WARN (Yellow)
+        "\033[1;31m": '<span style="color: #ff5555; font-weight: bold;">',  # ERR (Red)
+        "\033[1;36m": '<span style="color: #00ffff; font-weight: bold;">',  # INFO (Cyan)
+        "\033[1;32m": '<span style="color: #55ff55; font-weight: bold;">',  # OK (Green)
+        "\033[0m": '</span>',                                               # RESET
+        "\033[1;37m": '</span>',                                            # RESET alternative
+    }
+    
+    # Replace ANSI codes with HTML spans
+    for code, html in ansi_colors.items():
+        text = text.replace(code, html)
+        
+    # Also handle general regex for any other ANSI escape sequences if needed
+    text = re.sub(r'\033\[[0-9;]*m', '</span>', text)
+    
+    # Wrap in a pre/line-break friendly container if needed
+    return f"<pre style='font-family: inherit; margin: 0;'>{text}</pre>" 
+
+###############################################################################
+###############################################################################
+
+
 class ConfigCreatorWidget(QWidget):
 
     def __init__(self, theme_manager=None, parent=None):
@@ -536,8 +561,6 @@ class ConfigCreatorWidget(QWidget):
         for task in self.after_widgets_created_tasks:
             task()
         self.after_widgets_created_tasks.clear()
- 
-        
  
     def _build_section(self, config_dict, start_row=0):
         # Extract collapsible settings from config_dict (defaulting to collapsible)
@@ -856,12 +879,29 @@ class ConfigCreatorWidget(QWidget):
         sys.stdout = self.stdout_stream
         sys.stderr = self.stdout_stream
 
-        print(f"Terminal console successfully initialized.")
+        # print(f"Terminal console successfully initialized.")
+     
+        print(f"{INFO}Terminal console successfully initialized.{RESET}")
 
-    def _append_terminal_message(self, text):
-        self.terminal_text_widget.moveCursor(self.terminal_text_widget.textCursor().End)
-        self.terminal_text_widget.insertPlainText(text)
-        self.terminal_text_widget.moveCursor(self.terminal_text_widget.textCursor().End)
+
+    # def _append_terminal_message(self, text):
+    #     self.terminal_text_widget.moveCursor(self.terminal_text_widget.textCursor().End)
+    #     self.terminal_text_widget.insertPlainText(text)
+    #     self.terminal_text_widget.moveCursor(self.terminal_text_widget.textCursor().End)
+    
+    
+    def _append_terminal_message(self, message):
+        # Convert ANSI escape codes to HTML
+        html_message = ansi_to_html(message)
+        
+        # Append using appendHtml so colors render correctly
+        self.terminal_text_widget.appendHtml(html_message)
+        
+        # Auto-scroll to the bottom
+        cursor = self.terminal_text_widget.textCursor()
+        cursor.movePosition(cursor.End)
+        self.terminal_text_widget.setTextCursor(cursor)
+
         
     def update_dependencies(self, key, is_enabled):
       if key in self.dependencies:
@@ -870,9 +910,9 @@ class ConfigCreatorWidget(QWidget):
             
     def _log_address_map_warning(self, section_name):
         """Appends a highlighted warning message to the terminal console output."""
-        msg = f"\n[NOTICE] {section_name} activated: Ensure you load and use the correct Address Map file.\n"
+        msg = f"\n{INFO} {section_name} activated: Ensure you load and use the correct Address Map file.{RESET}\n"
         if hasattr(self, "terminal_text_widget"):
-            self.terminal_text_widget.appendPlainText(msg)
+            self.terminal_text_widget.appendHtml(ansi_to_html(msg))
     
     
     def _setup_mutually_exclusive_sections(self):
@@ -954,7 +994,7 @@ class MainWindow(QMainWindow):
                 cfg_file=cfg_vmm_f,
             )
         except Exception as e:
-            print(f"[ERROR] Failed to initialize VMM Slow Ctrl: {e}")
+            print(f"{ERR}[ERROR] Failed to initialize VMM Slow Ctrl: {e}{RESET}")
             self.slow_ctrl_VMM = None
 
     def init_slow_ctrl_R5560(self):
@@ -972,7 +1012,7 @@ class MainWindow(QMainWindow):
                 cfg_file=cfg_r5560_f,
             )
         except Exception as e:
-            print(f"[ERROR] Failed to initialize R5560 Slow Ctrl: {e}")
+            print(f"{ERR}[ERROR] Failed to initialize R5560 Slow Ctrl: {e}{RESET}")
             self.slow_ctrl_R5560 = None
 
 ###############################################################################
@@ -1069,11 +1109,11 @@ class MainWindow(QMainWindow):
         if btn_abort: btn_abort.setEnabled(False)
 
         if returncode == 0:
-            print(f"[ACTION] RBU script finished.\n")
+            print(f"{INFO}[ACTION] RBU script finished.{RESET}\n")
         elif returncode == -999:
-            print(f"[ACTION] RBU script execution aborted by user.\n")
+            print(f"{INFO}[ACTION] RBU script execution aborted by user.{RESET}\n")
         else:
-            print(f"[ERROR] RBU script exited with return code {returncode}.\n")
+            print(f"{ERR}[ERROR] RBU script exited with return code {returncode}.{RESET}\n")
 
     def on_rbu_error(self, err_msg):
         btn_rbu = self.config_widget.widgets.get("btn_ring_bring_up")
@@ -1095,11 +1135,11 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Missing Service", "Please specify a valid IOC service name.")
             return
 
-        print(f"[ACTION] Executing IOC action '{action}' on service '{service_name}'...")
+        print(f"{INFO}[ACTION] Executing IOC action '{action}' on service '{service_name}'...{RESET}")
         try:
             manage_IOC_service(action, service_name)
         except Exception as e:
-            print(f"[ERROR] Failed to execute IOC action {action}: {e}")
+            print(f"{ERR}[ERROR] Failed to execute IOC action {action}: {e}{RESET}")
 
 
 
@@ -1122,9 +1162,9 @@ class MainWindow(QMainWindow):
 
         try:
             self.slow_ctrl_R5560.configureR5560()
-            print("[ACTION] R5560 registers configured successfully.\n")
+            print(f"{INFO}[ACTION] R5560 registers configured successfully.{RESET}\n")
         except Exception as e:
-            print(f"[ERROR] Failed to configure R5560 registers: {e}")
+            print(f"{ERR}[ERROR] Failed to configure R5560 registers: {e}{RESET}")
             QMessageBox.critical(
                 self,
                 "Configuration Error",
@@ -1155,15 +1195,15 @@ class MainWindow(QMainWindow):
                 threshold_val = int(threshold_str)
             except ValueError:
                 print(
-                    f"[WARN] Invalid threshold input '{threshold_str}'. Falling back to 3000."
+                    f"{WARN}[WARN] Invalid threshold input '{threshold_str}'. Falling back to 3000.{RESET}"
                 )
                 threshold_val = 3000
 
         try:
             self.slow_ctrl_R5560.changeThreshold_glob(threshold=threshold_val)
-            print(f"[ACTION] Threshold changed to {threshold_val} successfully.\n")
+            print(f"{INFO}[ACTION] Threshold changed to {threshold_val} successfully.{RESET}\n")
         except Exception as e:
-            print(f"[ERROR] Failed to change R5560 threshold: {e}")
+            print(f"{ERR}[ERROR] Failed to change R5560 threshold: {e}{RESET}")
             QMessageBox.critical(
                 self,
                 "Configuration Error",
@@ -1193,29 +1233,29 @@ class MainWindow(QMainWindow):
             try:
                 threshold_val = int(fields_dict["threshold"].text())
             except (KeyError, ValueError):
-                print("[WARN] Invalid or missing threshold input. Using default 3000.")
+                print(f"{WARN}[WARN] Invalid or missing threshold input. Using default 3000.{RESET}")
 
             # Parse ring
             try:
                 ring = int(fields_dict["ring"].text())
             except (KeyError, ValueError):
-                print("[WARN] Invalid or missing ring input. Using default 0.")
+                print(f"{WARN}[WARN] Invalid or missing ring input. Using default 0.{RESET}")
 
             # Parse fen
             try:
                 fen = int(fields_dict["fen"].text())
             except (KeyError, ValueError):
-                print("[WARN] Invalid or missing fen input. Using default 0.")
+                print(f"{WARN}WARN] Invalid or missing fen input. Using default 0.{RESET}")
 
         try:
             self.slow_ctrl_R5560.changeThreshold_lcl(
                 threshold=threshold_val, ring=ring, fen=fen
             )
             print(
-                f"[ACTION] Local threshold changed to {threshold_val} for Ring {ring}, FEN {fen}.\n"
+                f"{INFO}[ACTION] Local threshold changed to {threshold_val} for Ring {ring}, FEN {fen}.{RESET}\n"
             )
         except Exception as e:
-            print(f"[ERROR] Failed to change R5560 local threshold: {e}")
+            print(f"{ERR}[ERROR] Failed to change R5560 local threshold: {e}{RESET}")
             QMessageBox.critical(
                 self,
                 "Configuration Error",
@@ -1302,9 +1342,9 @@ class MainWindow(QMainWindow):
         self.btn_toggle_power.setEnabled(True)
         self._update_acq_toggle_ui(state_is_on)
         if state_is_on:
-            print("[ACTION] Acquisition started successfully.\n")
+            print(f"{INFO}[ACTION] Acquisition started successfully.{RESET}\n")
         else:
-            print("[ACTION] Acquisition stopped successfully.\n")
+            print(f"{INFO}[ACTION] Acquisition stopped successfully.{RESET}\n")
 
     def on_acq_toggle_error(self, err_msg):
         self.btn_toggle_power.setEnabled(True)
@@ -1347,7 +1387,7 @@ class MainWindow(QMainWindow):
             self.slow_ctrl_VMM.warm_init(ring, fen)
             self._update_acq_toggle_ui(False)
         except ValueError:
-            print("[ERROR] Ring and FEN must be integers.")
+            print(f"{ERR}[ERROR] Ring and FEN must be integers.{RESET}")
 
     def handle_hard_reset(self):
         self.init_slow_ctrl_VMM()
@@ -1362,7 +1402,7 @@ class MainWindow(QMainWindow):
             self.slow_ctrl_VMM.hard_reset(ring, fen, hybrid)
             self._update_acq_toggle_ui(False)
         except ValueError:
-            print("[ERROR] Ring, FEN, and Hybrid must be integers.")
+            print(f"{ERR}[ERROR] Ring, FEN, and Hybrid must be integers.{RESET}")
            
             
            
@@ -1418,7 +1458,7 @@ class RBUWorker(QObject):
 
     def run(self):
         try:
-            print(f"[ACTION] Executing RBU script: {self.script_path}")
+            print(f"{INFO}[ACTION] Executing RBU script: {self.script_path}{RESET}")
             script_dir = os.path.dirname(self.script_path)
             
             self.process = subprocess.Popen(
@@ -1453,7 +1493,7 @@ class RBUWorker(QObject):
     def abort(self):
         self._is_aborted = True
         if self.process and self.process.poll() is None:
-            print("[ACTION] Aborting RBU script process...")
+            print(f"{INFO}[ACTION] Aborting RBU script process...{RESET}")
             try:
                 # Terminate process group or process tree if needed, or simple terminate
                 self.process.terminate()

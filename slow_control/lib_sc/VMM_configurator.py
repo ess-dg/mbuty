@@ -369,13 +369,13 @@ def configAssister(fen_portal, ring, fen, cfg, mask):
 # WARM INIT
 def resetFec(fen_portal, ring, fen):  # this is warm init
     try:
-        print(f"Resetting ring {ring}, fen {fen}")
+        print(f"{INFO}Resetting ring {ring}, fen {fen}{RESET}")
         fen_portal.userRegWrite(ring, fen, "sc_app_reset_assister", 0)
         fen_portal.userRegWrite(ring, fen, "sc_app_reset_assister", 1)
         fen_portal.userRegWrite(ring, fen, "sc_app_reset_assister", 0)
     except:
-        print(f"Resetting ring {ring}, fen {fen} failed")
-        print(f"---> skipping reset ring {ring}, fen {fen}")
+        print(f"{ERR}Resetting ring {ring}, fen {fen} failed{RESET}")
+        print(f"{ERR}---> skipping reset ring {ring}, fen {fen}{RESET}")
 
 
 # WARM INIT GLOBAL
@@ -389,17 +389,17 @@ def resetFec_global(fen_portal, cfg):
 # VMM Hard reset
 def hardReset(fen_portal, ring, fen, hybrid, vmm_index, cfg):
     try:
-        print(f"Hard resetting ring {ring}, fen {fen}, hybrid {hybrid}, vmm {vmm_index}")
+        print(f"{INFO}Hard resetting ring {ring}, fen {fen}, hybrid {hybrid}, vmm {vmm_index}{RESET}")
         configVmm(fen_portal, ring, fen, hybrid, vmm_index, cfg, reset=True)
         time.sleep(0.1)
         configVmm(fen_portal, ring, fen, hybrid, vmm_index, cfg, reset=False)
     except:   
-         print(f"Hard resetting ring {ring}, fen {fen}, hybrid {hybrid}, vmm {vmm_index} failed")
-         print(f"---> skipping reset ring {ring}, fen {fen}, hybrid {hybrid}, vmm {vmm_index}")
+         print(f"{ERR}Hard resetting ring {ring}, fen {fen}, hybrid {hybrid}, vmm {vmm_index} failed{RESET}")
+         print(f"{ERR}---> skipping reset ring {ring}, fen {fen}, hybrid {hybrid}, vmm {vmm_index}{RESET}")
 
 # VMM Hard reset global
 def hardReset_global(fen_portal, cfg):
-    print(f"Hard resetting ALL but really ALL!")
+    print(f"{INFO}Hard resetting ALL but really ALL!{RESET}")
     for the_fen in cfg["fecs"]:
         for the_hybrid in the_fen["hybrids"]:
             for vmm_index in [0, 1]:
@@ -411,18 +411,18 @@ def acqOnOff(fen_portal, ring, fen, on=True):
 # 	checkConfigNames(cfg)
     if on:
         try:
-            print(f"Starting acquisition on ring {ring}, fen {fen}")
+            print(f"{INFO}Starting acquisition on ring {ring}, fen {fen}{RESET}")
             fen_portal.userRegWrite(ring, fen, "app_acq_enable", 1)
         except:
-            print(f"Starting acquisition on ring {ring}, fen {fen} failed.")
-            print(f"---> skipping start acq ring {ring}, fen {fen}")
+            print(f"{ERR}Starting acquisition on ring {ring}, fen {fen} failed.{RESET}")
+            print(f"{ERR}---> skipping start acq ring {ring}, fen {fen}{RESET}")
     else:
         try:
-            print(f"Stopping acquisition on ring {ring}, fen {fen}")
+            print(f"{INFO}Stopping acquisition on ring {ring}, fen {fen}{RESET}")
             fen_portal.userRegWrite(ring, fen, "app_acq_enable", 0)
         except:
-            print(f"Stopping acquisition on ring {ring}, fen {fen} failed")
-            print(f"---> skipping stop acq ring {ring}, fen {fen}")
+            print(f"{ERR}Stopping acquisition on ring {ring}, fen {fen} failed{RESET}")
+            print(f"{ERR}---> skipping stop acq ring {ring}, fen {fen}{RESET}")
             
 
     try:
@@ -436,9 +436,9 @@ def acqOnOff(fen_portal, ring, fen, on=True):
 def acqOnOff_global(fen_portal, cfg, on=True):
     # checkConfigNames(cfg)
     if on:
-        print("Starting acquisition on all rings all fens")
+        print("{INFO}Starting acquisition on all rings all fens{RESET}")
     else:
-        print("Stopping acquisition on all rings all fens")
+        print("{INFO}Stopping acquisition on all rings all fens{RESET}")
 
     for the_fen in cfg["fecs"]:
         acqOnOff(fen_portal, the_fen["ring"], the_fen["fen"], on=on)
@@ -453,7 +453,7 @@ def checkConfigNames(cfg):
                 vmm_name = f"vmm{vmm_index}"
 
                 if vmm_name not in hybrid:
-                    raise KeyError(f"Missing {vmm_name} in fen {fen}, hybrid {hybrid}")
+                    raise KeyError(f"{ERR}Missing {vmm_name} in fen {fen}, hybrid {hybrid}{RESET}")
 
                 vmm = hybrid[vmm_name]
 
@@ -461,7 +461,7 @@ def checkConfigNames(cfg):
                 fillGlobalRegisters2(vmm)
                 fillChannelRegisters(vmm)
 
-    print("json config file check passed")
+    print(f"{INFO}---> json config file check passed{RESET}")
 
 ###############################################################################
 
@@ -474,7 +474,7 @@ def configDetector(fen_portal, cfg):
         ring = the_fen["ring"]
         channel_mask = 0
 
-        print(f"Configuring ring {ring}, fen {fen}")
+        print(f"{INFO}Configuring ring {ring}, fen {fen}{RESET}")
 
         for the_hybrid in the_fen["hybrids"]:
             hybrid = the_hybrid["hybrid"]
@@ -483,8 +483,8 @@ def configDetector(fen_portal, cfg):
                 print(f"\tConfiguring hybrid {hybrid}")
                 configHybrid(fen_portal, ring, fen, hybrid, cfg)
             except:
-                print(f"\tConfiguring hybrid {hybrid} failed")
-                print(f"\t---> skipping config hybrid {hybrid}")
+                print(f"\t{ERR}Configuring hybrid {hybrid} failed{RESET}")
+                print(f"\t{ERR}---> skipping config hybrid {hybrid}{RESET}")
 
             for vmm_index in [0, 1]:
                 try:
@@ -492,8 +492,8 @@ def configDetector(fen_portal, cfg):
                     configVmm(fen_portal, ring, fen, hybrid, vmm_index, cfg, reset=False)
                     channel_mask = channel_mask | (1 << (hybrid * 2 + vmm_index))
                 except:
-                     print(f"\t\tConfiguring VMM {vmm_index} failed")
-                     print(f"\t---> skipping config VMM {vmm_index}")
+                     print(f"{ERR}\t\tConfiguring VMM {vmm_index} failed{RESET}")
+                     print(f"{ERR}\t---> skipping config VMM {vmm_index}{RESET}")
                      
         try:             
             configAssister(fen_portal, ring, fen, cfg, channel_mask)
@@ -581,12 +581,12 @@ def format_hybrid_status_string(parsed_statuses):
 def read_link_status(fen_portal, ring, fen, hybrids_per_fec=6):
     """Triggers hardware register read and parses link status for active hybrids."""
     print("\n")
-    print(f"Reading link status on ring {ring}, fen {fen}")
+    print(f"{INFO}Reading link status on ring {ring}, fen {fen}{RESET}")
     
     try:
         raw_val = read_raw_link_status(fen_portal, ring, fen)
     except Exception as e:
-        print(f"Reading link status on ring {ring}, fen {fen} failed -> defaulting to disconnected.")
+        print(f"{ERR}Reading link status on ring {ring}, fen {fen} failed -> defaulting to disconnected.{RESET}")
         raw_val = 0  # 0x00000000 sets all hybrids to Disconnected (code 0)
 
     parsed_statuses = parse_hybrid_link_statuses(
@@ -688,7 +688,7 @@ def read_temperature(fen_portal, ring, fen, hyb, vmm):
         return temperature
 
     except:
-        print(f"Ring {ring}, FEN {fen}, Hyb {hyb}, VMM {vmm}: Reading temperature failed -> skipping.")
+        print(f"{ERR}Ring {ring}, FEN {fen}, Hyb {hyb}, VMM {vmm}: Reading temperature failed -> skipping.{RESET}")
         # print(f"Reading temperature on ring {ring}, fen {fen}, hybrid {hyb}, vmm {vmm} failed -> skipping.")
         # Try clearing the trigger on error to avoid leaving I2C stuck
         try:
@@ -703,6 +703,9 @@ def read_temperature_global(fen_portal, cfg):
     Iterates through all Ring/FEN/Hybrid entries in cfg['fecs'], reads temperatures
     for both VMMs (0 and 1), and returns a nested dictionary of results.
     """
+    
+    print(f"{INFO}... this action takes a moment, be patient!{RESET}")
+    
     global_temperatures = {}
 
     for the_fen in cfg.get("fecs", []):
@@ -761,11 +764,11 @@ class VMMSlowCtrl(BaseSlowCtrl):
         
         checkConfigNames(self.cfg)
         
-        print(f" ---> backend slow control VMM initialized with config {cfg_file}")
+        print(f"{INFO}---> backend slow control VMM initialized with config {cfg_file}{RESET}")
 
     def acq_on(self):
         print("\n----------------------------------------------------------------------")
-        print("Acquisition started.")
+        print(f"{INFO}Acquisition started.{RESET}")
         if not self.debug and self.fen_portal:
             acqOnOff_global(self.fen_portal, self.cfg, on=False)
             configDetector(self.fen_portal, self.cfg)
@@ -774,14 +777,14 @@ class VMMSlowCtrl(BaseSlowCtrl):
         
     def acq_off(self):
         print("\n----------------------------------------------------------------------")
-        print("Acquisition stopped.")
+        print(f"{INFO}Acquisition stopped.{RESET}")
         if not self.debug and self.fen_portal:
             acqOnOff_global(self.fen_portal, self.cfg, on=False)
         print("\n----------------------------------------------------------------------")
         
     def warm_init(self, ring, fen):
         print("\n----------------------------------------------------------------------")
-        print(f"Execute warm init: ring {ring}, fen {fen}")
+        print(f"{INFO}Execute warm init: ring {ring}, fen {fen}{RESET}")
         if not self.debug and self.fen_portal:
             acqOnOff_global(self.fen_portal, self.cfg, on=False)
             resetFec(self.fen_portal, ring, fen)
@@ -789,7 +792,7 @@ class VMMSlowCtrl(BaseSlowCtrl):
 
     def warm_init_glob(self):
         print("\n----------------------------------------------------------------------")
-        print("Execute global warm init")
+        print(f"{INFO}Execute global warm init{RESET}")
         if not self.debug and self.fen_portal:
             acqOnOff_global(self.fen_portal, self.cfg, on=False)
             resetFec_global(self.fen_portal, self.cfg)
@@ -797,7 +800,7 @@ class VMMSlowCtrl(BaseSlowCtrl):
 
     def hard_reset(self, ring, fen, hybrid):
         print("\n----------------------------------------------------------------------")
-        print(f"Execute hard reset: ring {ring}, fen {fen}, hyb {hybrid}")
+        print(f"{INFO}Execute hard reset: ring {ring}, fen {fen}, hyb {hybrid}{RESET}")
         if not self.debug and self.fen_portal:
             acqOnOff_global(self.fen_portal, self.cfg, on=False)
             for vmm in [0, 1]:
@@ -811,7 +814,7 @@ class VMMSlowCtrl(BaseSlowCtrl):
         
     def hard_reset_glob(self):
         print("\n----------------------------------------------------------------------")
-        print("Execute global hard reset")
+        print(f"{INFO}Execute global hard reset{RESET}")
         if not self.debug and self.fen_portal:
             acqOnOff_global(self.fen_portal, self.cfg, on=False)
             hardReset_global(self.fen_portal, self.cfg)
@@ -822,7 +825,7 @@ class VMMSlowCtrl(BaseSlowCtrl):
 
     def link_status_glob(self):  
          print("\n----------------------------------------------------------------------")
-         print("Reading link status")
+         print(f"{INFO}Reading link status{RESET}")
          
          if not self.debug and self.fen_portal:
              # acqOnOff_global(self.fen_portal, self.cfg, on=False)
@@ -833,7 +836,7 @@ class VMMSlowCtrl(BaseSlowCtrl):
              
     def temperatures_glob(self):  
           print("\n----------------------------------------------------------------------")
-          print("Reading VMMs temperature")
+          print(f"{INFO}Reading VMMs temperature{RESET}")
           time.sleep(0.1)
           if not self.debug and self.fen_portal:
               acqOnOff_global(self.fen_portal, self.cfg, on=False)
