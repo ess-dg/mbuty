@@ -16,7 +16,7 @@ From verison 9.0 ring bring up (see note 5), IOC manger (see note 6) and VMM slo
  
 --------------------------------------------------
 --------------------------------------------------
-Pyhton version must be at least 3.11
+Pyhton version must be at least 3.10.12
 --------------------------------------------------
 
 INSTALLATION:
