@@ -325,25 +325,25 @@ ui_config = {
 ###############################################################################
 
 def ansi_to_html(text):
-    # Map basic ANSI codes to CSS colors
-    ansi_colors = {
-        "\033[1;33m": '<span style="color: #ffaa00; font-weight: bold;">',  # WARN (Yellow)
-        "\033[1;31m": '<span style="color: #ff5555; font-weight: bold;">',  # ERR (Red)
-        "\033[1;36m": '<span style="color: #00ffff; font-weight: bold;">',  # INFO (Cyan)
-        "\033[1;32m": '<span style="color: #55ff55; font-weight: bold;">',  # OK (Green)
-        "\033[0m": '</span>',                                               # RESET
-        "\033[1;37m": '</span>',                                            # RESET alternative
-    }
-    
-    # Replace ANSI codes with HTML spans
-    for code, html in ansi_colors.items():
-        text = text.replace(code, html)
+        # Map basic ANSI codes to CSS colors
+        ansi_colors = {
+            "\033[1;33m": '<span style="color: #ffaa00; font-weight: bold;">',  # WARN (Yellow)
+            "\033[1;31m": '<span style="color: #ff5555; font-weight: bold;">',  # ERR (Red)
+            "\033[1;36m": '<span style="color: #00ffff; font-weight: bold;">',  # INFO (Cyan)
+            "\033[1;32m": '<span style="color: #55ff55; font-weight: bold;">',  # OK (Green)
+            "\033[0m": '</span>',                                               # RESET
+            "\033[1;37m": '</span>',                                            # RESET alternative
+        }
         
-    # Also handle general regex for any other ANSI escape sequences if needed
-    text = re.sub(r'\033\[[0-9;]*m', '</span>', text)
-    
-    # Strip trailing newlines so appendHtml doesn't double-space
-    return text.rstrip('\n')
+        # Replace ANSI codes with HTML spans
+        for code, html in ansi_colors.items():
+            text = text.replace(code, html)
+            
+        # Also handle general regex for any other ANSI escape sequences if needed
+        text = re.sub(r'\033\[[0-9;]*m', '</span>', text)
+        
+        # Convert newlines to HTML line breaks so lines stay single-spaced
+        return text.replace('\n', '<br>')
 
 ###############################################################################
 ###############################################################################
@@ -891,15 +891,15 @@ class ConfigCreatorWidget(QWidget):
     
     
     def _append_terminal_message(self, message):
-        # Convert ANSI escape codes to HTML
+        # Convert ANSI escape codes to HTML with <br> tags
         html_message = ansi_to_html(message)
         
-        # Append using appendHtml so colors render correctly
-        self.terminal_text_widget.appendHtml(html_message)
-        
-        # Auto-scroll to the bottom
+        # Insert HTML at the end of the document without creating new paragraph blocks
         cursor = self.terminal_text_widget.textCursor()
         cursor.movePosition(cursor.End)
+        cursor.insertHtml(html_message)
+        
+        # Auto-scroll to the bottom
         self.terminal_text_widget.setTextCursor(cursor)
 
         
@@ -1360,7 +1360,7 @@ class MainWindow(QMainWindow):
     def handle_temperature(self):
            self.init_slow_ctrl_VMM()
            if self.slow_ctrl_VMM:
-               print(f"{INFO}... this action takes a moment, be patient!{RESET}")
+               # print(f"{INFO}... this action takes a moment, be patient!{RESET}")
                self.slow_ctrl_VMM.temperatures_glob()
                self._update_acq_toggle_ui(False)           
 
