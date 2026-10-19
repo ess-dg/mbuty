@@ -592,9 +592,6 @@ def format_hybrid_status_string(parsed_statuses):
 
 def read_link_status(fen_portal, ring, fen, hybrids_per_fec=6):
     """Triggers hardware register read and parses link status for active hybrids."""
-    print("\n")
-    print(f"{INFO}Reading link status on ring {ring}, fen {fen}{RESET}")
-    
     try:
         raw_val = read_raw_link_status(fen_portal, ring, fen)
     except Exception as e:
@@ -608,20 +605,29 @@ def read_link_status(fen_portal, ring, fen, hybrids_per_fec=6):
     # Inject ring, fen, and hyb into each hybrid's info dictionary
     for hyb, info in parsed_statuses.items():
         info['ring'] = ring
-        info['fen'] = fen
-        info['hyb'] = hyb
+        info['fen']  = fen
+        info['hyb']  = hyb
         
     return parsed_statuses
     
     
     
 def print_link_status(parsed_statuses):    
-
+    current_ring = None
+    current_fen = None
+    
     for hyb, info in parsed_statuses.items():
         ring = info.get('ring', 'N/A')
         fen  = info.get('fen', 'N/A')
+        
+        # Only print the header if the ring or FEN changes
+        if ring != current_ring or fen != current_fen:
+            current_ring = ring
+            current_fen  = fen
+            print("\n")
+            print(f"{INFO}Reading link status on ring {ring}, fen {fen}{RESET}")
+            
         print(f"Ring {ring}, FEN {fen}, Hyb {hyb}: {info['status']} ({info['code']})")
-
 
 
 def read_link_status_global(fen_portal, cfg, hybrids_per_fec=6):
@@ -640,6 +646,8 @@ def read_link_status_global(fen_portal, cfg, hybrids_per_fec=6):
 
         # Read hybrid status dictionary for this specific FEN
         parsed_statuses = read_link_status(fen_portal, ring, fen, hybrids_per_fec=hybrids_per_fec)
+        
+        print_link_status(parsed_statuses)
 
         global_link_statuses[fec_key] = {
             "ring": ring,
@@ -851,7 +859,7 @@ class VMMSlowCtrl(BaseSlowCtrl):
              # acqOnOff_global(self.fen_portal, self.cfg, on=False)
              time.sleep(0.1)
              global_link_statuses = read_link_status_global(self.fen_portal, self.cfg)
-             print_link_status(global_link_statuses)
+
 
          print("\n----------------------------------------------------------------------")       
              
