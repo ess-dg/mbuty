@@ -604,15 +604,24 @@ def read_link_status(fen_portal, ring, fen, hybrids_per_fec=6):
     parsed_statuses = parse_hybrid_link_statuses(
         raw_val, hybrids_per_fec=hybrids_per_fec
     )
-
-    # status_str = format_hybrid_status_string(parsed_statuses)
-
-    # print(f"Hybrid Status String: {status_str}")
-    # print("\n")
+    
+    # Inject ring, fen, and hyb into each hybrid's info dictionary
     for hyb, info in parsed_statuses.items():
+        info['ring'] = ring
+        info['fen'] = fen
+        info['hyb'] = hyb
+        
+    return parsed_statuses
+    
+    
+    
+def print_link_status(parsed_statuses):    
+
+    for hyb, info in parsed_statuses.items():
+        ring = info.get('ring', 'N/A')
+        fen  = info.get('fen', 'N/A')
         print(f"Ring {ring}, FEN {fen}, Hyb {hyb}: {info['status']} ({info['code']})")
 
-    return parsed_statuses
 
 
 def read_link_status_global(fen_portal, cfg, hybrids_per_fec=6):
@@ -842,6 +851,7 @@ class VMMSlowCtrl(BaseSlowCtrl):
              # acqOnOff_global(self.fen_portal, self.cfg, on=False)
              time.sleep(0.1)
              global_link_statuses = read_link_status_global(self.fen_portal, self.cfg)
+             print_link_status(global_link_statuses)
 
          print("\n----------------------------------------------------------------------")       
              
