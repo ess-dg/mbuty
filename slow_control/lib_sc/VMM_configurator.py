@@ -398,8 +398,24 @@ def hardReset(fen_portal, ring, fen, hybrid, vmm_index, cfg):
 # VMM Hard reset global
 def hardReset_global(fen_portal, cfg):
     print(f"{INFO}Hard resetting ALL but really ALL!{RESET}")
+    
     for the_fen in cfg["fecs"]:
+        
+        fen  = the_fen["fen"]
+        ring = the_fen["ring"]
+        parsed_statuses = read_link_status(fen_portal, ring, fen, hybrids_per_fec=6)
+
+        
         for the_hybrid in the_fen["hybrids"]:
+            hybrid     = the_hybrid["hybrid"]
+            hybrid_key = str(hybrid)
+            
+            status = parsed_statuses.get(hybrid_key, {}).get("code", 0)
+
+            if status not in (4, 5):
+                print(f"\t{ERR}Resetting hybrid {hybrid} failed ---> skipping.{RESET}")
+                continue  # Skip configuring this hybrid and its VMMs entirely
+
             for vmm_index in [0, 1]:
                 hardReset(fen_portal, the_fen['ring'], the_fen['fen'], the_hybrid['hybrid'], vmm_index, cfg)
 
