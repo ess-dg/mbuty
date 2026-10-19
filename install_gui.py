@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import os
-import sys
 import stat
 import platform
 import subprocess
@@ -52,78 +51,33 @@ def get_linux_desktop():
         # Fallback to the standard path if xdg-user-dir isn't installed
         return os.path.expanduser("~/Desktop")
 
-# def create_linux_shortcut():
-#     desktop_dir = get_linux_desktop()
-#     # Check if the directory actually exists
-#     if not os.path.exists(desktop_dir):
-#         print(f"Error: Could not find desktop directory at {desktop_dir}")
-#         return
-
-#     # IF YOU WANT TO INSTALL IN APPLICATIONS INSTEAD OF DESKTOP 
-#     # desktop_path = os.path.expanduser("~/.local/share/applications/mbuty.desktop")
-    
-#     desktop_path = os.path.join(desktop_dir, "mbuty.desktop")
-#     python_exe = subprocess.check_output(["which", "python3"]).decode().strip()  
-#     # Setting Terminal=false prevents the terminal window from opening
-#     content = f"""[Desktop Entry]
-# Version=1.0
-# Type=Application
-# Name={APP_NAME}
-# Exec={python_exe} {SCRIPT_PATH}
-# Path={BASE_DIR}
-# Icon={ICON_PATH2}
-# Terminal=false
-# Categories=Application;Development;
-# """
-#     with open(desktop_path, "w") as f: f.write(content)
-#     make_executable(desktop_path)
-    
-#     # 2. Mark as trusted using GIO (GNOME specific)
-#     try:
-#         subprocess.run(
-#             ["gio", "set", desktop_path, "metadata::trusted", "true"],
-#             check=True,
-#             stdout=subprocess.DEVNULL,
-#             stderr=subprocess.DEVNULL,
-#         )
-#         print("Linux: Marked shortcut as trusted via 'gio'.")
-#     except (subprocess.CalledProcessError, FileNotFoundError):
-#         # Fallback for systems/desktop environments that don't support GIO metadata
-#         pass
-
-#     print(f"Linux: Shortcut created successfully at {desktop_path}")
-    
-#     # print(f"Linux: Shortcut created with Terminal=false.")
-#     # print(f"FINAL STEP: You MUST right-click the file on the Desktop and select 'Allow Launching'.")
-
 def create_linux_shortcut():
     desktop_dir = get_linux_desktop()
+    # Check if the directory actually exists
     if not os.path.exists(desktop_dir):
         print(f"Error: Could not find desktop directory at {desktop_dir}")
         return
 
-    desktop_path = os.path.join(desktop_dir, "mbuty.desktop")
+    # IF YOU WANT TO INSTALL IN APPLICATIONS INSTEAD OF DESKTOP 
+    # desktop_path = os.path.expanduser("~/.local/share/applications/mbuty.desktop")
     
-    python_exe = sys.executable  
-
-    # Wrap the execution in bash -c so it inherits the full shell environment & paths
-    exec_command = f"bash -c 'cd {BASE_DIR} && {python_exe} {SCRIPT_PATH}'"
-
+    desktop_path = os.path.join(desktop_dir, "mbuty.desktop")
+    python_exe = subprocess.check_output(["which", "python3"]).decode().strip()  
+    # Setting Terminal=false prevents the terminal window from opening
     content = f"""[Desktop Entry]
 Version=1.0
 Type=Application
 Name={APP_NAME}
-Exec={exec_command}
+Exec={python_exe} {SCRIPT_PATH}
 Path={BASE_DIR}
 Icon={ICON_PATH2}
 Terminal=false
 Categories=Application;Development;
 """
-    with open(desktop_path, "w") as f:
-        f.write(content)
-        
+    with open(desktop_path, "w") as f: f.write(content)
     make_executable(desktop_path)
     
+    # 2. Mark as trusted using GIO (GNOME specific)
     try:
         subprocess.run(
             ["gio", "set", desktop_path, "metadata::trusted", "true"],
@@ -133,9 +87,13 @@ Categories=Application;Development;
         )
         print("Linux: Marked shortcut as trusted via 'gio'.")
     except (subprocess.CalledProcessError, FileNotFoundError):
+        # Fallback for systems/desktop environments that don't support GIO metadata
         pass
 
-    print(f"Linux: Shortcut created successfully.")
+    print(f"Linux: Shortcut created successfully at {desktop_path}")
+    
+    # print(f"Linux: Shortcut created with Terminal=false.")
+    # print(f"FINAL STEP: You MUST right-click the file on the Desktop and select 'Allow Launching'.")
 
 def create_macos_shortcut():
     app_path = os.path.expanduser(f"~/Desktop/{APP_NAME}.app")
