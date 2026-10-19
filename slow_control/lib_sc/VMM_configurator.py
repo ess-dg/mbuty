@@ -395,29 +395,22 @@ def hardReset(fen_portal, ring, fen, hybrid, vmm_index, cfg):
     except:   
          print(f"{ERR}Hard resetting ring {ring}, fen {fen}, hybrid {hybrid}, vmm {vmm_index} failed ---> skipping.{RESET}")
 
-# VMM Hard reset global
+
+
+# VMM Hard reset global                
 def hardReset_global(fen_portal, cfg):
     print(f"{INFO}Hard resetting ALL but really ALL!{RESET}")
     
     for the_fen in cfg["fecs"]:
-        
         fen  = the_fen["fen"]
         ring = the_fen["ring"]
-        parsed_statuses = read_link_status(fen_portal, ring, fen, hybrids_per_fec=6)
-
         
-        for the_hybrid in the_fen["hybrids"]:
-            hybrid     = the_hybrid["hybrid"]
-            hybrid_key = str(hybrid)
-            
-            status = parsed_statuses.get(hybrid_key, {}).get("code", 0)
-
-            if status not in (4, 5):
-                print(f"\t{ERR}Resetting hybrid {hybrid} failed ---> skipping.{RESET}")
-                continue  # Skip configuring this hybrid and its VMMs entirely
-
+        # Get valid hybrids using the helper function
+        valid_hybrids = get_valid_hybrids(fen_portal, ring, fen, the_fen["hybrids"], action_label="Resetting")
+        
+        for hybrid in valid_hybrids:
             for vmm_index in [0, 1]:
-                hardReset(fen_portal, the_fen['ring'], the_fen['fen'], the_hybrid['hybrid'], vmm_index, cfg)
+                hardReset(fen_portal, ring, fen, hybrid, vmm_index, cfg)                
 
 ###############################################################################
 
@@ -478,37 +471,20 @@ def checkConfigNames(cfg):
 ###############################################################################
 
 def configDetector(fen_portal, cfg):
-# 	cfg = asConfig(cfg_or_file)
-# 	checkConfigNames(cfg)
-
     for the_fen in cfg["fecs"]:
         fen  = the_fen["fen"]
         ring = the_fen["ring"]
         channel_mask = 0
 
         print(f"{INFO}Configuring ring {ring}, fen {fen}{RESET}")
-         
-        # Read and print link status for all hybrids on this FEN upfront
-        parsed_statuses = read_link_status(fen_portal, ring, fen, hybrids_per_fec=6)
+        
+        # Get valid hybrids using the helper function
+        valid_hybrids = get_valid_hybrids(fen_portal, ring, fen, the_fen["hybrids"], action_label="Configuring")
 
-        for the_hybrid in the_fen["hybrids"]:
-            hybrid     = the_hybrid["hybrid"]
-            hybrid_key = str(hybrid)
-
+        for hybrid in valid_hybrids:
             try:
-                # Retrieve status code from the parsed dictionary returned by read_link_status
-                status = parsed_statuses.get(hybrid_key, {}).get("code", 0)
-
                 print(f"\tConfiguring hybrid {hybrid}")
-                
-                # Check if link status is Link Up / Idle (4) or Sending data (5)
-                if status not in (4, 5):
-                    print(f"\t{ERR}Configuring hybrid {hybrid} failed ---> skipping.{RESET}")
-                    continue  # Skip configuring this hybrid and its VMMs entirely
-
-                # Configure the hybrid if status is valid
                 configHybrid(fen_portal, ring, fen, hybrid, cfg)
-
             except Exception as e:
                 print(f"\t{ERR}Configuring hybrid {hybrid} failed ---> skipping.{RESET}")
                 continue
@@ -521,14 +497,13 @@ def configDetector(fen_portal, cfg):
                     channel_mask = channel_mask | (1 << (hybrid * 2 + vmm_index))
                 except Exception as e:
                     print(f"{ERR}\t\tConfiguring VMM {vmm_index} failed ---> skipping.{RESET}")
-                     
+             
         try:            
             configAssister(fen_portal, ring, fen, cfg, channel_mask)
         except Exception:
             pass
 
     return cfg
-
 
 
 ###############################################################################
@@ -674,6 +649,32 @@ def read_link_status_global(fen_portal, cfg, hybrids_per_fec=6):
         
     return global_link_statuses
 
+
+def get_valid_hybrids(fen_portal, ring, fen, hybrids, action_label="Configuring"):
+    """
+    Reads link status for a FEN and returns a list of hybrid IDs whose status is 4 or 5.
+    Prints an error message and skips hybrids with invalid status.
+    """
+    parsed_statuses = read_link_status(fen_portal, ring, fen, hybrids_per_fec=6)
+    valid_hybrids = []
+    
+    for the_hybrid in hybrids:
+        hybrid = the_hybrid["hybrid"]
+        
+        # Safely check both string and int representations in parsed keys
+        hyb_info = parsed_statuses.get(str(hybrid), parsed_statuses.get(hybrid, {}))
+        status = hyb_info.get("code", 0)
+        status_desc = hyb_info.get("status", "Disconnected")
+        
+        # Check if link status is Link Up / Idle (4) or Sending data (5)
+        if status not in (4, 5):
+            print(f"\t{ERR}{action_label} hybrid {hybrid} failed (Status: {status_desc} [{status}]) ---> skipping.{RESET}")
+            continue
+            
+        valid_hybrids.append(hybrid)
+        
+    return valid_hybrids
+
 ###############################################################################
 
 # ADC read for temperature etc:
@@ -743,26 +744,26 @@ def read_temperature(fen_portal, ring, fen, hyb, vmm):
         
         return None  # Or return float('nan')
 
+
+
 def read_temperature_global(fen_portal, cfg):
     """
     Iterates through all Ring/FEN/Hybrid entries in cfg['fecs'], reads temperatures
-    for both VMMs (0 and 1), and returns a nested dictionary of results.
+    for both VMMs (0 and 1) on valid hybrids, and returns a nested dictionary of results.
     """
-    
-    # print(f"{INFO}... this action takes a moment, be patient!{RESET}")
-    
     global_temperatures = {}
 
     for the_fen in cfg.get("fecs", []):
-        ring    = the_fen["ring"]
-        fen     = the_fen["fen"]
-        
+        ring = the_fen["ring"]
+        fen  = the_fen["fen"]
         fec_key = f"{ring}_{fen}"
-
+        
         hybrids_dict = {}
+        
+        # Get valid hybrids using the helper function
+        valid_hybrids = get_valid_hybrids(fen_portal, ring, fen, the_fen.get("hybrids", []), action_label="Reading temperature for")
 
-        for the_hybrid in the_fen.get("hybrids", []):
-            hyb = the_hybrid["hybrid"]
+        for hyb in valid_hybrids:
             vmms_dict = {}
 
             for vmm_index in [0, 1]:
