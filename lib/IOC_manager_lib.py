@@ -52,41 +52,80 @@ DEFAULT_IOC = "ioc-ESTIA-DtCmn_SC-IOC-002.service"
 #         # Removed sys.exit() to prevent crashing
 #         return False
 
-def manage_IOC_service(action: str, ioc_name: str) -> bool:
-    """Executes the systemctl command with sudo privileges. 
+# def manage_IOC_service(action: str, ioc_name: str) -> bool:
+#     """Executes the systemctl command with sudo privileges. 
+#     Returns True if successful, False otherwise without crashing.
+#     """
+#     if not ioc_name.endswith(".service"):
+#         ioc_name += ".service"
+
+#     command = ["sudo", "systemctl", action, ioc_name]
+#     print(f"Executing: {' '.join(command)}")
+
+#     try:
+#         # For 'status', non-zero exit codes are normal (e.g. service is stopped)
+#         # So we only enforce check=True for action commands like start/stop/restart
+#         use_check = action not in ["status", "is-active"]
+        
+#         result = subprocess.run(command, check=use_check, capture_output=True, text=True)
+        
+#         # If we didn't use check=True, we can manually check if it succeeded (exit code 0)
+#         if not use_check:
+#             print(result.stdout.strip())
+#             return result.returncode == 0
+            
+#         return True
+#     except subprocess.CalledProcessError as e:
+#         print(f"Error executing command: {e}", file=sys.stderr)
+#         return False
+#     except FileNotFoundError:
+#         print("Error: 'sudo' or 'systemctl' command not found.", file=sys.stderr)
+#         return False
+    
+
+def manage_IOC_service(action: str, ioc_name: str, password: str = None) -> bool:
+    """Executes the systemctl command with sudo privileges using a provided password. 
     Returns True if successful, False otherwise without crashing.
     """
     if not ioc_name.endswith(".service"):
         ioc_name += ".service"
 
-    command = ["sudo", "systemctl", action, ioc_name]
+    # -S tells sudo to read the password from stdin
+    command = ["sudo", "-S", "systemctl", action, ioc_name]
     print(f"Executing: {' '.join(command)}")
 
     try:
         # For 'status', non-zero exit codes are normal (e.g. service is stopped)
-        # So we only enforce check=True for action commands like start/stop/restart
         use_check = action not in ["status", "is-active"]
         
-        result = subprocess.run(command, check=use_check, capture_output=True, text=True)
+        # Pass the password via input parameter
+        input_data = f"{password}\n" if password else None
         
-        # If we didn't use check=True, we can manually check if it succeeded (exit code 0)
-        if not use_check:
+        result = subprocess.run(
+            command, 
+            input=input_data, 
+            check=use_check, 
+            capture_output=True, 
+            text=True
+        )
+        
+        if result.stdout:
             print(result.stdout.strip())
+        if result.stderr and not "A password is required" in result.stderr:
+            print(result.stderr.strip(), file=sys.stderr)
+            
+        if not use_check:
             return result.returncode == 0
             
         return True
     except subprocess.CalledProcessError as e:
         print(f"Error executing command: {e}", file=sys.stderr)
+        if e.stderr:
+            print(e.stderr.strip(), file=sys.stderr)
         return False
     except FileNotFoundError:
         print("Error: 'sudo' or 'systemctl' command not found.", file=sys.stderr)
         return False
-    
-
-# def manage_IOC_service(action: str, ioc_name: str) -> None:
-    
-#     print(f"I am doing this action {action} on this service {ioc_name}")
-    
     
     
     

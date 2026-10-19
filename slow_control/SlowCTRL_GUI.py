@@ -69,6 +69,7 @@ from qtpy.QtWidgets import (
     QComboBox,
     QMainWindow,
     QMessageBox,
+    QInputDialog,
 )
 
 try:
@@ -1088,19 +1089,51 @@ class MainWindow(QMainWindow):
 # IOC ------------------------------------------------------------------------
 # ----------------------------------------------------------------------------   
 
+    # def handle_ioc_action(self, action):
+    #     service_name = self.config_widget.get_value_from_widget("ioc_service")
+    #     if not service_name:
+    #         QMessageBox.warning(self, "Missing Service", "Please specify a valid IOC service name.")
+    #         return
+
+    #     print(f"{INFO}[ACTION] Executing IOC action '{action}' on service '{service_name}'...{RESET}")
+    #     try:
+    #         manage_IOC_service(action, service_name)
+    #     except Exception as e:
+    #         print(f"{ERR}[ERROR] Failed to execute IOC action {action}: {e}{RESET}")
+
     def handle_ioc_action(self, action):
         service_name = self.config_widget.get_value_from_widget("ioc_service")
         if not service_name:
             QMessageBox.warning(self, "Missing Service", "Please specify a valid IOC service name.")
             return
-
+    
+        # Check if we already have a cached password for this session
+        if not hasattr(self, "_cached_sudo_password") or not self._cached_sudo_password:
+            password, ok = QInputDialog.getText(
+                self, 
+                "Authentication Required", 
+                "Enter your sudo password to manage the IOC service:", 
+                QLineEdit.Password
+            )
+            if not ok or not password:
+                print(f"{ERR}[ACTION] Action cancelled: Sudo password required.{RESET}")
+                return
+            self._cached_sudo_password = password
+    
         print(f"{INFO}[ACTION] Executing IOC action '{action}' on service '{service_name}'...{RESET}")
+        
         try:
-            manage_IOC_service(action, service_name)
+            success = manage_IOC_service(action, service_name, password=self._cached_sudo_password)
+            
+            # Optional: If password was incorrect, clear cache so they can re-enter it next time
+            if not success:
+                # You can inspect if it failed due to auth, or simply let them retry
+                pass
+                
         except Exception as e:
             print(f"{ERR}[ERROR] Failed to execute IOC action {action}: {e}{RESET}")
-
-
+            # Clear cached password on exception just in case it expired/was wrong
+            self._cached_sudo_password = None
 
 ###############################################################################
 ###############################################################################
