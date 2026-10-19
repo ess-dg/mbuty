@@ -55,7 +55,15 @@ if __name__ == "__main__":
         default=DEFAULT_IOC,
         help=f"Name of the IOC service (default: {DEFAULT_IOC})",
     )
+    
+    parser.add_argument(
+    "-p",
+    "--password",
+    type=str,
+    default=None,
+    help="Sudo password if required.",
+    )
 
     args = parser.parse_args()
 
-    manage_IOC_service(action=args.action, ioc_name=args.ioc)
+    manage_IOC_service(action=args.action, ioc_name=args.ioc, password=args.password)
