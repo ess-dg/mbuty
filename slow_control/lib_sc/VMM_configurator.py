@@ -596,7 +596,6 @@ def read_link_status(fen_portal, ring, fen, hybrids_per_fec=6):
         print('\n')
         raw_val = read_raw_link_status(fen_portal, ring, fen)
     except Exception as e:
-        print('\n')
         print(f"{ERR}Reading link status on ring {ring}, fen {fen} failed -> defaulting to disconnected.{RESET}")
         raw_val = 0  # 0x00000000 sets all hybrids to Disconnected (code 0)
 
