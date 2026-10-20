@@ -188,7 +188,7 @@ ui_config = {
             "optionsFromPath": "cfg_VMM_path",
             "fileTypeFilter": ".json",
             # "default": "MB.FREIA.diagonalNoSymm.json",
-            "default": "MG.TRES.TestVessAndBOXbaseline.json",
+            "default": "MG.TREX.TestVessAndBOXbaseline.json",
             "dependsOn": "enable_sec3",
         },
         "sep_4": {
