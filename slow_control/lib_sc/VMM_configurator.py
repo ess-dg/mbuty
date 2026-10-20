@@ -654,24 +654,19 @@ def read_link_status_global(fen_portal, cfg, hybrids_per_fec=HYBRIDS_PER_FEC):
 
 
 def get_valid_hybrids(fen_portal, ring, fen, hybrids, action_label="Configuring"):
-    """
-    Reads link status for a FEN and returns a list of hybrid IDs whose status is 4 or 5.
-    Prints each skipped hybrid on its own line.
-    """
     parsed_statuses = read_link_status(fen_portal, ring, fen, hybrids_per_fec=HYBRIDS_PER_FEC)
     valid_hybrids = []
     
     for the_hybrid in hybrids:
         hybrid = the_hybrid["hybrid"]
         
-        # Safely check both string and int representations in parsed keys
         hyb_info = parsed_statuses.get(str(hybrid), parsed_statuses.get(hybrid, {}))
         status   = hyb_info.get("code", 0)
         status_desc = hyb_info.get("status", "Disconnected")
         
-        print(status)
+        # Print a clean, explicit check for EVERY hybrid so you know what it is
+        print(f"\t[CHECK] Ring {ring}, FEN {fen}, Hybrid {hybrid} -> Status Code: {status} ({status_desc})")
         
-        # Check if link status is Link Up / Idle (4) or Sending data (5)
         if status not in (4, 5):
             print(f"\t{ERR}{action_label} hybrid {hybrid} failed (Status: {status_desc} [{status}]) ---> skipping.{RESET}")
             continue
