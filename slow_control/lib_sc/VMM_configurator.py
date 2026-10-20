@@ -20,6 +20,9 @@ if _workspace not in sys.path:
 
 from lib.colors import WARN, RESET, ERR, INFO
 
+
+HYBRIDS_PER_FEC = 6
+
 ###############################################################################
 
 
@@ -521,7 +524,7 @@ LINK_STATUS_MAP = {
     5: ("cyan", "Sending data"),
 }
 
-def link_status_interpreter(status_code):
+def _link_status_interpreter(status_code):
     """
     Interprets link status integer (0 to 5) and returns:
     (description: str, color: str)
@@ -534,7 +537,7 @@ def link_status_interpreter(status_code):
     color, description = LINK_STATUS_MAP.get(code, ("grey", "Unknown Status"))
     return description, color
 
-def read_raw_link_status(fen_portal, ring, fen):
+def _read_raw_link_status(fen_portal, ring, fen):
     """Triggers and reads the raw link status register."""
     fen_portal.userRegWrite(ring, fen, "sc_app_link_status", 0)
     fen_portal.userRegWrite(ring, fen, "sc_app_link_status", 1)
@@ -544,7 +547,8 @@ def read_raw_link_status(fen_portal, ring, fen):
     # print(f"Raw Link Status Register: {val}")
     return raw_val
 
-def parse_hybrid_link_statuses(raw_val, hybrids_per_fec=6):
+
+def _parse_hybrid_link_statuses(raw_val, hybrids_per_fec=HYBRIDS_PER_FEC):
     """
     Extracts individual hybrid link status nibbles from the 32-bit (8 hex digit) raw register.
     Rightmost digit corresponds to hybrid 0. 
@@ -562,7 +566,7 @@ def parse_hybrid_link_statuses(raw_val, hybrids_per_fec=6):
         char_idx    = len(hex_str) - 1 - n
         status_code = int(hex_str[char_idx], 16) if char_idx >= 0 else 0
 
-        desc, color = link_status_interpreter(status_code)
+        desc, color = _link_status_interpreter(status_code)
         hybrid_statuses[f"{n}"] = {
             "code": status_code,
             "status": desc,
@@ -571,26 +575,16 @@ def parse_hybrid_link_statuses(raw_val, hybrids_per_fec=6):
 
     return hybrid_statuses
 
-
-def format_hybrid_status_string(parsed_statuses):
-    """
-    Joins status codes in reverse order so the leftmost digit in the output string
-    corresponds to the highest hybrid (e.g., hybrid 5 to 0 -> '000044').
-    """
-    return "".join(
-        str(info["code"]) for info in reversed(list(parsed_statuses.values()))
-    )
-
-def read_link_status(fen_portal, ring, fen, hybrids_per_fec=6):
+def read_link_status(fen_portal, ring, fen, hybrids_per_fec=HYBRIDS_PER_FEC):
     """Triggers hardware register read and parses link status for active hybrids."""
     try:
         print('\n')
-        raw_val = read_raw_link_status(fen_portal, ring, fen)
+        raw_val = _read_raw_link_status(fen_portal, ring, fen)
     except Exception as e:
         print(f"{ERR}Reading link status on ring {ring}, fen {fen} failed -> defaulting to disconnected.{RESET}")
         raw_val = 0  # 0x00000000 sets all hybrids to Disconnected (code 0)
 
-    parsed_statuses = parse_hybrid_link_statuses(
+    parsed_statuses = _parse_hybrid_link_statuses(
         raw_val, hybrids_per_fec=hybrids_per_fec
     )
     
@@ -601,12 +595,21 @@ def read_link_status(fen_portal, ring, fen, hybrids_per_fec=6):
         info['hyb']  = hyb
         
     return parsed_statuses
-    
-    
-    
+
+
+# def format_hybrid_status_string(parsed_statuses):
+#     """
+#     Joins status codes in reverse order so the leftmost digit in the output string
+#     corresponds to the highest hybrid (e.g., hybrid 5 to 0 -> '000044').
+#     """
+#     return "".join(
+#         str(info["code"]) for info in reversed(list(parsed_statuses.values()))
+#     )
+
+ 
 def print_link_status(parsed_statuses):    
     current_ring = None
-    current_fen = None
+    current_fen  = None
     
     for hyb, info in parsed_statuses.items():
         ring = info.get('ring', 'N/A')
@@ -622,7 +625,7 @@ def print_link_status(parsed_statuses):
         print(f"Ring {ring}, FEN {fen}, Hyb {hyb}: {info['status']} ({info['code']})")
 
 
-def read_link_status_global(fen_portal, cfg, hybrids_per_fec=6):
+def read_link_status_global(fen_portal, cfg, hybrids_per_fec=HYBRIDS_PER_FEC):
     """
     Iterates through all Ring/FEN pairs in cfg['fecs'], reads their link status,
     and returns a structured dictionary keyed by Ring and FEN.
@@ -655,7 +658,7 @@ def get_valid_hybrids(fen_portal, ring, fen, hybrids, action_label="Configuring"
     Reads link status for a FEN and returns a list of hybrid IDs whose status is 4 or 5.
     Prints an error message and skips hybrids with invalid status.
     """
-    parsed_statuses = read_link_status(fen_portal, ring, fen, hybrids_per_fec=6)
+    parsed_statuses = read_link_status(fen_portal, ring, fen, hybrids_per_fec=HYBRIDS_PER_FEC)
     valid_hybrids = []
     
     for the_hybrid in hybrids:
@@ -663,7 +666,7 @@ def get_valid_hybrids(fen_portal, ring, fen, hybrids, action_label="Configuring"
         
         # Safely check both string and int representations in parsed keys
         hyb_info = parsed_statuses.get(str(hybrid), parsed_statuses.get(hybrid, {}))
-        status = hyb_info.get("code", 0)
+        status   = hyb_info.get("code", 0)
         status_desc = hyb_info.get("status", "Disconnected")
         
         # Check if link status is Link Up / Idle (4) or Sending data (5)
