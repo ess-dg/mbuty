@@ -96,7 +96,8 @@ ui_config = {
         "rbu_path": {
             "label": "RBU cfg directory",
             "type": "filePath",
-            "default": "/home/essdaq/detg_git/slow_control_driver/freia/",
+            # "default": "/home/essdaq/detg_git/slow_control_driver/freia/",
+            "default": "/home/essdaq/mg_tools/slow_control_driver/rbu-all/",
             "info": "Directory for ring bring up cfg.",
         },
         "rbu_file": {
@@ -186,7 +187,8 @@ ui_config = {
             "type": "dropdown",
             "optionsFromPath": "cfg_VMM_path",
             "fileTypeFilter": ".json",
-            "default": "MB.FREIA.diagonalNoSymm.json",
+            # "default": "MB.FREIA.diagonalNoSymm.json",
+            "default": "MG.TRES.TestVessAndBOXbaseline.json",
             "dependsOn": "enable_sec3",
         },
         "sep_4": {
