@@ -479,7 +479,7 @@ def configDetector(fen_portal, cfg):
         ring = the_fen["ring"]
         channel_mask = 0
 
-        print(f"{INFO}Configuring ring {ring}, fen {fen}{RESET}")
+        print(f"{INFO}Configuring ring {ring}, fen {fen}{RESET}",end='')
         
         # Get valid hybrids using the helper function
         valid_hybrids = get_valid_hybrids(fen_portal, ring, fen, the_fen["hybrids"], action_label="Configuring")
@@ -669,8 +669,11 @@ def get_valid_hybrids(fen_portal, ring, fen, hybrids, action_label="Configuring"
         status   = hyb_info.get("code", 0)
         status_desc = hyb_info.get("status", "Disconnected")
         
+        print('here')
+        
         # Check if link status is Link Up / Idle (4) or Sending data (5)
         if status not in (4, 5):
+            print('her2')
             print(f"\t{ERR}{action_label} hybrid {hybrid} failed (Status: {status_desc} [{status}]) ---> skipping.{RESET}")
             continue
             
