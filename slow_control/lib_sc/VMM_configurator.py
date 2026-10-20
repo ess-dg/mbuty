@@ -372,17 +372,17 @@ def configAssister(fen_portal, ring, fen, cfg, mask):
 # WARM INIT
 def resetFec(fen_portal, ring, fen):  # this is warm init
     try:
-        print(f"{INFO}Resetting ring {ring}, fen {fen}{RESET}")
+        print(f"{INFO}Warm Init ring {ring}, fen {fen}{RESET}")
         fen_portal.userRegWrite(ring, fen, "sc_app_reset_assister", 0)
         fen_portal.userRegWrite(ring, fen, "sc_app_reset_assister", 1)
         fen_portal.userRegWrite(ring, fen, "sc_app_reset_assister", 0)
     except:
-        print(f"{ERR}Resetting ring {ring}, fen {fen} failed ---> skipping.{RESET}")
+        print(f"{ERR}Warm Init ring {ring}, fen {fen} failed ---> skipping.{RESET}")
 
 
 # WARM INIT GLOBAL
 def resetFec_global(fen_portal, cfg):
-    print("Resetting all rings all fens")
+    print("Warm Init all rings all fens")
     for the_fen in cfg["fecs"]:
         resetFec(fen_portal, the_fen["ring"], the_fen["fen"])
 
@@ -668,6 +668,8 @@ def get_valid_hybrids(fen_portal, ring, fen, hybrids, action_label="Configuring"
         hyb_info = parsed_statuses.get(str(hybrid), parsed_statuses.get(hybrid, {}))
         status   = hyb_info.get("code", 0)
         status_desc = hyb_info.get("status", "Disconnected")
+        
+        print(status)
         
         # Check if link status is Link Up / Idle (4) or Sending data (5)
         if status not in (4, 5):
