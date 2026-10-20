@@ -382,9 +382,22 @@ def resetFec(fen_portal, ring, fen):  # this is warm init
 
 # WARM INIT GLOBAL
 def resetFec_global(fen_portal, cfg):
-    print("Warm Init all rings all fens")
+    print(f"{INFO}Warm Init all rings all fens{RESET}")
+    
+    current_ring = None
+    current_fen  = None
+
     for the_fen in cfg["fecs"]:
-        resetFec(fen_portal, the_fen["ring"], the_fen["fen"])
+        ring = the_fen["ring"]
+        fen  = the_fen["fen"]
+        
+        # Only print a newline if the ring or FEN changes
+        if ring != current_ring or fen != current_fen:
+            current_ring = ring
+            current_fen  = fen
+            print("\n")
+            
+        resetFec(fen_portal, ring, fen)
 
 ###############################################################################
 
@@ -404,16 +417,26 @@ def hardReset(fen_portal, ring, fen, hybrid, vmm_index, cfg):
 def hardReset_global(fen_portal, cfg):
     print(f"{INFO}Hard resetting ALL but really ALL!{RESET}")
     
+    current_ring = None
+    current_fen  = None
+
     for the_fen in cfg["fecs"]:
         fen  = the_fen["fen"]
         ring = the_fen["ring"]
+        
+        # Only print the header and newline if the ring or FEN changes
+        if ring != current_ring or fen != current_fen:
+            current_ring = ring
+            current_fen  = fen
+            print("\n")
+            print(f"{INFO}Hard resetting ring {ring}, fen {fen}{RESET}")
         
         # Get valid hybrids using the helper function
         valid_hybrids = get_valid_hybrids(fen_portal, ring, fen, the_fen["hybrids"], action_label="Hard resetting")
         
         for hybrid in valid_hybrids:
             for vmm_index in [0, 1]:
-                hardReset(fen_portal, ring, fen, hybrid, vmm_index, cfg)                
+                hardReset(fen_portal, ring, fen, hybrid, vmm_index, cfg)           
 
 ###############################################################################
 
@@ -755,11 +778,20 @@ def read_temperature_global(fen_portal, cfg):
     for both VMMs (0 and 1) on valid hybrids, and returns a nested dictionary of results.
     """
     global_temperatures = {}
+    current_ring = None
+    current_fen  = None
 
     for the_fen in cfg.get("fecs", []):
         ring = the_fen["ring"]
         fen  = the_fen["fen"]
         fec_key = f"{ring}_{fen}"
+        
+        # Only print the header and newline if the ring or FEN changes
+        if ring != current_ring or fen != current_fen:
+            current_ring = ring
+            current_fen  = fen
+            print("\n")
+            print(f"{INFO}Reading VMMs temperature on ring {ring}, fen {fen}{RESET}")
         
         hybrids_dict = {}
         
