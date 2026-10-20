@@ -578,7 +578,7 @@ def _parse_hybrid_link_statuses(raw_val, hybrids_per_fec=HYBRIDS_PER_FEC):
 def read_link_status(fen_portal, ring, fen, hybrids_per_fec=HYBRIDS_PER_FEC):
     """Triggers hardware register read and parses link status for active hybrids."""
     try:
-        print('\n')
+        # print('\n')
         raw_val = _read_raw_link_status(fen_portal, ring, fen)
     except Exception as e:
         print(f"{ERR}Reading link status on ring {ring}, fen {fen} failed -> defaulting to disconnected.{RESET}")
