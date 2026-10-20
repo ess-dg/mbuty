@@ -515,16 +515,45 @@ class ConfigCreatorWidget(QWidget):
         # =====================================================================
         self.terminal_frame = QGroupBox("Terminal Output Logs")
         terminal_layout = QVBoxLayout(self.terminal_frame)
+        
+        
+        # Zoom Row for Terminal Console
+        zoom_row = QWidget()
+        zoom_layout = QHBoxLayout(zoom_row)
+        zoom_layout.setContentsMargins(0, 0, 0, 4)
+        zoom_layout.addWidget(QLabel("Zoom:"))
+        
+        terminal_zoom_slider = QSlider(Qt.Horizontal)
+        terminal_zoom_slider.setMinimum(8)
+        terminal_zoom_slider.setMaximum(20)
+        terminal_zoom_slider.setValue(theme.FONT_SIZE_CONSOLE)
+        zoom_layout.addWidget(terminal_zoom_slider, stretch=1)
+        terminal_layout.addWidget(zoom_row)
 
         # Instantiate ANSIConsole instead of QPlainTextEdit
         self.terminal_text_widget = ANSIConsole(theme_manager=getattr(self, 'theme_manager', None))
         self.terminal_text_widget.setFont(theme.mono_font(size=theme.FONT_SIZE_CONSOLE))
         terminal_layout.addWidget(self.terminal_text_widget)
 
+       # Connect Zoom Slider to update the document's default font
+        terminal_zoom_slider.valueChanged.connect(
+            lambda v: self.terminal_text_widget.document().setDefaultFont(theme.mono_font(size=v))
+             )
+
         clear_btn = QPushButton("Clear Output")
         clear_btn.setFont(theme.base_font(size=theme.FONT_SIZE_BASE))
         clear_btn.clicked.connect(self.terminal_text_widget.clear_console)
         terminal_layout.addWidget(clear_btn)
+
+        # # Instantiate ANSIConsole instead of QPlainTextEdit
+        # self.terminal_text_widget = ANSIConsole(theme_manager=getattr(self, 'theme_manager', None))
+        # self.terminal_text_widget.setFont(theme.mono_font(size=theme.FONT_SIZE_CONSOLE))
+        # terminal_layout.addWidget(self.terminal_text_widget)
+
+        # clear_btn = QPushButton("Clear Output")
+        # clear_btn.setFont(theme.base_font(size=theme.FONT_SIZE_BASE))
+        # clear_btn.clicked.connect(self.terminal_text_widget.clear_console)
+        # terminal_layout.addWidget(clear_btn)
 
         # Assemble Splitter
         self.splitter.addWidget(self.params_container)
