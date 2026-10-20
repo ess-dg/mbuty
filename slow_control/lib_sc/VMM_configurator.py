@@ -384,18 +384,18 @@ def resetFec(fen_portal, ring, fen):  # this is warm init
 def resetFec_global(fen_portal, cfg):
     print(f"{INFO}Warm Init all rings all fens{RESET}")
     
-    current_ring = None
-    current_fen  = None
+    # current_ring = None
+    # current_fen  = None
 
     for the_fen in cfg["fecs"]:
         ring = the_fen["ring"]
         fen  = the_fen["fen"]
         
-        # Only print a newline if the ring or FEN changes
-        if ring != current_ring or fen != current_fen:
-            current_ring = ring
-            current_fen  = fen
-            print("\n")
+        # # Only print a newline if the ring or FEN changes
+        # if ring != current_ring or fen != current_fen:
+        #     current_ring = ring
+        #     current_fen  = fen
+        #     print(f"{INFO}Warm Init ring {ring}, fen {fen}{RESET}")
             
         resetFec(fen_portal, ring, fen)
 
@@ -404,7 +404,7 @@ def resetFec_global(fen_portal, cfg):
 # VMM Hard reset
 def hardReset(fen_portal, ring, fen, hybrid, vmm_index, cfg):
     try:
-        print(f"{INFO}Hard resetting ring {ring}, fen {fen}, hybrid {hybrid}, vmm {vmm_index}{RESET}")
+        print(f"Hard resetting ring {ring}, fen {fen}, hybrid {hybrid}, vmm {vmm_index}")
         configVmm(fen_portal, ring, fen, hybrid, vmm_index, cfg, reset=True)
         time.sleep(0.1)
         configVmm(fen_portal, ring, fen, hybrid, vmm_index, cfg, reset=False)
