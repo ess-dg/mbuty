@@ -409,7 +409,7 @@ def hardReset_global(fen_portal, cfg):
         ring = the_fen["ring"]
         
         # Get valid hybrids using the helper function
-        valid_hybrids = get_valid_hybrids(fen_portal, ring, fen, the_fen["hybrids"], action_label="Resetting")
+        valid_hybrids = get_valid_hybrids(fen_portal, ring, fen, the_fen["hybrids"], action_label="Hard resetting")
         
         for hybrid in valid_hybrids:
             for vmm_index in [0, 1]:
@@ -619,7 +619,7 @@ def print_link_status(parsed_statuses):
         if ring != current_ring or fen != current_fen:
             current_ring = ring
             current_fen  = fen
-            print("\n")
+            # print("\n")
             print(f"{INFO}Reading link status on ring {ring}, fen {fen}{RESET}")
             
         print(f"Ring {ring}, FEN {fen}, Hyb {hyb}: {info['status']} ({info['code']})")
@@ -671,7 +671,7 @@ def get_valid_hybrids(fen_portal, ring, fen, hybrids, action_label="Configuring"
         
         # Check if link status is Link Up / Idle (4) or Sending data (5)
         if status not in (4, 5):
-            print(f"\t{ERR}{action_label} hybrid {hybrid} failed (Status: {status_desc} [{status}]) ---> skipping.{RESET}")
+            print(f"{ERR}{action_label} hybrid {hybrid} failed (Status: {status_desc} [{status}]) ---> skipping.{RESET}")
             continue
             
         valid_hybrids.append(hybrid)
