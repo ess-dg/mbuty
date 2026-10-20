@@ -479,7 +479,7 @@ def configDetector(fen_portal, cfg):
         ring = the_fen["ring"]
         channel_mask = 0
 
-        print(f"\n{INFO}Configuring ring {ring}, fen {fen}{RESET}",end='')
+        print(f"\n{INFO}Configuring ring {ring}, fen {fen}{RESET}")
         
         # Get valid hybrids using the helper function
         valid_hybrids = get_valid_hybrids(fen_portal, ring, fen, the_fen["hybrids"], action_label="Configuring")
