@@ -656,10 +656,11 @@ def read_link_status_global(fen_portal, cfg, hybrids_per_fec=HYBRIDS_PER_FEC):
 def get_valid_hybrids(fen_portal, ring, fen, hybrids, action_label="Configuring"):
     """
     Reads link status for a FEN and returns a list of hybrid IDs whose status is 4 or 5.
-    Prints an error message and skips hybrids with invalid status.
+    Collects failed hybrids and prints a single summary message instead of cluttering output.
     """
     parsed_statuses = read_link_status(fen_portal, ring, fen, hybrids_per_fec=HYBRIDS_PER_FEC)
     valid_hybrids = []
+    failed_hybrids = []
     
     for the_hybrid in hybrids:
         hybrid = the_hybrid["hybrid"]
@@ -669,15 +670,17 @@ def get_valid_hybrids(fen_portal, ring, fen, hybrids, action_label="Configuring"
         status   = hyb_info.get("code", 0)
         status_desc = hyb_info.get("status", "Disconnected")
         
-        print('here')
-        
         # Check if link status is Link Up / Idle (4) or Sending data (5)
         if status not in (4, 5):
-            print('her2')
-            print(f"\t{ERR}{action_label} hybrid {hybrid} failed (Status: {status_desc} [{status}]) ---> skipping.{RESET}")
+            failed_hybrids.append((hybrid, status_desc, status))
             continue
             
         valid_hybrids.append(hybrid)
+    
+    # Optional: Print a single clean summary line for skipped hybrids if any failed
+    if failed_hybrids:
+        failed_str = ", ".join([f"hybrid {h} ({desc} [{code}])" for h, desc, code in failed_hybrids])
+        print(f"\t{ERR}Skipped invalid hybrids: {failed_str}{RESET}")
         
     return valid_hybrids
 
