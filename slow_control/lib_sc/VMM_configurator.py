@@ -428,7 +428,7 @@ def hardReset_global(fen_portal, cfg):
         if ring != current_ring or fen != current_fen:
             current_ring = ring
             current_fen  = fen
-            print("\n")
+            # print("\n")
             print(f"{INFO}Hard resetting ring {ring}, fen {fen}{RESET}")
         
         # Get valid hybrids using the helper function
@@ -790,7 +790,7 @@ def read_temperature_global(fen_portal, cfg):
         if ring != current_ring or fen != current_fen:
             current_ring = ring
             current_fen  = fen
-            print("\n")
+            # print("\n")
             print(f"{INFO}Reading VMMs temperature on ring {ring}, fen {fen}{RESET}")
         
         hybrids_dict = {}
