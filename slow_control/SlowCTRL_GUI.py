@@ -1484,14 +1484,35 @@ class RBUWorker(QObject):
             print(f"{INFO}[ACTION] Executing RBU script: {self.script_path}{RESET}")
             script_dir = os.path.dirname(self.script_path)
             
+            # self.process = subprocess.Popen(
+            #     ["bash", self.script_path],
+            #     stdin=subprocess.DEVNULL,
+            #     stdout=subprocess.PIPE,
+            #     stderr=subprocess.STDOUT,
+            #     text=True,
+            #     bufsize=1,
+            #     cwd=script_dir
+            # )
+            
+            # Copy current environment and ensure PYTHONPATH includes the driver path
+            env = os.environ.copy()
+            driver_root = os.path.dirname(script_dir) # /opt/bifro_tools/slow_control_driver
+            existing_pythonpath = env.get("PYTHONPATH", "")
+            env["PYTHONPATH"] = (
+                f"{driver_root}:{existing_pythonpath}"
+                if existing_pythonpath
+                else driver_root
+                )
+
             self.process = subprocess.Popen(
-                ["bash", self.script_path],
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1,
-                cwd=script_dir
+              ["bash", self.script_path],
+              stdin=subprocess.DEVNULL,
+              stdout=subprocess.PIPE,
+              stderr=subprocess.STDOUT,
+              text=True,
+              bufsize=1,
+              cwd=script_dir,
+              env=env,  # <--- pass the enriched environment here
             )
             
             while True:
