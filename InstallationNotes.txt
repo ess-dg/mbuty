@@ -118,6 +118,11 @@ it is installed as:
 in the folder where the RBU runs, an example folder is also available in the slow control driver. 
 
 MBUTY needs to point to the run folder. 
+
+Important: if running the GUI MBUTY cannot find the drivers (essrmmdriverlib) run:
+
+>> /opt/XX_tools/myenv/bin/pip install -e /opt/XX_tools/slow_control_driver
+
 _______
 NOTE 6:
 The IOC manager allows to start, stop, status an IOC service like ioc-ESTIA-DtCmn_SC-IOC-002.service. 
