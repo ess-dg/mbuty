@@ -28,7 +28,7 @@ from lib.terminal import dumpToPcapng as dump
 
 def dumpToFile(pathToTshark, interface='en0', destPath='./', fileName='temp', typeOfCapture='packets', quantity=100, numOfFiles=1, delay=0):
          
-         _, status = dump(interface=interface, destPath=destPath, 
+         _, _ = dump(interface=interface, destPath=destPath, 
                           fileName=fileName,typeOfCapture=typeOfCapture,
                           extraArgs=quantity,numOfFiles=numOfFiles,
                           delay=delay,pathToTshark=pathToTshark,fileNameOnly=False

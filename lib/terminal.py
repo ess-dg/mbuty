@@ -272,7 +272,7 @@ def verifyTsharkInstallation(initial_pathToTshark):
     
 ############################################################################### 
     
-def dumpToPcapng(interface='en0', destPath='./', fileName='temp',typeOfCapture='packets',extraArgs=100,numOfFiles=1,delay=0,pathToTshark='/usr/sbin/',fileNameOnly=False,):
+def dumpToPcapng(interface='en0', destPath='./', fileName='temp',typeOfCapture='packets',extraArgs=100,numOfFiles=1,delay=0,pathToTshark='/usr/sbin/',fileNameOnly=False):
             
             pathToTshark= verifyTsharkInstallation(pathToTshark)
             
@@ -299,10 +299,10 @@ def dumpToPcapng(interface='en0', destPath='./', fileName='temp',typeOfCapture='
                 
             fileExt  = '.pcapng'
             
-            print('recording {} pcapng file(s) from interface {} ...'.format(numOfFiles,interface))
+            print(f"\nrecording {numOfFiles} pcapng file(s) from interface {interface} ...")
             
             if delay > 0:
-                print('\ndelaying each file start of '+str(delay)+' s ...')
+                print(f"\ndelaying each file start of {delay} s ...")
             
             status = []
     
@@ -310,26 +310,26 @@ def dumpToPcapng(interface='en0', destPath='./', fileName='temp',typeOfCapture='
                 
                 currentAcqStr = str(format(currentAcq,'05d'))
                 
-                print('... recording file no. '+currentAcqStr+' of '+str(format(numOfFiles-1,'05d')))
+                print(f"\n... recording file {currentAcq+1} of {numOfFiles} --> serial no. {currentAcqStr}")
                 
                 ###############################
                 # Build capture-specific arguments safely as elements of a list
                 commandDetails = []
 
                 if typeOfCapture == 'packets':
-                    print('    by packets -> {} packets'.format(extraArgs))
+                    print('    by packets --> {} packets'.format(extraArgs))
                     numOfPackets = extraArgs
                     commandDetails = ['-c', str(numOfPackets)]
                     fileNameDetails2 = 'pkts' + str(numOfPackets)
         
                 elif typeOfCapture == 'filesize':
-                    print('    by file size -> {} kbytes'.format(extraArgs))
+                    print('    by file size --> {} kbytes'.format(extraArgs))
                     sizekbytes = extraArgs
                     commandDetails = ['-a', 'filesize:' + str(sizekbytes)]
                     fileNameDetails2 = 'size_kb_' + str(sizekbytes)
                     
                 elif typeOfCapture == 'duration':
-                    print('    by duration -> {} s'.format(extraArgs))
+                    print('    by duration --> {} s'.format(extraArgs))
                     duration_s = extraArgs
                     commandDetails = ['-a', 'duration:' + str(duration_s)]
                     fileNameDetails2 = 'duration_s_' + str(duration_s)
@@ -367,8 +367,8 @@ def dumpToPcapng(interface='en0', destPath='./', fileName='temp',typeOfCapture='
                 result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                 temp_status = result.returncode
                 
-                if delay > 0:
-                    print('\n...waiting ' + str(delay) + 's for the next acquisition ...')
+                if delay > 0 and currentAcq < numOfFiles - 1:
+                    print(f"\n... waiting {delay} s for the next acquisition ...")
                     time.sleep(delay)
                     
                 status.append(temp_status)
@@ -383,7 +383,7 @@ def dumpToPcapng(interface='en0', destPath='./', fileName='temp',typeOfCapture='
             # else:
             #     print(' \033[1;31mERROR ... \n\033[1;37m')
      
-            print('recording completed!')
+            print('\n-- recording completed --\n')
                      
             return destPath, fileFull
          
@@ -499,17 +499,25 @@ if __name__ == '__main__':
     # OUT, flag = pcapConverter(IN)
     
     
-    sourcePath = 'essdaq@172.30.244.50:/home/essdaq/pcaps2/'
+    # sourcePath = 'essdaq@172.30.244.50:/home/essdaq/pcaps2/'
     
-    destPath = "/Users/francescopiscitelli/Desktop/untitled folder/"
+    destPath = "/Users/francescopiscitelli/Desktop/test/"
     
-    # syncData(sourcePath, destPath)
+    # # syncData(sourcePath, destPath)
     
-    syncData(destPath, sourcePath)
+    # syncData(destPath, sourcePath)
+    
+    typeOfCapture = 'duration'
+    quantity = 2
+    
+    numoffiles = 3
+    
+    delay = 0
     
     # dumpToPcapng(interface='en1', destPath=destPath, fileName='temp',typeOfCapture='packets',extraArgs=3,numOfFiles=1,delay=0,pathToTshark='/usr/sbin/',fileNameOnly=False )
     
-    
+    dumpToPcapng(interface='utun5', destPath=destPath, fileName='ciao', typeOfCapture=typeOfCapture,extraArgs=quantity,numOfFiles=numoffiles, delay=delay)
+
    # transferData = transferDataUtil()
    # transferData.syncData('essdaq@172.30.244.50:~/pcapt/', '/Users/francescopiscitelli/Desktop/dataVMM/')   
 
