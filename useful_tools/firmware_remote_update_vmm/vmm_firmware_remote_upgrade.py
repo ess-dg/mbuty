@@ -15,8 +15,8 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
 	sys.path.insert(0, str(SCRIPT_DIR))
 
-from assister_flash import AxiVersionLite, AxiMicronN25Q, AxiCypressS25FL, RegisterAxiLite
-from assister_flash import register_axilite as _register_axilite_module
+from lib_assister_flash import AxiVersionLite, AxiMicronN25Q, AxiCypressS25FL, RegisterAxiLite
+from lib_assister_flash import register_axilite as _register_axilite_module
 
 ###############################################################################
 ###############################################################################
