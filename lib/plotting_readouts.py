@@ -309,15 +309,16 @@ class MGReadoutsPlotter(BaseReadoutsPlotter):
             xx2 = np.arange(0, len(timeStamp2), 1)
             xx3 = np.arange(0, len(timeStamp3), 1)
 
-            plotht.ax[0][k].scatter(xx0, timeStamp0, 0.8, color='r', marker='+')
-            plotht.ax[1][k].scatter(xx1, timeStamp1, 0.8, color='m', marker='+')
-            plotht.ax[2][k].scatter(xx2, timeStamp2, 0.8, color='b', marker='+')
-            plotht.ax[3][k].scatter(xx3, timeStamp3, 0.8, color='c', marker='+')
+            plotht.ax[1][k].scatter(xx0, timeStamp0, 0.8, color='r', marker='+')
+            plotht.ax[0][k].scatter(xx1, timeStamp1, 0.8, color='m', marker='+')
+            plotht.ax[3][k].scatter(xx2, timeStamp2, 0.8, color='b', marker='+')
+            plotht.ax[2][k].scatter(xx3, timeStamp3, 0.8, color='c', marker='+')
 
-            plotht.ax[0][k].set_xlabel('WIRE H ASIC 0 trigger no.')
-            plotht.ax[1][k].set_xlabel('WIRE H ASIC 1 trigger no.')
-            plotht.ax[2][k].set_xlabel('GRID H ASIC 0 trigger no.')
-            plotht.ax[3][k].set_xlabel('GRID H ASIC 1 trigger no.')
+            plotht.ax[1][k].set_xlabel('WIRE H ASIC 0 trigger no.')
+            plotht.ax[0][k].set_xlabel('WIRE H ASIC 1 trigger no.')
+            plotht.ax[3][k].set_xlabel('GRID H ASIC 0 trigger no.')
+            plotht.ax[2][k].set_xlabel('GRID H ASIC 1 trigger no.')
+            
             plotht.ax[0][k].set_ylabel('time (ns)')
             plotht.ax[1][k].set_ylabel('time (ns)')
             plotht.ax[2][k].set_ylabel('time (ns)')
@@ -359,13 +360,13 @@ class MGReadoutsPlotter(BaseReadoutsPlotter):
             histoch2, _, _ = self.hist.hist2d(ax_e.centers, m['adc'][selG & asic0], self.xbins, m['channel'][selG & asic0])
             histoch3, _, _ = self.hist.hist2d(ax_e.centers, m['adc'][selG & asic1], self.xbins, m['channel'][selG & asic1])
 
-            plothtch.ax[0][k].imshow(histoch0, aspect='auto', norm=norm_colors, interpolation='none',
+            plothtch.ax[1][k].imshow(histoch0, aspect='auto', norm=norm_colors, interpolation='none',
                                       extent=[ax_e.start, ax_e.stop, self.xbins[0], self.xbins[-1]], origin='lower', cmap='jet')
-            plothtch.ax[1][k].imshow(histoch1, aspect='auto', norm=norm_colors, interpolation='none',
+            plothtch.ax[0][k].imshow(histoch1, aspect='auto', norm=norm_colors, interpolation='none',
                                       extent=[ax_e.start, ax_e.stop, self.xbins[0], self.xbins[-1]], origin='lower', cmap='jet')
-            plothtch.ax[2][k].imshow(histoch2, aspect='auto', norm=norm_colors, interpolation='none',
+            plothtch.ax[3][k].imshow(histoch2, aspect='auto', norm=norm_colors, interpolation='none',
                                       extent=[ax_e.start, ax_e.stop, self.xbins[0], self.xbins[-1]], origin='lower', cmap='jet')
-            plothtch.ax[3][k].imshow(histoch3, aspect='auto', norm=norm_colors, interpolation='none',
+            plothtch.ax[2][k].imshow(histoch3, aspect='auto', norm=norm_colors, interpolation='none',
                                       extent=[ax_e.start, ax_e.stop, self.xbins[0], self.xbins[-1]], origin='lower', cmap='jet')
 
             plothtch.ax[0][k].set_xlabel('ADC')
@@ -376,10 +377,10 @@ class MGReadoutsPlotter(BaseReadoutsPlotter):
             plothtch.ax[0][k].set_title(f'hyb.s of ID{uid}')
 
             if k == 0:
-                plothtch.ax[0][k].set_ylabel('hyb 0 ASIC 0 ch no.')
-                plothtch.ax[1][k].set_ylabel('hyb 0 ASIC 1 ch no.')
-                plothtch.ax[2][k].set_ylabel('hyb 1 ASIC 0 ch no.')
-                plothtch.ax[3][k].set_ylabel('hyb 1 ASIC 1 ch no.')
+                plothtch.ax[1][k].set_ylabel('hyb 0 ASIC 0 ch no.')
+                plothtch.ax[0][k].set_ylabel('hyb 0 ASIC 1 ch no.')
+                plothtch.ax[3][k].set_ylabel('hyb 1 ASIC 0 ch no.')
+                plothtch.ax[2][k].set_ylabel('hyb 1 ASIC 1 ch no.')
 
 
 # ============================================================================
