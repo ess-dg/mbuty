@@ -431,7 +431,7 @@ config = {
         "parameters.fileManagement.configFileName": {
             "label": "Select Config File",
             "type": "dropdown",
-            "default": "AMOR.json",
+            "default": "MB_AMOR.json",
             "optionsFromPath": "parameters.fileManagement.configFilePath",
             "fileTypeFilter": ".json",
             "info": "Must select config file",
