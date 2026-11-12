@@ -130,10 +130,10 @@ def validate_instrument_and_detector(config: dict) -> None:
 
     if det_type not in allowed_types:
         expected = " or ".join(allowed_types)
-        print(f"\n\t{WARN}Config File WARNING: Potential configuration mismatch!")
-        print(f"\tInstrument '{instrument}' usually uses type: {expected}.")
-        print(f"\tCurrent config has: '{det_type}'.")
-        print(f"\tAnalysis will proceed, but please verify your JSON settings.{RESET}\n")
+        print(f"\n\t{ERR}Config File WARNING: Potential configuration mismatch!{RESET}")
+        print(f"\t{WARN}Instrument '{instrument}' usually uses type: {expected}.{RESET}")
+        print(f"\t{WARN}Current config has: '{det_type}'.{RESET}")
+        print(f"\t{WARN}Analysis will proceed, but please verify your JSON settings.{RESET}\n")
         time.sleep(1)
 
     det_name = config.get('detectorName', None)
@@ -164,10 +164,10 @@ def match_instrument_and_detector(det_type,instrument) -> None:
     if det_type not in allowed_types:
         flag = False
         expected = " or ".join(allowed_types)
-        print(f"\n\t{WARN}Config File WARNING: Potential configuration mismatch!")
-        print(f"\tInstrument '{instrument}' usually uses type: {expected}.")
-        print(f"\tCurrent config has: '{det_type}'.")
-        print(f"\tAnalysis will proceed, but please verify your JSON settings.{RESET}\n")
+        print(f"\n\t{ERR}Config File WARNING: Potential configuration mismatch!{RESET}")
+        print(f"\t{WARN}Instrument '{instrument}' usually uses type: {expected}.{RESET}")
+        print(f"\t{WARN}Current config has: '{det_type}'.{RESET}")
+        print(f"\t{WARN}Analysis will proceed, but please verify your JSON settings.{RESET}\n")
         time.sleep(1)
 
 
