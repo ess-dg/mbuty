@@ -739,7 +739,7 @@ class MBUTYMainWindow(QMainWindow):
             f"Description: Utility Tool for Analysis. Supports readers for these data formats: "
             f"VMM, BM, R5560 and SKADI. Supports detectors (instruments) MB (TBL, ESTIA, FREIA), MG (TREX), Gd-GEM (NMX),"
             f"He3 tubes (TBL, CSPEC, BIFROST, MIRACLES and VESPA), SONDE (SKADI). And Beam Monitors (generic, I-BM and RMM front panel I/O)\n"
-            f"\nFrom Version 9.0 integrates also VMM slow control and ring bring up."
+            f"\nFrom Version 9.0 integrates ring bring up, VMM slow control and R5560 slow control."
         )
         QMessageBox.information(self, "About MBUTY", about_text)
 

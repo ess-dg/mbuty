@@ -1,0 +1,75 @@
+{
+    "detectorName": "bifrotest",
+    "detectorType": "He3",
+    "instrumentName": "BIFROST",
+    "units": 9,
+    "orientation": "vertical",
+    "topology": [
+        {
+            "ID": 0,
+            "ring": 0,
+            "fen": 0,
+            "tube": 0
+        },
+        {
+            "ID": 1,
+            "ring": 0,
+            "fen": 0,
+            "tube": 1
+        },
+        {
+            "ID": 2,
+            "ring": 0,
+            "fen": 0,
+            "tube": 2
+        },
+        {
+            "ID": 3,
+            "ring": 0,
+            "fen": 0,
+            "tube": 3
+        },
+        {
+            "ID": 4,
+            "ring": 0,
+            "fen": 0,
+            "tube": 4
+        },
+        {
+            "ID": 5,
+            "ring": 0,
+            "fen": 0,
+            "tube": 5
+        },
+        {
+            "ID": 6,
+            "ring": 0,
+            "fen": 0,
+            "tube": 6
+        },
+        {
+            "ID": 7,
+            "ring": 0,
+            "fen": 0,
+            "tube": 7
+        },
+        {
+            "ID": 8,
+            "ring": 0,
+            "fen": 0,
+            "tube": 8
+        }
+    ],
+    "positionBins": 256,
+    "tubesPerRow": 8,
+    "tubeLength": 300,
+    "monitor": [
+        {
+            "ID": 99,
+            "hardwareType": "generic",
+            "connectionType": "ring",
+            "ring": 11,
+            "channel": 0
+        }
+    ]
+}
