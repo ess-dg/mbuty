@@ -275,12 +275,12 @@ class MGReadoutsPlotter(BaseReadoutsPlotter):
             ploth.ax[3][k].bar(self.xbins, histo2, 0.8, color='b')
             ploth.ax[2][k].bar(self.xbins, histo3, 0.8, color='c')
 
-            ploth.ax[1][k].set_xlabel('WIRE H ASIC 0 ch no.')
-            ploth.ax[0][k].set_xlabel('WIRE H ASIC 1 ch no.')
-            ploth.ax[3][k].set_xlabel('GRID H ASIC 0 ch no.')
-            ploth.ax[2][k].set_xlabel('GRID H ASIC 1 ch no.')
+            ploth.ax[1][k].set_xlabel('WIRE Hyb - ASIC 0 - ch no.')
+            ploth.ax[0][k].set_xlabel('WIRE Hyb - ASIC 1 - ch no.')
+            ploth.ax[3][k].set_xlabel('GRID Hyb - ASIC 0 - ch no.')
+            ploth.ax[2][k].set_xlabel('GRID Hyb - ASIC 1 - ch no.')
 
-            ploth.ax[0][k].set_title(f'MG.{uid}')
+            ploth.ax[0][k].set_title(f'ID {uid}')
 
     def plot_timestamps(self, fig_num=1002):
         """Raw WIRE/GRID ASIC0/ASIC1 trigger timestamps per unit."""
@@ -314,17 +314,17 @@ class MGReadoutsPlotter(BaseReadoutsPlotter):
             plotht.ax[3][k].scatter(xx2, timeStamp2, 0.8, color='b', marker='+')
             plotht.ax[2][k].scatter(xx3, timeStamp3, 0.8, color='c', marker='+')
 
-            plotht.ax[1][k].set_xlabel('WIRE H ASIC 0 trigger no.')
-            plotht.ax[0][k].set_xlabel('WIRE H ASIC 1 trigger no.')
-            plotht.ax[3][k].set_xlabel('GRID H ASIC 0 trigger no.')
-            plotht.ax[2][k].set_xlabel('GRID H ASIC 1 trigger no.')
+            plotht.ax[1][k].set_xlabel('WIRE Hyb - ASIC 0 - trig no.')
+            plotht.ax[0][k].set_xlabel('WIRE Hyb - ASIC 1 - trig no.')
+            plotht.ax[3][k].set_xlabel('GRID Hyb - ASIC 0 - trig no.')
+            plotht.ax[2][k].set_xlabel('GRID Hyb - ASIC 1 - trig no.')
             
             plotht.ax[0][k].set_ylabel('time (ns)')
             plotht.ax[1][k].set_ylabel('time (ns)')
             plotht.ax[2][k].set_ylabel('time (ns)')
             plotht.ax[3][k].set_ylabel('time (ns)')
 
-            plotht.ax[0][k].set_title(f'MG.{uid}')
+            plotht.ax[0][k].set_title(f'ID {uid}')
 
             plotht.ax[0][k].grid(axis='x', alpha=0.75)
             plotht.ax[1][k].grid(axis='x', alpha=0.75)
@@ -374,13 +374,13 @@ class MGReadoutsPlotter(BaseReadoutsPlotter):
             plothtch.ax[2][k].set_xlabel('ADC')
             plothtch.ax[3][k].set_xlabel('ADC')
 
-            plothtch.ax[0][k].set_title(f'hyb.s of ID{uid}')
+            plothtch.ax[0][k].set_title(f'hyb.s of ID {uid}')
 
             if k == 0:
-                plothtch.ax[1][k].set_ylabel('hyb 0 ASIC 0 ch no.')
-                plothtch.ax[0][k].set_ylabel('hyb 0 ASIC 1 ch no.')
-                plothtch.ax[3][k].set_ylabel('hyb 1 ASIC 0 ch no.')
-                plothtch.ax[2][k].set_ylabel('hyb 1 ASIC 1 ch no.')
+                plothtch.ax[1][k].set_ylabel('WIRE Hyb - ASIC 0 - ch no.')
+                plothtch.ax[0][k].set_ylabel('WIRE Hyb - ASIC 1 - ch no.')
+                plothtch.ax[3][k].set_ylabel('GRID Hyb - ASIC 0 - ch no.')
+                plothtch.ax[2][k].set_ylabel('GRID Hyb - ASIC 1 - ch no.')
 
 
 # ============================================================================
