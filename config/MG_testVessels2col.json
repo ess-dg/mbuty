@@ -10,15 +10,15 @@
             "ID": 0,
             "ring": 0,
             "fen": 0,
-            "hybridW": 5,
-            "hybridG": 4
+            "hybridW": 0,
+            "hybridG": 1
         },
         {
             "ID": 1,
             "ring": 0,
             "fen": 0,
-            "hybridW": 3,
-            "hybridG": 2
+            "hybridW": 2,
+            "hybridG": 3
         }
     ],
     "wires": 120,

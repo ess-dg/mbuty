@@ -26,8 +26,9 @@ from lib.config_validator import match_instrument_and_detector
 ###############################################################################
 ###############################################################################
 
-# FOR MB
-# The helper function (renamed from a method)
+###############################################
+###################### MB #####################
+
 def _generateTopologyMB(num_units):
     unit_config = []
     ring = 0
@@ -46,48 +47,15 @@ def _generateTopologyMB(num_units):
             ring += 1
     return unit_config
 
-
-# FOR MG
-# The helper function (renamed from a method)
-# def _generateTopologyMG(num_units):
-#     unit_config = []
-#     ring    = 0
-#     hybridW = 0
-#     hybridG = 1
-#     for i in range(num_units):
-#         unit_config.append({
-#             "ID": i,
-#             "ring": ring,
-#             "fen": 0,
-#             "hybridW": hybridW,
-#             "hybridG": hybridG,
-#             "serialHW": '',
-#             "serialHG": ''
-#         })
-#         hybridW += 2
-#         hybridG += 2
-#         if hybridG >= 4:
-#             ring += 1
-#             hybridW = 0
-#             hybridG = 1
-            
-#     return unit_config
+###############################################
+###################### FOR MG #####################
 
 def _generateTopologyMG(num_units):
     unit_config = []
-    
+    ring    = 0
+    hybridW = 0
+    hybridG = 1
     for i in range(num_units):
-        ring = i // 2
-        
-        # Unit 0, 2, 4... (even indices) get hybridW=5, hybridG=4
-        # Unit 1, 3, 5... (odd indices) get hybridW=3, hybridG=2
-        if i % 2 == 0:
-            hybridW = 5
-            hybridG = 4
-        else:
-            hybridW = 3
-            hybridG = 2
-
         unit_config.append({
             "ID": i,
             "ring": ring,
@@ -97,11 +65,47 @@ def _generateTopologyMG(num_units):
             "serialHW": '',
             "serialHG": ''
         })
+        hybridW += 2
+        hybridG += 2
+        if hybridG >= 4:
+            ring += 1
+            hybridW = 0
+            hybridG = 1
             
     return unit_config
 
-# FOR SKADI
-# The helper function (renamed from a method)
+
+
+# def _generateTopologyMG(num_units):
+#     unit_config = []
+    
+#     for i in range(num_units):
+#         ring = i // 2
+        
+#         # Unit 0, 2, 4... (even indices) get hybridW=5, hybridG=4
+#         # Unit 1, 3, 5... (odd indices) get hybridW=3, hybridG=2
+#         if i % 2 == 0:
+#             hybridW = 5
+#             hybridG = 4
+#         else:
+#             hybridW = 3
+#             hybridG = 2
+
+#         unit_config.append({
+#             "ID": i,
+#             "ring": ring,
+#             "fen": 0,
+#             "hybridW": hybridW,
+#             "hybridG": hybridG,
+#             "serialHW": '',
+#             "serialHG": ''
+#         })
+            
+#     return unit_config
+
+###############################################
+###################### SKADI ##################
+
 def _generateTopologySKADI(num_units):
     unit_config = []
     # ring     = 0
@@ -129,6 +133,9 @@ def _generateTopologySKADI(num_units):
     return unit_config
 
 
+###############################################
+###################### He3   ##################
+
 # FOR He3
 # The helper function (renamed from a method)
 def _generateTopologyHe3(num_units):
@@ -149,6 +156,9 @@ def _generateTopologyHe3(num_units):
             tube = 0
      
     return unit_config
+
+###############################################
+###################### NMX   ##################
 
 # FOR NMX
 # -----------------------------------------------------------------------------
@@ -225,6 +235,10 @@ def _generateTopologyNMX(num_quadrants):
         })
 
     return topology
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
 ###############################################################################
 ###############################################################################
 
@@ -377,7 +391,9 @@ def generateDefaultDetConfig(path, detectorName, detectorType, instrumentName, u
         sys.exit()
         
     return filePathName  , flag 
-##########################
+
+###############################################################################
+###############################################################################
 
 def makeFile(path,filePathName,data):
     
@@ -441,11 +457,15 @@ def checkIfExists(pathFile):
 ###############################################################################
 ###############################################################################
 ###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
 
 if __name__ == '__main__':
-    path = '/Users/francescopiscitelli/Documents/PYTHON/MBUTYcapWorkInProgress/config/'
+    # path = '/Users/francescopiscitelli/Documents/PYTHON/mbuty/config/'
     
-    path = '/Users/francescopiscitelli/git_repos/mbuty/config/'
+    # path = '/Users/francescopiscitelli/git_repos/mbuty/config/'
     
     current_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__))) + os.sep
     
