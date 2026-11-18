@@ -551,8 +551,12 @@ class MGEventsPlotter(VMMEventsPlotter):
     X_COUNT_KEYS = ('wires',)
     Y_COUNT_KEYS = ('grids',)
 
+    # def _get_x_channel(self, global_x_coord: np.ndarray) -> np.ndarray:
+    #     return global_x_coord
+    
     def _get_x_channel(self, global_x_coord: np.ndarray) -> np.ndarray:
-        return global_x_coord
+        num_wires = self.config['wires']
+        return np.mod(global_x_coord, num_wires)
 
     def plot_xy(self, fig_num=101):
         if self.is_empty:

@@ -335,7 +335,7 @@ if __name__ == '__main__':
     ###############################################################################
     ### read json and create parameters for plotting and analisys ###
 
-    configFileName  = "AMOR.json"
+    configFileName  = "MB_AMOR.json"
     # configFileName  = "clustered.json"
     
     # configFileName  = "MG_testVessandBOX.json"
@@ -346,6 +346,8 @@ if __name__ == '__main__':
     # configFileName  = "MGtestVessels2col.json"
     
     # configFileName  = "MGEMMA_2det.json"
+    
+    # configFileName  = "MG_BOX.json"
     
     # configFileName  = "test1h.json"
 
@@ -437,7 +439,7 @@ if __name__ == '__main__':
 
     parameters.fileManagement.fileName = ['ESSmask2023.pcapng']
     
-    # parameters.fileManagement.fileName = ['MGtvessandbox.pcapng']
+    # parameters.fileManagement.fileName = ['MG_box1data.pcapng']
     
     # parameters.fileManagement.fileName = ['20260522_153423_duration_s_5_fullyOpenAgain_00000_vkjaa.pcapng']
     
