@@ -50,6 +50,8 @@ def _generateTopologyMB(num_units):
 ###############################################
 ###################### FOR MG #####################
 
+# for penthouse 0,1,2,3
+
 def _generateTopologyMG(num_units):
     unit_config = []
     ring    = 0
@@ -75,6 +77,7 @@ def _generateTopologyMG(num_units):
     return unit_config
 
 
+# for penthouse 5,4,3,2
 
 # def _generateTopologyMG(num_units):
 #     unit_config = []
