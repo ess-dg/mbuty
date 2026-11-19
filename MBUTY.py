@@ -145,7 +145,8 @@ class MBUTYOrchestrator():
  
     def _process_combined_files(self, file_resolver, reader_class):
         container_lists = defaultdict(list)
-
+        
+        processed_files = []
         for idx, filename in enumerate(file_resolver.fileName):
             print(f'{INFO}\nProcessing file [{idx + 1}/{len(file_resolver.fileName)}]: {filename}{RESET}')
             full_file_path = os.path.join(file_resolver.filePath, filename)
@@ -162,7 +163,9 @@ class MBUTYOrchestrator():
                 print(f'{ERR}ERROR: {e} ... Skipping file {filename}{RESET}')
                 self.skipped_files.append((filename, str(e)))
                 continue
-
+            
+            processed_files.append(filename)
+            
             for name, container in readout_containers.items():
                 container_lists[name].append(container)
 
@@ -177,7 +180,7 @@ class MBUTYOrchestrator():
         }
 
         reader = SimpleNamespace(**merged)
-        self._process_and_save_containers(reader, file_name=None)
+        self._process_and_save_containers(reader, file_name=processed_files)
  
     def _process_individual_files(self, file_resolver, reader_class):
         for idx, filename in enumerate(file_resolver.fileName):
@@ -199,8 +202,8 @@ class MBUTYOrchestrator():
 
             reader = SimpleNamespace(**readout_containers)
 
-            base_name = os.path.splitext(filename)[0]
-            self._process_and_save_containers(reader, file_name=base_name)
+            # base_name = os.path.splitext(filename)[0]
+            self._process_and_save_containers(reader, file_name=[filename])
             
     def _report_skipped_files(self) -> None:
         """Print a consolidated summary of any files skipped due to validation
@@ -243,16 +246,19 @@ class MBUTYOrchestrator():
         # Per-file mode automatically skips plotting to avoid blocking
         if self.plottingOnOff == 'on' and self.parameters.fileManagement.combineFiles:
             self._handle_plotting()
-        
-        # Save reduced file if enabled
+       
         if self.parameters.fileManagement.saveReducedFileONOFF:
-            if file_name:
-                # Per-file mode: use individual filename for output naming
-                reduced_name = prepareReducedFileBaseName([file_name + '.pcapng'])
+            # if file_names:
+            #     reduced_name = prepareReducedFileBaseName(file_names)
+            if isinstance(file_name, (list, tuple)):
+                reduced_name = prepareReducedFileBaseName(list(file_name))
+            elif file_name:
+                stem, _ = os.path.splitext(file_name)
+                reduced_name = prepareReducedFileBaseName([stem + ".pcapng"])
             else:
-                # Combined mode: use all original filenames
                 reduced_name = prepareReducedFileBaseName(self.parameters.fileManagement.fileName)
-            
+       
+
             saveReducedDataToHDF(
                 parameters=self.parameters,
                 events=self.detector_pipeline.events_container if self.detector_pipeline else None,
@@ -269,14 +275,15 @@ class MBUTYOrchestrator():
             
         # Store references for access in main scope (combined mode only)
         if self.parameters.fileManagement.combineFiles:
-            self.readouts_container = self.detector_pipeline.readouts_container
-            self.hits_container     = self.detector_pipeline.hits_container
-            self.events_container   = self.detector_pipeline.events_container
+            
+            self.readouts_container = self.detector_pipeline.readouts_container if self.detector_pipeline else None
+            self.hits_container     = self.detector_pipeline.hits_container if self.detector_pipeline else None
+            self.events_container   = self.detector_pipeline.events_container if self.detector_pipeline else None
             
             self.readouts_BM_container = self.bm_pipeline.readouts_container if self.bm_pipeline else None
             self.events_BM_container   = self.bm_pipeline.events_container if self.bm_pipeline else None
             
-            self.axis_set = self.detector_pipeline.axis_set
+            self.axis_set = self.detector_pipeline.axis_set if self.detector_pipeline else None
  
     def _handle_plotting(self):
         """

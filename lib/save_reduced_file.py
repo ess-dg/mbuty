@@ -68,29 +68,31 @@ def prepareReducedFileBaseName(fileNameList):
     """Build the reduced-file base name from the list of raw file names loaded."""
 
     if len(fileNameList) == 1:
-        base_name, extension = os.path.splitext(fileNameList[0])
-        fileNameSave = "_".join([base_name, 'reduced'])
+        base_name, _ = os.path.splitext(fileNameList[0])
+        fileNameSave = "_".join([base_name, "reduced"])
 
     elif len(fileNameList) > 1:
-        base_name, extension = os.path.splitext(fileNameList[0])
+        base_name, _ = os.path.splitext(fileNameList[0])
         matched = re.search(r"(_\d+)$", base_name)
 
         if matched:
             try:
                 prefix = base_name[:matched.start()]
                 suffix = matched.group(0)
-                base_name2, extension2 = os.path.splitext(fileNameList[-1])
+                base_name2, _ = os.path.splitext(fileNameList[-1])
                 matched2 = re.search(r"(_\d+)$", base_name2)
                 suffix2 = matched2.group(0)
-                fileNameSave = "_".join([prefix, 'from' + suffix, 'to' + suffix2, 'reduced'])
+                fileNameSave = "_".join([prefix, "from" + suffix, "to" + suffix2])
             except Exception:
                 nfiles = len(fileNameList)
-                fileNameSave = "_".join([base_name, str(nfiles), 'files_reduced'])
+                fileNameSave = "_".join([base_name, str(nfiles), "files_reduced"])
         else:
-            print(f"\n{WARN} --> WARNING: file name list does not match format goofy_XXXXX.pcapng "
-                  "-> associated first file name for data reduction.{RESET}")
+            print(
+                f"\n{WARN} --> WARNING: file name list does not match format goofy_XXXXX.pcapng "
+                "-> associated first file name for data reduction.{RESET}"
+            )
             nfiles = len(fileNameList)
-            fileNameSave = "_".join([base_name, str(nfiles), 'files_reduced'])
+            fileNameSave = "_".join([base_name, str(nfiles), "files_reduced"])
     else:
         fileNameSave = None
         print(f"\n{WARN} --> WARNING: empty file name list!!!{RESET}")

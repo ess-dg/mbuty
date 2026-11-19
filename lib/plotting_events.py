@@ -339,6 +339,11 @@ class VMMEventsPlotter(BaseEventsPlotter):
             phs_x,  _, _ = self.hist.hist2d(ax_energy.centers, m['pulseHeight0'][unit_sel], x_axis, x_ch[unit_sel])
             phs_y,  _, _ = self.hist.hist2d(ax_energy.centers, m['pulseHeight1'][coinc], y_axis, y_ch[coinc])
             phs_xc, _, _ = self.hist.hist2d(ax_energy.centers, m['pulseHeight0'][coinc], x_axis, x_ch[coinc])
+            
+            
+            # remove only grid/strip events from wire where PHS W is 0 
+            phs_x[0] = 0 
+            phs_y[0] = 0 
 
             grid.ax[0][k].imshow(phs_x, aspect='auto', norm=norm_colors, interpolation='none',
                                   extent=[ax_energy.start, ax_energy.stop, x_axis[0], x_axis[-1]], origin='lower', cmap='jet')
