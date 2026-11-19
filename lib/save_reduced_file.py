@@ -155,59 +155,84 @@ def _load_container(grp, container_class):
     return obj
 
 
-class ReducedEvents():
-    """Read-only container for events loaded back from a reduced file.
-    Same attribute names as the real containers (matrix, fill_count,
-    durations, instrumentIDs, stats), no clustering logic attached."""
+class _ReducedBase():
+    """Shared base for reduced containers loaded from HDF5."""
 
-    def __init__(self):
-        self.matrix = np.zeros(0)
+    def __init__(self, size: int = 0):
+        self.matrix = np.zeros(size)
         self.fill_count = 0
         self.durations = np.zeros(0, dtype='int64')
         self.instrumentIDs = set()
-        self.stats = {}
+
+    @classmethod
+    def merge(cls, container_list: list):
+        if not container_list:
+            return cls(size=0)
+
+        active_matrices = [
+            c.matrix[:c.fill_count] if hasattr(c, "fill_count") else c.matrix
+            for c in container_list
+            if getattr(c, "matrix", None) is not None and len(c.matrix) > 0
+        ]
+
+        if active_matrices:
+            merged_matrix = np.concatenate(active_matrices)
+        else:
+            ref_dtype = container_list[0].matrix.dtype
+            merged_matrix = np.empty(0, dtype=ref_dtype)
+
+        out = cls(size=len(merged_matrix))
+        out.matrix = merged_matrix
+        out.fill_count = len(merged_matrix)
+
+        duration_arrays = [
+            c.durations for c in container_list
+            if hasattr(c, "durations") and len(c.durations) > 0
+        ]
+        out.durations = (
+            np.concatenate(duration_arrays)
+            if duration_arrays
+            else np.zeros(0, dtype="int64")
+        )
+
+        id_sets = [
+            c.instrumentIDs for c in container_list
+            if hasattr(c, "instrumentIDs") and c.instrumentIDs
+        ]
+        out.instrumentIDs = set.union(*id_sets) if id_sets else set()
+
+        return out
 
     def get_data_frame(self) -> pd.DataFrame:
         return pd.DataFrame(self.matrix)
+
+
+class ReducedEvents(_ReducedBase):
+    """Read-only container for events loaded back from a reduced file."""
+
+    def __init__(self, size: int = 0):
+        super().__init__(size=size)
+        self.stats = {}
 
     def __repr__(self):
         fields = list(self.matrix.dtype.names) if self.matrix.dtype.names else []
         return f"<ReducedEvents fill_count={self.fill_count} fields={fields}>"
 
 
-class ReducedReadouts():
+class ReducedReadouts(_ReducedBase):
     """Read-only container for readouts loaded back from a reduced file."""
-
-    def __init__(self):
-        self.matrix = np.zeros(0)
-        self.fill_count = 0
-        self.durations = np.zeros(0, dtype='int64')
-        self.instrumentIDs = set()
-
-    def get_data_frame(self) -> pd.DataFrame:
-        return pd.DataFrame(self.matrix)
 
     def __repr__(self):
         fields = list(self.matrix.dtype.names) if self.matrix.dtype.names else []
         return f"<ReducedReadouts fill_count={self.fill_count} fields={fields}>"
 
 
-class ReducedHits():
+class ReducedHits(_ReducedBase):
     """Read-only container for hits loaded back from a reduced file."""
-
-    def __init__(self):
-        self.matrix = np.zeros(0)
-        self.fill_count = 0
-        self.durations = np.zeros(0, dtype='int64')
-        self.instrumentIDs = set()
-
-    def get_data_frame(self) -> pd.DataFrame:
-        return pd.DataFrame(self.matrix)
 
     def __repr__(self):
         fields = list(self.matrix.dtype.names) if self.matrix.dtype.names else []
         return f"<ReducedHits fill_count={self.fill_count} fields={fields}>"
-
 
 ###############################################################################
 # parameters save / load
@@ -245,6 +270,7 @@ def _load_parameters(grp):
     for groupName in grp.keys():
         out[groupName] = dict(grp[groupName].attrs)
     return out
+
 
 
 ###############################################################################
@@ -428,6 +454,36 @@ def readReducedDataFromHDF(pathAndFileName, showTree=False):
         'parameters': parameters,
     }
 
+
+###############################################################################
+
+@classmethod
+def merge(cls, container_list: list):
+    if not container_list:
+        return cls(size=0)
+
+    active_matrices = [
+        c.matrix[:c.fill_count] if hasattr(c, "fill_count") else c.matrix
+        for c in container_list
+        if getattr(c, "matrix", None) is not None and len(c.matrix) > 0
+    ]
+
+    merged_matrix = np.concatenate(active_matrices) if active_matrices else np.empty(0, dtype=container_list[0].matrix.dtype)
+
+    out = cls(size=len(merged_matrix))
+    out.matrix = merged_matrix
+    if hasattr(out, "fill_count"):
+        out.fill_count = len(merged_matrix)
+
+    duration_arrays = [c.durations for c in container_list if hasattr(c, "durations") and len(c.durations) > 0]
+    if hasattr(out, "durations"):
+        out.durations = np.concatenate(duration_arrays) if duration_arrays else np.zeros(0, dtype="int64")
+
+    id_sets = [c.instrumentIDs for c in container_list if hasattr(c, "instrumentIDs") and c.instrumentIDs]
+    if hasattr(out, "instrumentIDs"):
+        out.instrumentIDs = set.union(*id_sets) if id_sets else set()
+
+    return out
 
 ###############################################################################
 ###############################################################################

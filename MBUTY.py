@@ -441,7 +441,6 @@ if __name__ == '__main__':
 
     parameters.fileManagement.filePath = current_dir+'data/'
 
-   
     ### folder and file to open (file can be a list of files)
 
     parameters.fileManagement.fileName = ['ESSmask2023.pcapng']

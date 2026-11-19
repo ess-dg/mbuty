@@ -234,9 +234,6 @@ class events():
             print(f"\n {WARN}\t WARNING ---> ToF gating not possible, calculate ToFs first. ToF array empty! {RESET}")
 
 
-
-
-
 # =============================================================================
 # Concrete Event Subclasses
 # =============================================================================
@@ -599,7 +596,7 @@ class eventsBM(eventsBMbase):
 class eventsIBM(eventsBMbase):
     """IBM-variant Beam Monitor passthrough event container."""
     
-    def __init__(self, size: int):
+    def __init__(self, size: int = 0 ):
         
         # Core base fields common to every physics event.
         all_fields = [
@@ -647,7 +644,7 @@ class eventsIBM(eventsBMbase):
 class eventsSKADI(events):
     """SKADI detector event container """
     
-    def __init__(self, size: int): 
+    def __init__(self, size: int = 0 ): 
 
        subclass_fields = [
            ('bank',    'int64'), 
