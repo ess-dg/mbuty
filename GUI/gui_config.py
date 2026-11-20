@@ -724,7 +724,7 @@ config = {
             "label": "Plot ADC vs Channel",
             "type": "bool",
             "options": ["True", "False"],
-            "default": "False",
+            "default": "True",
         },
         "parameters.plotting.plotADCvsChlog": {
             "label": "Plot ADC vs Channel (Log Scale)",
@@ -744,7 +744,7 @@ config = {
             "label": "Plot Raw Hits",
             "type": "bool",
             "options": ["True", "False"],
-            "default": "False",
+            "default": "True",
         },
         "parameters.plotting.plotHitsTimeStamps": {
             "label": "Plot Hits Time Stamps",
