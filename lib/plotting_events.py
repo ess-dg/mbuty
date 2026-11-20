@@ -614,15 +614,15 @@ class MGEventsPlotter(VMMEventsPlotter):
             for u in self.unit_ids:
                 for r in range(wires_per_row, num_wires + 1, wires_per_row):
                     wire_pos = u * num_wires + r - 0.5
-                    ax22[0][0].plot([wire_pos, wire_pos], [-0.5, num_strips - 0.5], 'r', linewidth=1)
+                    ax22[0][0].plot([wire_pos, wire_pos], [-0.5, num_strips - 0.5], 'r', linewidth=0.5)
             
             # 2. Magenta lines: major boundary between units 
             max_unit = max(self.unit_ids) if len(self.unit_ids) > 0 else 0
             
-            for u in range(1, max_unit + 1):
+            for u in range(1, num_units):
                 unit_boundary = u * num_wires - 0.5
                 ax22[0][0].plot([unit_boundary, unit_boundary], [-0.5, num_strips - 0.5], 
-                                color='m', linewidth=1)
+                                color='m', linewidth=0.5)
         
             ax22[0][0].set_xlim(ax_wires.centers[0], ax_wires.centers[-1])
         else:
@@ -646,9 +646,9 @@ class MGEventsPlotter(VMMEventsPlotter):
         
         # 2. Magenta lines (units) scaled to max_y for ax22[1][0]
         max_unit = max(self.unit_ids) if len(self.unit_ids) > 0 else 0
-        for u in range(1, max_unit + 1):
+        for u in range(1, num_units):
             unit_boundary = u * num_wires - 0.5
-            ax22[1][0].plot([unit_boundary, unit_boundary], [0, max_y_wires], color='m', linewidth=1)
+            ax22[1][0].plot([unit_boundary, unit_boundary], [0, max_y_wires], color='m', linewidth=0.5)
         
  
         default_hist = Histogrammer(out_of_bounds=True)
@@ -660,14 +660,21 @@ class MGEventsPlotter(VMMEventsPlotter):
 
         rows_per_col = int(num_wires / wires_per_row)  # 120 / 20 = 6
 
-        # Number of physical units spanned (e.g., max_unit 9 -> 10 units total) REGARDELSS OF MISSING ONE
-        num_units_spanned = max(self.unit_ids) + 1  # Or: max(self.unit_ids) - min(self.unit_ids) + 1
+        # # Number of physical units spanned (e.g., max_unit 9 -> 10 units total) REGARDELSS OF MISSING ONE
+        # num_units_spanned = max(self.unit_ids) + 1  # Or: max(self.unit_ids) - min(self.unit_ids) + 1
 
-        # Total number of rows across all spanned units (e.g., 10 * 6 = 60)
-        total_rows = num_units_spanned * rows_per_col  
+        # # Total number of rows across all spanned units (e.g., 10 * 6 = 60)
+        # total_rows = num_units_spanned * rows_per_col  
+        
+        rows_per_col = int(num_wires / wires_per_row)  # e.g. 120 / 20 = 6
+        total_rows = num_units * rows_per_col
 
-        steps = total_rows + 1
-        stop  = total_rows
+        steps = total_rows
+        stop = steps - 1
+        rows_axis = np.linspace(0, stop, steps)
+
+        # steps = total_rows + 1
+        # stop  = total_rows
         
         # Generates [0, 1, 2, ..., 60] (61 points)
         # rows_axis = np.linspace(0, total_rows, total_rows + 1)
@@ -691,15 +698,15 @@ class MGEventsPlotter(VMMEventsPlotter):
 
         # for k in range(1, num_units):
         #     ax22[0][1].plot([k * rows_per_col - 0.5, k * rows_per_col - 0.5],
-        #                      [-0.5, num_strips - 1 + 0.5], color='m', linewidth=1)
+        #                      [-0.5, num_strips - 1 + 0.5], color='m', linewidth=0.5)
         
         # 2. Magenta lines: major boundary between units 
         max_unit = max(self.unit_ids) if len(self.unit_ids) > 0 else 0
 
-        for u in range(1, max_unit + 1):
+        for u in range(1, num_units):
             boundary_pos = u * rows_per_col - 0.5
             ax22[0][1].plot([boundary_pos, boundary_pos], 
-                    [-0.5, num_strips - 0.5], color='m', linewidth=1)
+                    [-0.5, num_strips - 0.5], color='m', linewidth=0.5)
 
         h_proj_all_2 = default_hist.hist1d(rows_axis, wire_ch_for_x)
         h_proj_2d_2  = np.sum(h2d_proj_win, axis=0)
@@ -716,10 +723,10 @@ class MGEventsPlotter(VMMEventsPlotter):
         max_y_2d = np.max(h_proj_2d_2) if len(h_proj_2d_2) > 0 else 0
         max_y = max(max_y_1d, max_y_2d, 1)  # Fallback to 1 if both are 0
         
-        for u in range(1, max_unit + 1):
+        for u in range(1, num_units):
             boundary_pos = u * rows_per_col - 0.5
             ax22[1][1].plot([boundary_pos, boundary_pos], 
-                            [0, max_y], color='m', linewidth=1)
+                            [0, max_y], color='m', linewidth=0.5)
             
         if log_scale:
             ax22[1][1].set_yscale('log')
