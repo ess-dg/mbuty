@@ -28,6 +28,7 @@ from lib.pipelines import build_detector_pipeline, build_bm_pipeline
 # Ingest legacy file resolver as an isolated asset
 from lib.file_managment import fileDialogue
 import lib.parameters as para
+from lib.terminal import pcapConverter
  
 ###############################################################################
 ###############################################################################
@@ -125,6 +126,23 @@ class MBUTYOrchestrator():
                 if not file_resolver.fileName:
                     print(f'{ERR}Pipeline Aborted: No valid target files found.{RESET}')
                     return
+                
+                # convert pcap into pcangg if needed 
+                converted_filenames = []
+                for fname in file_resolver.fileName:
+                    full_in_path = os.path.join(file_resolver.filePath, fname)
+                    if fname.endswith('.pcap'):
+                        full_out_path = pcapConverter(full_in_path)
+                        # Keep relative filename if file_resolver.filePath is used as base dir
+                        if os.path.dirname(full_out_path) == file_resolver.filePath:
+                            converted_filenames.append(os.path.basename(full_out_path))
+                        else:
+                            converted_filenames.append(full_out_path)
+                    else:
+                        converted_filenames.append(fname)
+
+                file_resolver.fileName = converted_filenames
+                
  
                 # Route based on combineFiles parameter
                 if self.parameters.fileManagement.combineFiles:
