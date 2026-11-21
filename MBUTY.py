@@ -132,7 +132,7 @@ class MBUTYOrchestrator():
                 for fname in file_resolver.fileName:
                     full_in_path = os.path.join(file_resolver.filePath, fname)
                     if fname.endswith('.pcap'):
-                        full_out_path = pcapConverter(full_in_path)
+                        full_out_path = pcapConverter(full_in_path, pathToTshark=parameters.fileManagement.pathToTshark)
                         # Keep relative filename if file_resolver.filePath is used as base dir
                         if os.path.dirname(full_out_path) == file_resolver.filePath:
                             converted_filenames.append(os.path.basename(full_out_path))
