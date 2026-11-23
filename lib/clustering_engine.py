@@ -400,11 +400,11 @@ class VMMNormalClusterer:
     @staticmethod
     def _calc_position(ch2: np.ndarray, ts2: np.ndarray, adc2: np.ndarray,
                         cluster_id: np.ndarray, n_clusters: int) -> np.ndarray:
-        """Weighted average (center of gravity) position — MB/MG behaviour."""
+        """Weighted average (center of gravity) position rounded to 2 decimals — MB/MG behaviour."""
         tot_adc = np.bincount(cluster_id, weights=adc2.astype('float64'), minlength=n_clusters)
         pos_num = np.bincount(cluster_id, weights=(ch2.astype('float64') * adc2), minlength=n_clusters)
         with np.errstate(divide='ignore', invalid='ignore'):
-            return np.where(tot_adc > 0, pos_num / tot_adc, np.nan)
+            return np.where(tot_adc > 0, np.round(pos_num / tot_adc, 2), np.nan)    
 
     # -------------------------------------------------------------------
     # OPTIMIZED METHODS — Vectorized plane matching and output filling
