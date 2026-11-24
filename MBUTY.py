@@ -374,6 +374,8 @@ if __name__ == '__main__':
     
     # configFileName  = "MG_BOX.json"
     
+    # configFileName  = "MG_testc.json"
+    
     # configFileName  = "test1h.json"
 
     # configFileName  = "ESTIA.json"
