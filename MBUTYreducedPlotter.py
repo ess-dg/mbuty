@@ -279,6 +279,9 @@ unit_ids = [entry['ID'] for entry in topology]
 detector = config.get('detectorType', [])
                 
 unit_ids     = np.sort(unit_ids)
+
+#  for checking ID by ID 
+# unit_ids     = [40] 
               
 if detector == 'MB': 
     
