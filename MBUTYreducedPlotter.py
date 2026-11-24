@@ -284,13 +284,18 @@ if detector == 'MB':
     
     from lib.histograms import MBAxisSet
     from lib.plotting_readouts import MBReadoutsPlotter
+    from lib.plotting_hits import MBHitsPlotter
     from lib.plotting_events import MBEventsPlotter 
     
     axis_set = MBAxisSet(parameters, config)
 
     readout_plotter = MBReadoutsPlotter(merged_readouts, parameters, config, axis_set, unit_ids)
+    
+    hit_plotter     = MBHitsPlotter(merged_hits, parameters, config, axis_set, unit_ids)
 
     event_plotter   = MBEventsPlotter(merged_events, parameters, config, axis_set, unit_ids)
+    
+    
 
 
 elif detector == 'MG': 
@@ -298,10 +303,13 @@ elif detector == 'MG':
    from lib.histograms import MGAxisSet
    from lib.plotting_readouts import MGReadoutsPlotter
    from lib.plotting_events import  MGEventsPlotter
+   from lib.plotting_hits import MGHitsPlotter
    
    axis_set = MGAxisSet(parameters, config)
   
    readout_plotter = MGReadoutsPlotter(merged_readouts, parameters,config, axis_set, unit_ids)
+   
+   hit_plotter     = MGHitsPlotter(merged_hits, parameters, config, axis_set, unit_ids)
 
    event_plotter   = MGEventsPlotter(merged_events, parameters, config, axis_set, unit_ids)
    
@@ -315,6 +323,6 @@ readout_plotter.plot_adc_vs_channel()
 
 readout_plotter.plot_channels_raw()
 
-
+hit_plotter.plot_channels_raw()
 
 
