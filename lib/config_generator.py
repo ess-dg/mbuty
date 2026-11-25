@@ -143,23 +143,17 @@ def _generateTopologySKADI(num_units):
 # The helper function (renamed from a method)
 def _generateTopologyHe3(num_units):
     unit_config = []
-    ring    = 0
-    tube    = 0
     for i in range(num_units):
+        ring = i // 16
+        tube = i % 16
         unit_config.append({
             "ID": i,
             "ring": ring,
             "fen": 0,
             "tube": tube,
         })
-        tube += 1
-        if i >= 11 :
-            ring = 1
-        if  i == 11 :    
-            tube = 0
-     
-    return unit_config
 
+    return unit_config
 ###############################################
 ###################### NMX   ##################
 

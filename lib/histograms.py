@@ -630,6 +630,7 @@ class R5560AxisSet(BaseAxisSet):
         # Physical position in mm along tube
         self.ax_length_mm  = Axis(0, tube_length, bins)
         
+        manyTubes = 1
         if instrument == 'MIRACLES':
             manyTubes = 2
         elif instrument == 'BIFROST':
@@ -639,13 +640,11 @@ class R5560AxisSet(BaseAxisSet):
         
         num_single_items = max_id - min_id + 1
         total_steps = num_single_items * manyTubes 
-        start_mm    = min_id * tube_spacing
+        start_mm    = min_id * manyTubes * tube_spacing
         end_mm      = start_mm + (total_steps - 1) * tube_spacing
 
         self.ax_tubes_mm = Axis(start_mm, end_mm, total_steps)
         
-        # self.ax_tubes_mm   = Axis(min_id*tube_spacing, max_id*tube_spacing, (max_id-min_id+1))  
-            
         
 ###############################################################################
 

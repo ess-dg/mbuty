@@ -886,6 +886,9 @@ class R5560EventsPlotter(BaseEventsPlotter):
             lab = 'Tube ID in Triplet'
         elif instrument in ('CSPEC', 'VESPA'):
             lab = 'Tube ID'
+        else:
+            lab = 'Tube ID'
+            
 
         norm_colors = log_scale_norm(log_scale)
         m = self.matrix
@@ -899,8 +902,18 @@ class R5560EventsPlotter(BaseEventsPlotter):
             ax_length, pos0_values, pos0_label = self.axis_set.ax_length_mm, m['absCoordinate0'], 'Along tube position (mm)'
             ax_tubes,  pos1_values, pos1_label = self.axis_set.ax_tubes_mm, m['absCoordinate1'], lab
            
-        half_x_pixel = (ax_tubes.stop - ax_tubes.start)   / (2 * (len(ax_tubes.centers) - 1))
-        half_y_pixel = (ax_length.stop - ax_length.start) / (2 * (len(ax_length.centers) - 1))
+        half_x_pixel = (
+            (ax_tubes.stop - ax_tubes.start) / (2 * (len(ax_tubes.centers) - 1))
+            if len(ax_tubes.centers) > 1
+            else 0.5
+            )
+        half_y_pixel = (
+            (ax_length.stop - ax_length.start) / (2 * (len(ax_length.centers) - 1))
+            if len(ax_length.centers) > 1
+            else 0.5
+            )    
+        # half_x_pixel = (ax_tubes.stop - ax_tubes.start)   / (2 * (len(ax_tubes.centers) - 1))
+        # half_y_pixel = (ax_length.stop - ax_length.start) / (2 * (len(ax_length.centers) - 1))
             
         h2d, _, _ = self.hist.hist_xyz(ax_tubes.centers, pos1_values, ax_length.centers, pos0_values, ax_tof.centers, m['ToF'] / 1e9)
 
@@ -934,33 +947,57 @@ class R5560EventsPlotter(BaseEventsPlotter):
             ax1.set_ylabel(pos1_label)
             
         grid_fig.suptitle('DET image')
-
-    def plot_position_per_tube(self, fig_num=104):
-        if self.is_empty:
-            return
         
-        log_scale   = self.parameters.plotting.plotIMGlog
-        abs_units   = self.parameters.plotting.plotABSunits
-        m = self.matrix
+    def plot_position_per_tube(self, fig_num=104):
+            if self.is_empty:
+                return
+    
+            log_scale  = self.parameters.plotting.plotIMGlog
+            abs_units  = self.parameters.plotting.plotABSunits
+            instrument = self.config.get('instrumentName', 'CSPEC').upper()
+            topo = self.config.get('topology', [])
+            min_id = min((d['ID'] for d in topo), default=min(self.unit_ids) if len(self.unit_ids) else 0)
+            m = self.matrix
+    
+            manyTubes = 1
+            if instrument == 'MIRACLES':
+                manyTubes = 2
+            elif instrument == 'BIFROST':
+                manyTubes = 3
+            elif instrument in ('CSPEC', 'VESPA'):
+                manyTubes = 1
+    
+            if not abs_units:
+                ax_length, pos0_values, pos0_label = self.axis_set.ax_length, m['coordinate0'], 'Along tube pos (a.u.)'
+                panels = [(uid, uid, None) for uid in self.unit_ids]
+            else:
+                ax_length, pos0_values, pos0_label = self.axis_set.ax_length_mm, m['absCoordinate0'], 'Along tube pos (mm)'
+                panels = [
+                    (uid, uid * manyTubes + j, j)
+                    for uid in self.unit_ids
+                    for j in range(manyTubes)
+                    ]
+    
+            grid1d = PlotGrid(fig_num, 1, len(panels))
+    
+            for k, (uid, expanded_id, sub_idx) in enumerate(panels):
+                if not abs_units:
+                    sel = self.select_unit(uid)
+                    title = f'ID {uid}'
+                else:
+                    sel = m['absCoordinate1'] == expanded_id
+                    title = f'ID {expanded_id}' if manyTubes == 1 else f'ID {uid}({sub_idx})'
+    
+                h1d = self.hist.hist1d(ax_length.centers, pos0_values[sel])
+    
+                grid1d.ax[0][k].step(ax_length.centers, h1d, fg_color(), where='mid')
+                grid1d.ax[0][k].set_xlabel(pos0_label)
+                grid1d.ax[0][k].set_title(title)
+                if log_scale:
+                    grid1d.ax[0][k].set_yscale('log')
+                if k == 0:
+                    grid1d.ax[0][k].set_ylabel('counts')
 
-        if not abs_units:
-            ax_length, pos0_values, pos0_label = self.axis_set.ax_length, m['coordinate0'], 'Along tube position (a.u.)'
-        else:
-            ax_length, pos0_values, pos0_label = self.axis_set.ax_length_mm, m['absCoordinate0'], 'Along tube position (mm)'
-           
-        grid1d = PlotGrid(fig_num, 1, len(self.unit_ids))
-
-        for k, uid in enumerate(self.unit_ids):
-            sel = self.select_unit(uid)
-            h1d = self.hist.hist1d(ax_length.centers, pos0_values[sel])
-
-            grid1d.ax[0][k].step(ax_length.centers, h1d, fg_color(), where='mid')
-            grid1d.ax[0][k].set_xlabel(pos0_label)
-            grid1d.ax[0][k].set_title(f'Tube ID {uid}')
-            if log_scale:
-                grid1d.ax[0][k].set_yscale('log')
-            if k == 0:
-                grid1d.ax[0][k].set_ylabel('counts')
 
     def plot_tof_xy(self, fig_num=102):
         if self.is_empty:

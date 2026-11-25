@@ -14,6 +14,7 @@ import os
 import sys
 import numpy as np
 import json
+from pathlib import Path
 from collections import defaultdict
 from types import SimpleNamespace
 import matplotlib.pyplot as plt
@@ -63,10 +64,14 @@ class MBUTYOrchestrator():
         self.parameters.validate()
         self.parameters.set_acqMode()
         
-        config_path = os.path.join(
+        config_path = Path(os.path.join(
             self.parameters.fileManagement.configFilePath,
             self.parameters.fileManagement.configFileName
-        )
+            ))
+        
+        if config_path.suffix.lower() != ".json":
+            config_path = Path(f"{config_path}.json")
+        
         try:
             with open(config_path, 'r') as f:
                 self.config = json.load(f)
@@ -365,6 +370,8 @@ if __name__ == '__main__':
     
     # configFileName  = "MG_testVessandBOX.json"
     
+    # configFileName  = "He3_BIFROST_15tubes.json"
+    
     # configFileName  = "skadi1.json"
     # configFileName  = "skadi_full.json"
     
@@ -380,9 +387,9 @@ if __name__ == '__main__':
 
     # configFileName  = "ESTIA.json"
     
-    # configFileName  = "MIRACLES24.json"
+    # configFileName  = "He3_MIRACLES24.json"
     # configFileName  = "CSPEC.json"
-    # configFileName  = "MIRACLES1.json"
+    # configFileName  = "He3_MIRACLES1.json"
 
     # configFileName  = "ESTIA_sect0.json"
     # configFileName  = "ESTIA_sect1.json"
@@ -467,6 +474,10 @@ if __name__ == '__main__':
     
     # parameters.fileManagement.fileName = ['MG_box1data.pcapng']
     
+    
+    # parameters.fileManagement.fileName = ['BIFROST_15tubes.pcapng']
+    
+    
     # parameters.fileManagement.fileName = ['20260522_153423_duration_s_5_fullyOpenAgain_00000_vkjaa.pcapng']
     
     
@@ -484,7 +495,7 @@ if __name__ == '__main__':
     
     # parameters.fileManagement.fileName = ['skadiDataQ.pcapng']
     
-    # parameters.fileManagement.fileName = ['miracles24doublets.pcapng']
+    # parameters.fileManagement.fileName = ['miracles_24doublets.pcapng']
     
     # parameters.fileManagement.fileName = ['skadi_48tiles.pcapng']
     
@@ -509,7 +520,7 @@ if __name__ == '__main__':
     ###############
     ### type of pcap file loading, prealloc of memeory with allocate or quick, allocate is more rigorous, quick estimates the memory and it is faster 
     parameters.fileManagement.pcapLoadingMethod = 'allocate'
-    parameters.fileManagement.pcapLoadingMethod = 'quick'
+    # parameters.fileManagement.pcapLoadingMethod = 'quick'
 
     ###############
     ### path to calibration file
@@ -669,7 +680,7 @@ if __name__ == '__main__':
     parameters.plotting.plotADCvsChlog          = False 
     parameters.plotting.plotChopperResets       = False 
 
-    parameters.plotting.plotRawHits             = False
+    parameters.plotting.plotRawHits             = True
     parameters.plotting.plotHitsTimeStamps      = False
     parameters.plotting.plotHitsTimeStampsVSChannels = False
 
